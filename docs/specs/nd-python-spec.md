@@ -5,7 +5,7 @@
 | **Date**             | 2026-03-13 |
 | **Author**           | Larah      |
 | **Status**           | Draft      |
-| **Version**          | 0.7        |
+| **Version**          | 0.8        |
 | **Last reviewed**    | 2026-03-14 |
 | **Last reviewed by** | Larah      |
 
@@ -78,7 +78,7 @@ This section specifies nd's behaviors tagged by MoSCoW priority. Requirements ar
 - **[FR-005]** The user can register one or more local directories as asset sources via CLI command or config file.
 - **[FR-006]** The user can register one or more Git repositories as asset sources via CLI command or config file. nd accepts GitHub shorthand (`owner/repo`), full Git URLs (HTTPS or SSH for any host including GitLab, Bitbucket, and self-hosted), and performs a full clone of the repository.
 - **[FR-007]** When a source is registered, nd auto-discovers assets by scanning for conventional directories at the source root only: `skills/`, `agents/`, `commands/`, `output-styles/`, `rules/`, `context/`, `plugins/`, `hooks/`. Nested structures (e.g., `go-skills/skills/`) are not discovered by convention and require either an `nd-source.yaml` manifest to specify custom paths, or a configuration option in `config.yaml` to define additional scan roots within a source. This is an intentional limitation: many real asset libraries use nested layouts, so users with non-flat source structures should expect to configure custom paths on day one.
-- **[FR-008]** When a source contains an `nd-source.yaml` manifest at its root, nd uses the manifest to override convention-based discovery (custom paths, asset metadata, exclusions).
+- **[FR-008]** When a source contains an `nd-source.yaml` manifest at its root, nd uses the manifest to override convention-based discovery (custom paths, asset metadata, exclusions). When `nd-source.yaml` is present, it completely replaces convention-based scanning for that source. Only paths listed in the manifest are scanned; convention directories not listed are ignored.
 - **[FR-009]** The user can deploy a single asset to a coding agent's configuration directory by creating a symlink. The symlink (link) is created at the target location in the agent's config directory, pointing to the source asset file or directory. Equivalent to `os.symlink(source_asset_path, agent_config_path)`.
 - **[FR-009a]** The tool creates absolute symlinks by default. The user can configure the default symlink strategy to `relative` in `config.yaml`. A `--relative` / `--absolute` CLI flag overrides the configured default for any deploy operation.
 - **[FR-010]** The user can deploy multiple assets in bulk by specifying asset types, names, or source directories.
@@ -89,8 +89,10 @@ This section specifies nd's behaviors tagged by MoSCoW priority. Requirements ar
 - **[FR-015]** The user can view all currently deployed assets, grouped by asset type, showing source path, deploy scope, and health status.
 - **[FR-016]** The tool detects installed coding agents by checking for known configuration directory structures and PATH presence. In v1, this detects Claude Code only, but the detection mechanism is extensible.
 - **[FR-016a]** When two registered sources contain an asset with the same type and name, the first registered source wins (source priority ordering). The tool prints a warning identifying the duplicate and which source takes precedence. The user can override priority via config alias.
-- **[FR-016b]** Context files are stored in named folders within the `context/` directory (e.g., `context/go-project-rules/CLAUDE.md`). The named folder is the asset identity; the file inside determines the deploy target. Only one context file can be deployed per target location (e.g., one `CLAUDE.md` at global scope). If a context file already exists at the target location, the tool warns the user and offers to back up the existing file before replacing it.
+- **[FR-016b]** Context files are stored in named folders within the `context/` directory (e.g., `context/go-project-rules/CLAUDE.md`). The named folder is the asset identity; the file inside determines the deploy target. Only one context file can be deployed per target location (e.g., one `CLAUDE.md` at global scope). If a context file already exists at the target location, the tool warns the user and offers to back up the existing file before replacing it. Backups are stored in `~/.config/nd/backups/` with the naming format `{original-filename}.{ISO-timestamp}.bak`.
 - **[FR-016c]** Context folders may contain an optional `_meta.yaml` file with metadata (description, tags, target language, target project, target agent). The CLI and TUI display this metadata when listing context assets to help users decide which context to deploy.
+- **[FR-015a]** The user can list all discovered assets from all registered sources, filtered by asset type, source name, or deployment status. Both CLI and TUI provide this capability.
+- **[FR-005a]** The user can unregister a source. Unregistering warns about any currently deployed assets from that source and requires confirmation before proceeding. Deployed assets from the removed source are not automatically removed.
 
 ### Should have
 
@@ -128,10 +130,10 @@ This section specifies nd's behaviors tagged by MoSCoW priority. Requirements ar
 - **[FR-038]** File copy as a deployment strategy (alternative to symlinks). Deferred because: symlinks cover macOS use cases; copy introduces sync complexity. Reconsider when: Windows or Linux support is prioritized or users report symlink limitations.
 - **[FR-039]** Template rendering for deployed assets (variable substitution in asset files at deploy time). Deferred because: adds complexity to the deployment model and blurs the line with content editing. Reconsider when: users demonstrate a concrete need for per-project asset customization.
 - **[FR-040]** Profile inheritance (profiles that extend other profiles). Deferred because: adds complexity to profile resolution with minimal immediate benefit. Reconsider when: users report managing many similar profiles that differ by a few assets.
-- **[FR-041]** Asset content editing or creation within nd. Deferred because: content authoring belongs in editors and AI agents, not in a deployment tool. Reconsider when: never (this is a design principle, not a deferral).
+- **[FR-041]** Asset content editing or creation within nd. Deferred because: content authoring belongs in editors and AI agents, not in a deployment tool. This is a permanent design principle rather than a deferral; it will not be reconsidered.
 - **[FR-042]** Memory file management (`MEMORY.md`, agent-specific memory files). Deferred because: memory files are created and maintained by Claude Code or agents at runtime, and managing them introduces ownership and staleness concerns. Reconsider when: v1 is stable and users demonstrate a need for memory backup and redeployment workflows.
 
-**MoSCoW distribution:** Must: 20 (added FR-009a, FR-016a, FR-016b, FR-016c), Should: 15, Could: 9 (added FR-036b), Won't: 6 (added FR-042). Must Have ratio: 20/50 = 40%. Within the 60% ceiling.
+**MoSCoW distribution:** Must: 22 (added FR-009a, FR-016a, FR-016b, FR-016c, FR-015a, FR-005a), Should: 15, Could: 9 (added FR-036b), Won't: 6 (added FR-042). Must Have ratio: 22/52 = 42%. Within the 60% ceiling.
 
 ## Non-functional requirements
 
@@ -144,8 +146,17 @@ This section defines quality attributes for nd. These are measurable constraints
 - **[NFR-005]** Configuration validation: The tool must validate config files on load and report all validation errors with line numbers before proceeding.
 - **[NFR-006]** Graceful degradation: If a registered source is unavailable (directory missing, repo not cloned), the tool must warn and continue operating with available sources rather than crashing.
 - **[NFR-007]** Maintainability: The codebase must follow a `src` layout with `pyproject.toml`, use Protocol classes for agent-specific logic (to support future agents), and include Google-style docstrings with complete type annotations on all public functions, classes, and methods.
-- **[NFR-008]** Distribution: The tool must be installable via `uv tool install nd`, `pipx install nd`, or `pip install nd` from PyPI with no system-level dependencies beyond Python 3.12+ and Git. `uv` is the recommended installation method. An optional PyInstaller build target produces a standalone binary for users who prefer not to manage a Python installation.
+- **[NFR-008]** Distribution: The tool must be installable via `uv tool install nd`, `pipx install nd`, or `pip install nd` from PyPI with no system-level dependencies beyond Python 3.12+ and Git. `uv` is the recommended installation method. An optional PyInstaller build target produces a standalone binary for users who prefer not to manage a Python installation. PyInstaller builds for Textual apps require explicit data collection hooks for `.tcss` files and may produce binaries of 50-100 MB+. Code signing may be needed for macOS distribution.
 - **[NFR-009]** Test coverage: Core packages (source discovery, symlink management, profile/snapshot operations) must have unit test coverage above 80%. Tests use pytest with `coverage.py`.
+
+### Security requirements
+
+- **[NFR-010]** Asset name validation: Asset names derived from source directory/file names must be validated before use in path construction. Names must match the pattern `[a-zA-Z0-9][a-zA-Z0-9._-]*` (alphanumeric start, then alphanumeric plus dots, hyphens, underscores). Names containing path separators (`/`, `\`) or parent directory references (`..`) must be rejected. The deploy engine must verify that all constructed symlink paths resolve within the expected target directory.
+- **[NFR-011]** Source manifest path confinement: All paths specified in `nd-source.yaml` manifests must resolve within the source root directory. Absolute paths are rejected. Relative paths are resolved against the source root and validated to ensure they do not escape it (e.g., via `..` traversal). Paths that fail confinement checks are skipped with a warning.
+- **[NFR-012]** Safe deserialization: All YAML and JSON files loaded from external sources (`nd-source.yaml`, `_meta.yaml`, `hooks.json`) must use safe loading modes that prevent arbitrary code execution. For ruamel.yaml, this means using the default safe loader. For JSON, this means using `json.loads()` (which is inherently safe). This requirement applies to any file parsed from a registered source directory, whether local or cloned from Git.
+- **[NFR-013]** Source scanning safety: Source directory scanning must detect and gracefully handle circular symlinks, excessively deep directory nesting (max depth: 10 levels), and excessively large directories (warn if a single asset type directory contains more than 1000 entries). Circular symlinks are skipped with a warning. Scanning must not follow symlinks that point outside the source root.
+- **[NFR-014]** Git clone protections: Git clone operations use `--depth 1` (shallow clone) by default. The user can configure full clones via `config.yaml` or the `--full-clone` flag on `nd source add`. Clone operations have a configurable timeout (default: 120 seconds). If a clone exceeds 500MB on disk, nd warns the user and requires confirmation to continue.
+- **[NFR-015]** Symlink creation safety: The deploy engine must handle `FileExistsError` from `os.symlink()` as the authoritative conflict check rather than relying solely on pre-creation path checks (TOCTOU mitigation). When `FileExistsError` occurs, nd reports the conflict and follows the appropriate conflict resolution flow (FR-016b for context files, confirmation prompt for other types).
 
 ## User stories
 
@@ -251,10 +262,10 @@ Configuration resolves in this order (later overrides earlier):
 | Typer (via Click)  | Type-hint-driven CLI framework. Subcommand structure, flag parsing, help generation, shell completions. Reduces boilerplate compared to raw argparse. |
 | Textual            | Python TUI framework with a component model, CSS-like styling, and async support. Active community, good documentation, maintained by the Textualize team. |
 | Rich               | Terminal styling companion to Textual. Tables, panels, progress bars, and syntax highlighting for CLI output. |
-| ruamel.yaml        | YAML parsing with round-trip comment preservation. Users can edit config files without losing comments or formatting. |
+| ruamel.yaml        | YAML parsing with round-trip comment preservation. Users can edit config files without losing comments or formatting. Use for user-edited files (`config.yaml`, `nd-source.yaml`, profiles) where comment preservation matters. Machine-managed files (`deployments.yaml`, auto-snapshots) may use Pydantic's JSON serialization for better performance. |
 | os.symlink         | Zero-copy deployment. Source changes are immediately reflected. No sync lag. Absolute by default, configurable to relative. |
-| Pydantic           | Config and state model validation. Typed dataclasses with automatic YAML/JSON deserialization, validation errors with field paths, and schema generation. |
-| GitPython          | Git clone and pull operations for registered Git sources. Thin wrapper over Git CLI. Falls back gracefully if Git is not installed. |
+| Pydantic v2+       | Config and state model validation. Typed dataclasses with automatic YAML/JSON deserialization, validation errors with field paths, and schema generation. v2 is required for startup performance (NFR-001). The `pydantic.mypy` plugin must be configured for strict mode compatibility. |
+| GitPython          | Git clone and pull operations for registered Git sources. Thin wrapper over Git CLI. Falls back gracefully if Git is not installed. For v1, direct `subprocess.run(['git', ...])` calls are an acceptable lighter alternative, since nd only uses clone and pull operations. |
 
 ### Project structure
 
@@ -314,7 +325,7 @@ Each asset type maps to a specific target location within Claude Code's configur
 | commands      | `commands/cmd-name.md` (file)            | `~/.claude/commands/cmd-name.md`        | File symlink.                                                |
 | output-styles | `output-styles/style-name.md` (file)     | `~/.claude/output-styles/style-name.md` | File symlink. nd creates the `output-styles/` directory if it does not exist. The user must register the output-style in `settings.json` or `settings.local.json` manually. |
 | rules         | `rules/rule-name.md` (file)              | `~/.claude/rules/rule-name.md`          | File symlink. Rules may also be directories with nested `.md` files. |
-| context       | `context/ctx-name/CLAUDE.md` (directory) | `~/.claude/CLAUDE.md`                   | Symlink targets the context file inside the named folder (e.g., `context/go-project-rules/CLAUDE.md`), not the folder itself. The deploy target is determined by the filename inside the folder. Only one context file can be deployed per target location; deploying a second offers to back up and replace the existing one. Each context folder may contain an optional `_meta.yaml` with metadata (description, tags, target language, target project, target agent) displayed by the CLI to help users choose which context to deploy. |
+| context       | `context/ctx-name/CLAUDE.md` | `~/.claude/CLAUDE.md`                   | Symlink targets the context file inside the named folder (e.g., `context/go-project-rules/CLAUDE.md`), not the folder itself. The deploy target is determined by the filename inside the folder. Only one context file can be deployed per target location; deploying a second offers to back up and replace the existing one. Each context folder may contain an optional `_meta.yaml` with metadata (description, tags, target language, target project, target agent) displayed by the CLI to help users choose which context to deploy. |
 | plugins       | `plugins/plugin-name/` (directory)       | Managed by Claude Code's plugin system  | nd does not symlink plugins directly. Plugin deploy uses `nd export` to produce plugin format, then the user installs via Claude Code's `/plugin install`. |
 | hooks         | `hooks/hook-name/` (directory)           | `~/.claude/hooks/hook-name`             | Directory symlink. Each hook folder contains a `hooks.json` config, an executable script (any supported language), and an optional `README.md`. nd creates the `hooks/` directory if it does not exist. The user must also register the hook in `settings.json` or `settings.local.json` manually. Hooks can alternatively be deployed via plugin export (FR-030). |
 
@@ -442,6 +453,9 @@ This section defines behavior tiers for AI agents implementing this spec. These 
 - Always write deployment state changes to `~/.config/nd/state/deployments.yaml` after any deploy, remove, or sync operation.
 - Always use the configuration hierarchy (defaults, global config, project config, CLI flags) when resolving settings.
 - Always run tests for core packages (source discovery, symlink management, profile/snapshot operations) before committing changes.
+- Always validate asset names against the allowed pattern before constructing symlink paths.
+- Always verify that constructed symlink paths resolve within the expected target directory.
+- Always use safe YAML/JSON loading for files from registered sources.
 
 ### Ask-first
 
@@ -458,6 +472,8 @@ This section defines behavior tiers for AI agents implementing this spec. These 
 - Never delete source asset files. Removal operations only delete symlinks in the target agent config directory.
 - Never store secrets, API keys, or credentials in nd's configuration files.
 - Never make network requests other than Git clone and pull operations for registered Git sources.
+- Never follow symlinks that point outside a source root directory during scanning.
+- Never construct symlink paths using unsanitized asset names from external sources.
 
 ## Success criteria
 
@@ -489,6 +505,7 @@ This section defines behavior tiers for AI agents implementing this spec. These 
 
 | Version | Date       | Author | Changes                                                      |
 | ------- | ---------- | ------ | ------------------------------------------------------------ |
+| 0.8     | 2026-03-14 | Larah  | Audit remediation: added CLI command reference section, security requirements (NFR-010 through NFR-015), deployment state schema with atomic writes and journaling, schema versioning and migration, graceful degradation for corrupted state; promoted FR-027 and FR-029a to Must Have; qualified Goal 5 as stretch goal; resolved plugin v1 exclusions; added profile population mechanism, snapshot user story (US-007) and success criterion (SC-10); restored and resolved Q2, Q10, Q11, Q12, Q13; completed global deployment table; clarified context folder semantics, directory creation policy, conflict resolution, git pull failure handling; added implementation guidance to NFR-001, NFR-008, NFR-009. |
 | 0.7     | 2026-03-14 | Larah  | Profile format: closed Q4 — profiles store asset references `(source_id, asset_type, asset_name)` as primary with absolute path cached as fallback hint. |
 | 0.6     | 2026-03-14 | Larah  | Distribution: added `uv tool install` as recommended installation method in A7 and NFR-008; closed Q9 as resolved (`uv` primary, `pipx`/`pip` also supported, PyInstaller optional). |
 | 0.5     | 2026-03-14 | Larah  | Orphan removal: updated FR-014 to specify that orphaned symlinks (source asset renamed or deleted) are automatically removed along with their deployment state entry; closed Q5 as resolved. |
