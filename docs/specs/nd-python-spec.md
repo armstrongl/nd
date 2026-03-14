@@ -18,7 +18,7 @@
 - **Functional requirements:** Specifies nd's behaviors tagged by MoSCoW priority, ordered by implementation dependency.
 - **Non-functional requirements:** Defines quality attributes for performance, reliability, and maintainability.
 - **User stories:** Describes key workflows from the user's perspective with acceptance criteria.
-- **Technical design:** Captures high-level architecture, component structure, technology decisions, asset deployment mapping, and asset identity model.
+- **Technical design:** Captures high-level architecture, component structure, technology decisions, asset deployment mapping, asset identity model, and CLI command reference.
 - **Boundaries:** Defines agent behavior tiers (always, ask-first, never) for AI agents implementing this spec.
 - **Success criteria:** Defines how to determine whether the project succeeded.
 - **Open questions:** Lists unresolved decisions categorized by implementation impact.
@@ -440,6 +440,213 @@ nd consolidates its data under `~/.config/nd/`. Configuration, persistent data (
 ~/.cache/nd/
 └── index/               # Asset discovery cache (rebuildable)
 ```
+
+### CLI command reference
+
+This section defines the complete CLI command tree, including syntax, flags, and descriptions. Every operation available in the TUI is also available as a CLI subcommand (FR-002).
+
+#### Asset reference format
+
+Commands that accept asset arguments use the format `[SOURCE:]TYPE/NAME`.
+
+- **TYPE** is one of: `skills`, `agents`, `commands`, `output-styles`, `rules`, `context`, `hooks`.
+- **SOURCE** is optional. If omitted, the tool resolves the asset using source priority ordering (FR-016a).
+- **NAME** is the asset name (directory name for skills/plugins/hooks/context, filename without extension for files).
+
+Examples: `skills/my-skill`, `my-repo:agents/reviewer`, `context/go-rules`.
+
+#### Global flags
+
+These flags are available on all commands:
+
+| Flag | Description |
+| --- | --- |
+| `--scope global\|project` | Target scope. Default: `project` if `.claude/` exists in the current directory, else `global`. |
+| `--dry-run` | Preview changes without executing. |
+| `--yes` / `-y` | Skip confirmation prompts. |
+| `--verbose` / `-v` | Detailed output. |
+| `--quiet` / `-q` | Minimal output (errors only). |
+| `--no-color` | Disable color output. Also respects the `NO_COLOR` environment variable. |
+| `--json` | Machine-readable JSON output. |
+| `--help` / `-h` | Show help for any command. |
+
+#### Subcommand tree
+
+```text
+nd                        # Launch TUI (FR-001)
+nd list                   # List assets (FR-015a)
+nd status                 # Show deployment status (FR-015)
+nd deploy                 # Deploy assets (FR-009, FR-010)
+nd remove                 # Remove deployed assets (FR-012)
+nd check                  # Check deployment health (FR-013, FR-014)
+nd source add             # Register source (FR-005, FR-006)
+nd source remove          # Unregister source (FR-005a)
+nd source list            # List registered sources
+nd source sync            # Git pull for source(s) (FR-027)
+nd profile create         # Create profile (FR-022)
+nd profile switch         # Switch profile (FR-023)
+nd profile list           # List profiles
+nd profile current        # Show active profile
+nd profile delete         # Delete profile
+nd pin                    # Pin assets (FR-024a)
+nd unpin                  # Unpin assets (FR-024a)
+nd snapshot save          # Save snapshot (FR-020)
+nd snapshot restore       # Restore snapshot (FR-021)
+nd snapshot list          # List snapshots
+nd init                   # First-time setup (FR-025)
+nd settings edit          # Open config in editor (FR-026)
+nd export                 # Plugin export (FR-030, Could Have)
+nd uninstall              # Remove all nd artifacts (FR-036a, Could Have)
+```
+
+#### Per-command details
+
+**`nd`** (no arguments)
+
+Launches the interactive TUI session (FR-001). Prompts for scope and agent selection (FR-029).
+
+**`nd list [--type TYPE] [--source NAME] [--deployed] [--available]`**
+
+Lists all discovered assets from all registered sources (FR-015a).
+
+| Flag | Description |
+| --- | --- |
+| `--type TYPE` | Filter by asset type (e.g., `skills`, `agents`). |
+| `--source NAME` | Filter by source name. |
+| `--deployed` | Show only currently deployed assets. |
+| `--available` | Show only assets not yet deployed. |
+
+Default behavior: shows all assets with a deployment status indicator.
+
+**`nd status [--scope SCOPE]`**
+
+Shows deployment status, health summary, active profile, and count of deployed assets and issues (FR-015, FR-018).
+
+| Flag | Description |
+| --- | --- |
+| `--scope global\|project` | Limit status to a specific scope. |
+
+**`nd deploy ASSET... [--scope SCOPE] [--relative | --absolute] [--dry-run]`**
+
+Deploys one or more assets by creating symlinks in the agent's configuration directory (FR-009, FR-010). ASSET uses the `[SOURCE:]TYPE/NAME` format.
+
+| Flag | Description |
+| --- | --- |
+| `--scope global\|project` | Target scope for deployment (FR-011). |
+| `--relative` | Create relative symlinks (FR-009a). |
+| `--absolute` | Create absolute symlinks (FR-009a, default). |
+| `--dry-run` | Preview symlinks without creating them (FR-036). |
+
+**`nd remove ASSET... [--scope SCOPE] [--dry-run] [--yes]`**
+
+Removes one or more deployed assets by deleting their symlinks (FR-012). Does not affect source files. Warns if a targeted asset is pinned (FR-024a).
+
+| Flag | Description |
+| --- | --- |
+| `--scope global\|project` | Limit removal to a specific scope. |
+| `--dry-run` | Preview which symlinks would be deleted. |
+| `--yes` / `-y` | Skip confirmation for pinned assets. |
+
+**`nd check [--fix] [--scope SCOPE]`**
+
+Checks deployment health: detects broken symlinks, drift, and orphaned entries (FR-013). With `--fix`, repairs detected issues by re-creating symlinks or removing orphans (FR-014).
+
+| Flag | Description |
+| --- | --- |
+| `--fix` | Automatically repair detected issues. |
+| `--scope global\|project` | Limit check to a specific scope. |
+
+**`nd source add PATH_OR_URL [--name NAME]`**
+
+Registers a local directory or Git repository as an asset source (FR-005, FR-006). Accepts local paths, GitHub shorthand (`owner/repo`), and full Git URLs (HTTPS or SSH).
+
+| Flag | Description |
+| --- | --- |
+| `--name NAME` | Assign a human-readable name to the source. Auto-generated if omitted. |
+
+**`nd source remove NAME`**
+
+Unregisters a source by name (FR-005a). Warns about any currently deployed assets from the source and requires confirmation.
+
+**`nd source list`**
+
+Lists all registered sources with their type (local or Git), path, and asset count.
+
+**`nd source sync [NAME]`**
+
+Performs a `git pull` on Git-sourced repositories (FR-027). If NAME is provided, syncs only that source. If omitted, syncs all Git sources.
+
+**`nd profile create NAME [--from-current | --from-file FILE]`**
+
+Creates a named profile (FR-022).
+
+| Flag | Description |
+| --- | --- |
+| `--from-current` | Captures the current deployment state as the profile definition. |
+| `--from-file FILE` | Reads a YAML asset list to define the profile. |
+
+If neither flag is provided, creates an empty profile for manual editing.
+
+**`nd profile switch NAME`**
+
+Switches to the named profile (FR-023). Removes assets belonging to the current profile (excluding pinned and manually deployed assets) and deploys the target profile's assets. Creates an auto-snapshot before switching (FR-029a).
+
+**`nd profile list`**
+
+Lists all saved profiles with their asset counts.
+
+**`nd profile current`**
+
+Displays the name of the active profile, or indicates that no profile is active.
+
+**`nd profile delete NAME [--yes]`**
+
+Deletes a saved profile. Requires confirmation unless `--yes` is provided. Does not remove deployed assets.
+
+**`nd pin ASSET...`**
+
+Pins one or more assets so they persist across profile switches (FR-024a). ASSET uses the `[SOURCE:]TYPE/NAME` format.
+
+**`nd unpin ASSET...`**
+
+Removes the pin from one or more assets. The assets remain deployed but will be removed on the next profile switch if they are not in the target profile.
+
+**`nd snapshot save NAME`**
+
+Saves the current deployment state as a named snapshot (FR-020).
+
+**`nd snapshot restore NAME [--yes]`**
+
+Restores a previously saved snapshot, deploying all recorded assets (FR-021). Creates an auto-snapshot before restoring (FR-029a). Requires confirmation unless `--yes` is provided.
+
+**`nd snapshot list`**
+
+Lists all user-created and auto-snapshots with timestamps and asset counts.
+
+**`nd init`**
+
+Runs the first-time setup workflow: guided source registration, agent selection, and scope configuration (FR-025).
+
+**`nd settings edit`**
+
+Opens `~/.config/nd/config.yaml` in the user's default editor (FR-026). Uses the `EDITOR` environment variable, falling back to `vi`.
+
+**`nd export [--output DIR]`**
+
+Exports selected assets as a Claude Code plugin directory structure (FR-030, Could Have).
+
+| Flag | Description |
+| --- | --- |
+| `--output DIR` | Output directory for the exported plugin. Defaults to current directory. |
+
+**`nd uninstall [--dry-run] [--yes]`**
+
+Lists all nd-managed symlinks across all scopes and removes them. Optionally deletes nd's own directories (`~/.config/nd/`, `~/.cache/nd/`). Requires explicit confirmation (FR-036a, Could Have).
+
+| Flag | Description |
+| --- | --- |
+| `--dry-run` | Show what would be removed without deleting anything. |
+| `--yes` / `-y` | Skip confirmation prompts. |
 
 ## Boundaries
 
