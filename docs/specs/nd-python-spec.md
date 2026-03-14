@@ -145,7 +145,7 @@ This section defines quality attributes for nd. These are measurable constraints
 - **[NFR-003]** Bulk deploy performance: Deploying 50 assets must complete within 5 seconds.
 - **[NFR-004]** Error reporting: Every operation that fails must produce a human-readable error message that names the specific asset, path, and failure reason. No silent failures.
 - **[NFR-005]** Configuration validation: The tool must validate config files on load and report all validation errors with line numbers before proceeding.
-- **[NFR-006]** Graceful degradation: If a registered source is unavailable (directory missing, repo not cloned), the tool must warn and continue operating with available sources rather than crashing.
+- **[NFR-006]** Graceful degradation: If a registered source is unavailable (directory missing, repo not cloned), the tool must warn and continue operating with available sources rather than crashing. If `~/.config/nd/` does not exist, nd creates it with the default directory structure on first run. If `deployments.yaml` is missing, nd treats the deployment state as empty. If `deployments.yaml` exists but fails validation, nd warns the user, offers to back up the corrupted file to `~/.config/nd/backups/`, and re-initializes with empty state. nd must never crash due to missing or corrupted state files.
 - **[NFR-007]** Maintainability: The codebase must follow a `src` layout with `pyproject.toml`, use Protocol classes for agent-specific logic (to support future agents), and include Google-style docstrings with complete type annotations on all public functions, classes, and methods.
 - **[NFR-008]** Distribution: The tool must be installable via `uv tool install nd`, `pipx install nd`, or `pip install nd` from PyPI with no system-level dependencies beyond Python 3.12+ and Git. Runtime dependencies include Pydantic v2+ (`pydantic>=2.0`), which is required for NFR-001 startup performance. `uv` is the recommended installation method. An optional PyInstaller build target produces a standalone binary for users who prefer not to manage a Python installation. PyInstaller builds for Textual apps require explicit data collection hooks for `.tcss` files and may produce binaries of 50-100 MB+. Code signing may be needed for macOS distribution.
 - **[NFR-009]** Test coverage: Core packages (source discovery, symlink management, profile/snapshot operations) must have unit test coverage above 80%. Tests use pytest with `coverage.py`. TUI screens and key navigation flows must have rendering and interaction tests using Textual's `pilot` testing framework.
@@ -448,8 +448,11 @@ nd consolidates its data under `~/.config/nd/`. Configuration, persistent data (
 │   │   └── snapshot-name.yaml
 │   └── auto/            # Auto-snapshots (last 5 retained)
 │       └── auto-2026-03-13T10-30-00.yaml
+├── backups/             # Corrupted file backups (NFR-006)
 └── state/
-    └── deployments.yaml # Tracks current deployment state
+    ├── deployments.yaml # Tracks current deployment state
+    ├── deployments.lock # Advisory lock for concurrent access
+    └── journal.yaml     # Write-ahead journal (transient)
 
 ~/.cache/nd/
 └── index/               # Asset discovery cache (rebuildable)
@@ -663,6 +666,91 @@ Lists all nd-managed symlinks across all scopes and removes them. Optionally del
 | --- | --- |
 | `--dry-run` | Show what would be removed without deleting anything. |
 | `--yes` / `-y` | Skip confirmation prompts. |
+
+### Deployment state schema
+
+nd tracks all active deployments in `~/.config/nd/state/deployments.yaml`. This file is the single source of truth for what is currently deployed, where, and why.
+
+```yaml
+# ~/.config/nd/state/deployments.yaml
+version: 1
+deployments:
+  - source_id: "my-assets"
+    asset_type: "skills"
+    asset_name: "go-tdd"
+    scope: "project"
+    project_path: "/Users/dev/my-project"  # null for global scope
+    link_path: "/Users/dev/my-project/.claude/skills/go-tdd"
+    target_path: "/Users/dev/assets/skills/go-tdd"
+    origin: "profile:go-dev"  # or "pinned" or "manual"
+    deployed_at: "2026-03-14T10:30:00Z"
+    symlink_type: "absolute"  # or "relative"
+```
+
+Field definitions:
+
+- **`source_id`**: Registered source name. Matches the identity used in `nd source add`.
+- **`asset_type`**: One of the 7 deployable asset types: skills, agents, commands, output-styles, rules, context, hooks. Plugins are excluded (they modify `.mcp.json`, not symlinks).
+- **`asset_name`**: The asset's name within its type directory in the source.
+- **`scope`**: `"global"` or `"project"`. Global deployments target `~/.claude/`; project deployments target the project's `.claude/` directory.
+- **`project_path`**: Absolute path to the project root when scope is `"project"`. Set to `null` when scope is `"global"`.
+- **`link_path`**: Absolute path where the symlink was created.
+- **`target_path`**: Absolute path the symlink points to (the source asset file or directory).
+- **`origin`**: How the deployment was initiated. One of: `"profile:<name>"` (deployed as part of a profile), `"pinned"` (marked as pinned and protected from profile switches), or `"manual"` (deployed directly by the user).
+- **`deployed_at`**: ISO 8601 timestamp recording when the deployment was created.
+- **`symlink_type`**: `"absolute"` or `"relative"`, recording which symlink strategy was used for this deployment.
+
+When `nd status` runs from a project directory, it filters entries by scope and project_path to show only relevant deployments. Global-scope entries are always shown regardless of the current directory.
+
+### State file integrity
+
+All state files managed by nd (deployments.yaml, profile YAML, snapshot YAML) must be written safely to prevent corruption from interrupted writes, concurrent access, or failed multi-step operations.
+
+**Atomic writes.** All writes to state files must use the write-to-temp-then-rename pattern: write to a temporary file in the same directory using `tempfile.NamedTemporaryFile(dir=..., delete=False)`, then atomically replace with `os.replace()`. This prevents corruption from interrupted writes or crashes mid-write.
+
+**Advisory file locking.** Read-modify-write operations on `deployments.yaml` must acquire an advisory lock using `fcntl.flock()` (or the `filelock` package for cross-platform compatibility). The lock file is `~/.config/nd/state/deployments.lock`. Lock acquisition has a 5-second timeout; if the lock cannot be acquired, nd reports which process holds it and exits with an error.
+
+**Write-ahead journaling.** Multi-step operations (profile switch, snapshot restore, bulk deploy, bulk remove) write a journal file before starting: `~/.config/nd/state/journal.yaml`. The journal records the operation type, timestamp, list of planned steps (each with action, asset identity, link_path, target_path), and completion status per step. On successful completion, the journal is deleted. On startup, nd checks for an incomplete journal and offers to resume (complete remaining steps) or rollback (undo completed steps).
+
+Journal schema:
+
+```yaml
+# ~/.config/nd/state/journal.yaml
+version: 1
+operation: "profile_switch"
+started_at: "2026-03-14T10:30:00Z"
+from_profile: "go-dev"
+to_profile: "web-dev"
+steps:
+  - action: "remove"
+    asset: {source_id: "x", asset_type: "skills", asset_name: "go-tdd"}
+    link_path: "/Users/dev/my-project/.claude/skills/go-tdd"
+    status: "completed"  # or "pending"
+  - action: "deploy"
+    asset: {source_id: "y", asset_type: "skills", asset_name: "react-dev"}
+    link_path: "/Users/dev/my-project/.claude/skills/react-dev"
+    target_path: "/Users/dev/assets/skills/react-dev"
+    status: "pending"
+```
+
+### Schema versioning and migration
+
+All YAML files managed by nd include a `version:` field at the document root. The current schema version for each file type:
+
+- `config.yaml`: version 1
+- `deployments.yaml`: version 1
+- Profile YAML: version 1
+- Snapshot YAML: version 1
+- `nd-source.yaml`: version 1 (optional; source manifests from before versioning are treated as version 0)
+
+When nd loads a file with an older version than expected, it:
+
+1. Creates a backup of the original file (`.bak` suffix with timestamp, e.g., `deployments.yaml.bak.2026-03-14T10-30-00`)
+2. Migrates to the current version using Pydantic model validators
+3. Writes the migrated file back (using the atomic write pattern)
+4. Logs the migration in the operation log
+
+When nd encounters a file with a newer version than it supports, it exits with an error instructing the user to upgrade nd.
 
 ## Boundaries
 
