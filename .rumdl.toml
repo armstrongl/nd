@@ -23,7 +23,8 @@ style = "dash"
 indent = 2
 
 [MD013]
-line-length = 120
+line-length = 0
+reflow = true
 code-blocks = false
 tables = false
 headings = false
