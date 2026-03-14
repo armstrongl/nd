@@ -537,6 +537,8 @@ Deploys one or more assets by creating symlinks in the agent's configuration dir
 | `--absolute` | Create absolute symlinks (FR-009a, default). |
 | `--dry-run` | Preview symlinks without creating them (FR-036). |
 
+Bulk operations (deploying multiple assets, profile switches, snapshot restores) display a Rich progress bar showing the current asset, progress count, and elapsed time. Auto-snapshot creation is indicated before the operation begins.
+
 **`nd remove ASSET... [--scope SCOPE] [--dry-run] [--yes]`**
 
 Removes one or more deployed assets by deleting their symlinks (FR-012). Does not affect source files. Warns if a targeted asset is pinned (FR-024a).
