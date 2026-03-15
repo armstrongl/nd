@@ -91,6 +91,7 @@ func (sm *SourceManager) SyncSource(sourceID string) error {
 type ScanSummary struct {
 	Index    *asset.Index
 	Warnings []string
+	Errors   []error
 }
 
 // Scan discovers all assets across all registered sources and builds an index.
@@ -98,15 +99,18 @@ type ScanSummary struct {
 func (sm *SourceManager) Scan() (*ScanSummary, error) {
 	var allAssets []asset.Asset
 	var allWarnings []string
+	var allErrors []error
 
 	for _, entry := range sm.cfg.Sources {
 		result := ScanSource(entry.ID, entry.Path)
 		allAssets = append(allAssets, result.Assets...)
 		allWarnings = append(allWarnings, result.Warnings...)
+		allErrors = append(allErrors, result.Errors...)
 	}
 
 	return &ScanSummary{
 		Index:    asset.NewIndex(allAssets),
 		Warnings: allWarnings,
+		Errors:   allErrors,
 	}, nil
 }
