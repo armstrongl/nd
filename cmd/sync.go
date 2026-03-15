@@ -78,8 +78,8 @@ func newSyncCmd(app *App) *cobra.Command {
 				for _, d := range result.Removed {
 					printHuman(w, "Removed  %s/%s (source gone)\n", d.AssetType, d.AssetName)
 				}
-				for _, w := range result.Warnings {
-					printHuman(cmd.ErrOrStderr(), "Warning: %s\n", w)
+				for _, warn := range result.Warnings {
+					printHuman(cmd.ErrOrStderr(), "Warning: %s\n", warn)
 				}
 				if len(result.Repaired) == 0 && len(result.Removed) == 0 {
 					printHuman(w, "All deployments healthy.\n")

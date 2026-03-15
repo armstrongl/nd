@@ -408,15 +408,33 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 				AssetName: resolved.Name,
 				Scope:     app.Scope,
 			}
+
+			// Check for duplicate asset
+			for _, existing := range p.Assets {
+				if existing.AssetType == pa.AssetType && existing.AssetName == pa.AssetName {
+					return fmt.Errorf("asset %s/%s already exists in profile %q", pa.AssetType, pa.AssetName, profileName)
+				}
+			}
+
 			p.Assets = append(p.Assets, pa)
 			p.UpdatedAt = time.Now().Truncate(time.Second)
+
+			if app.DryRun {
+				if app.JSON {
+					return printJSON(w, p, true)
+				}
+				if !app.Quiet {
+					printHuman(w, "[dry-run] would add %s/%s to profile %q.\n", resolved.Type, resolved.Name, profileName)
+				}
+				return nil
+			}
 
 			if err := pstore.UpdateProfile(*p); err != nil {
 				return err
 			}
 
 			if app.JSON {
-				return printJSON(w, p, app.DryRun)
+				return printJSON(w, p, false)
 			}
 			if !app.Quiet {
 				printHuman(w, "Added %s/%s to profile %q.\n", resolved.Type, resolved.Name, profileName)

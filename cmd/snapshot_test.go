@@ -205,6 +205,48 @@ func TestSnapshotDeleteCmd_NotFound(t *testing.T) {
 	}
 }
 
+func TestSnapshotRestoreCmd(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy something first so snapshot has content
+	app0 := &App{}
+	rootCmd0 := NewRootCmd(app0)
+	var out bytes.Buffer
+	rootCmd0.SetOut(&out)
+	rootCmd0.SetErr(&out)
+	rootCmd0.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+	if err := rootCmd0.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	// Save a snapshot
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	out.Reset()
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "save", "restore-test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Restore with --yes (skips confirmation)
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "snapshot", "restore", "restore-test"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("restore failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "restored") || !strings.Contains(got, "restore-test") {
+		t.Errorf("expected restore confirmation in output, got: %s", got)
+	}
+}
+
 func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 

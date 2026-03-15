@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/larah/nd/internal/nd"
@@ -103,6 +104,18 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 				return nil
 			}
 
+			if !app.Quiet {
+				printHuman(w, "Will restore %d deployments from snapshot %q.\n", len(snap.Deployments), name)
+			}
+			ok, err := confirm(cmd.InOrStdin(), w, "Proceed with restore?", app.Yes)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				printHuman(w, "Restore cancelled.\n")
+				return nil
+			}
+
 			profMgr, err := app.ProfileManager()
 			if err != nil {
 				return err
@@ -115,7 +128,7 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 
 			eng, err := app.DeployEngine()
 			if err != nil {
-				return err
+				return fmt.Errorf("init deploy engine: %w", err)
 			}
 
 			result, err := profMgr.Restore(name, eng, summary.Index)
@@ -167,7 +180,7 @@ func newSnapshotListCmd(app *App) *cobra.Command {
 			}
 
 			if app.JSON {
-				return printJSON(w, snapshots, app.DryRun)
+				return printJSON(w, snapshots, false)
 			}
 
 			if len(snapshots) == 0 {
@@ -206,6 +219,9 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 			// Try user snapshot first, then auto
 			err = pstore.DeleteSnapshot(name, false)
 			if err != nil {
+				if !strings.Contains(err.Error(), "not found") {
+					return err
+				}
 				err = pstore.DeleteSnapshot(name, true)
 				if err != nil {
 					return fmt.Errorf("snapshot %q not found", name)
