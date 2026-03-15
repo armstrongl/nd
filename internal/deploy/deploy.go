@@ -350,3 +350,111 @@ func (e *Engine) pruneBackups(baseName string, maxKeep int) {
 		}
 	}
 }
+
+// DeployBulk deploys multiple assets with fail-open behavior (FR-010).
+// Acquires lock once, loads state once, saves once at the end.
+func (e *Engine) DeployBulk(reqs []DeployRequest) (*BulkDeployResult, error) {
+	var result BulkDeployResult
+
+	err := e.store.WithLock(func() error {
+		st, _, err := e.store.Load()
+		if err != nil {
+			return fmt.Errorf("load state: %w", err)
+		}
+
+		for _, req := range reqs {
+			dr, err := e.deployOne(req, st)
+			if err != nil {
+				result.Failed = append(result.Failed, DeployError{
+					AssetName:  req.Asset.Name,
+					AssetType:  req.Asset.Type,
+					SourcePath: req.Asset.SourcePath,
+					Err:        err,
+				})
+				continue
+			}
+			result.Succeeded = append(result.Succeeded, *dr)
+		}
+
+		return e.store.Save(st)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// Remove removes a single deployed asset (FR-012).
+func (e *Engine) Remove(req RemoveRequest) error {
+	return e.store.WithLock(func() error {
+		st, _, err := e.store.Load()
+		if err != nil {
+			return fmt.Errorf("load state: %w", err)
+		}
+
+		if err := e.removeOne(req, st); err != nil {
+			return err
+		}
+
+		return e.store.Save(st)
+	})
+}
+
+// RemoveBulk removes multiple deployed assets with fail-open behavior (FR-012).
+func (e *Engine) RemoveBulk(reqs []RemoveRequest) (*BulkRemoveResult, error) {
+	var result BulkRemoveResult
+
+	err := e.store.WithLock(func() error {
+		st, _, err := e.store.Load()
+		if err != nil {
+			return fmt.Errorf("load state: %w", err)
+		}
+
+		for _, req := range reqs {
+			if err := e.removeOne(req, st); err != nil {
+				result.Failed = append(result.Failed, RemoveError{
+					Identity: req.Identity,
+					Err:      err,
+				})
+				continue
+			}
+			result.Succeeded = append(result.Succeeded, req)
+		}
+
+		return e.store.Save(st)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// removeOne removes a single deployment within an existing lock+state context.
+func (e *Engine) removeOne(req RemoveRequest, st *state.DeploymentState) error {
+	idx := -1
+	for i, d := range st.Deployments {
+		if d.SourceID == req.Identity.SourceID &&
+			d.AssetType == req.Identity.Type &&
+			d.AssetName == req.Identity.Name &&
+			d.Scope == req.Scope {
+			if req.Scope == nd.ScopeProject && d.ProjectPath != req.ProjectRoot {
+				continue
+			}
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("deployment not found: %s/%s from %s", req.Identity.Type, req.Identity.Name, req.Identity.SourceID)
+	}
+
+	err := e.remove(st.Deployments[idx].LinkPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove symlink %s: %w", st.Deployments[idx].LinkPath, err)
+	}
+
+	st.Deployments = append(st.Deployments[:idx], st.Deployments[idx+1:]...)
+	return nil
+}
