@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/larah/nd/internal/config"
+	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/source"
 )
 
@@ -62,4 +63,25 @@ func (sm *SourceManager) Sources() []source.Source {
 		}
 	}
 	return sources
+}
+
+// SyncSource pulls updates for a Git source. Returns an error if the source
+// is not found or is not a Git source. Uses --ff-only to avoid merge commits.
+func (sm *SourceManager) SyncSource(sourceID string) error {
+	var entry *config.SourceEntry
+	for i := range sm.cfg.Sources {
+		if sm.cfg.Sources[i].ID == sourceID {
+			entry = &sm.cfg.Sources[i]
+			break
+		}
+	}
+	if entry == nil {
+		return fmt.Errorf("source %q not found", sourceID)
+	}
+
+	if entry.Type != nd.SourceGit {
+		return fmt.Errorf("source %q is type %q, not git", sourceID, entry.Type)
+	}
+
+	return gitPull(entry.Path)
 }
