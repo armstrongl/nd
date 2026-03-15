@@ -487,3 +487,144 @@ func TestManagerDeployProfileNotFound(t *testing.T) {
 		t.Error("should error on nonexistent profile")
 	}
 }
+
+// --- Restore tests ---
+
+func TestManagerRestore(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Seed existing deployment state so restore knows what to remove
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "current-skill",
+			SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual},
+	}
+
+	// Create a snapshot to restore
+	now := time.Now().Truncate(time.Second)
+	store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "restore-me", CreatedAt: now,
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old-skill",
+				SourcePath: "/src/old", LinkPath: "/link/old", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: now},
+		},
+	})
+
+	// Index has the asset from the snapshot
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "old-skill"},
+			SourcePath: "/src/old", IsDir: true},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.Restore("restore-me", eng, idx)
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if result.SnapshotName != "restore-me" {
+		t.Errorf("snapshot name: got %q", result.SnapshotName)
+	}
+	if !eng.removeBulkCalled {
+		t.Error("RemoveBulk was not called")
+	}
+	if !eng.deployBulkCalled {
+		t.Error("DeployBulk was not called")
+	}
+
+	// Active profile should be cleared after restore
+	active, _ := mgr.ActiveProfile()
+	if active != "" {
+		t.Errorf("active profile should be cleared, got %q", active)
+	}
+}
+
+func TestManagerRestoreSnapshotNotFound(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil)
+
+	_, err := mgr.Restore("nonexistent", eng, idx)
+	if err == nil {
+		t.Error("should error on nonexistent snapshot")
+	}
+}
+
+func TestManagerRestoreMissingAssets(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "has-missing", CreatedAt: now,
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "gone",
+				SourcePath: "/src/gone", LinkPath: "/link/gone", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: now},
+			{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "found",
+				SourcePath: "/src/found", LinkPath: "/link/found", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: now},
+		},
+	})
+
+	// Only "found" is in the index
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetAgent, Name: "found"},
+			SourcePath: "/src/found"},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.Restore("has-missing", eng, idx)
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if len(result.MissingAssets) != 1 {
+		t.Errorf("expected 1 missing asset, got %d", len(result.MissingAssets))
+	}
+	if result.MissingAssets[0].AssetName != "gone" {
+		t.Errorf("missing asset name: got %q", result.MissingAssets[0].AssetName)
+	}
+}
+
+func TestManagerRestoreAutoSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "auto-20260315T140000", CreatedAt: now, Auto: true,
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "restored",
+				SourcePath: "/src/restored", LinkPath: "/link/restored", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: now},
+		},
+	})
+
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "restored"},
+			SourcePath: "/src/restored"},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.Restore("auto-20260315T140000", eng, idx)
+	if err != nil {
+		t.Fatalf("Restore auto-snapshot: %v", err)
+	}
+	if result.SnapshotName != "auto-20260315T140000" {
+		t.Errorf("snapshot name: got %q", result.SnapshotName)
+	}
+}
