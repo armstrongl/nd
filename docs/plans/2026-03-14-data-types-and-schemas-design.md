@@ -4,7 +4,7 @@
 | --- | --- |
 | **Date** | 2026-03-14 |
 | **Author** | Larah |
-| **Status** | Approved |
+| **Status** | Implemented |
 | **Spec version** | nd-Go-spec.md v0.6 |
 | **Depends on** | repo-management-design.md |
 
