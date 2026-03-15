@@ -185,3 +185,61 @@ func TestGetUnknownAgent(t *testing.T) {
 		t.Error("expected error for unknown agent")
 	}
 }
+
+func TestDefaultReturnsConfiguredAgent(t *testing.T) {
+	cfg := config.Config{DefaultAgent: "claude-code"}
+	r := stubRegistry(cfg, lookPathFound, statFound)
+	r.Detect()
+	a, err := r.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "claude-code" {
+		t.Errorf("got %q, want %q", a.Name, "claude-code")
+	}
+}
+
+func TestDefaultFallsBackToFirstDetected(t *testing.T) {
+	cfg := config.Config{}
+	r := stubRegistry(cfg, lookPathFound, statFound)
+	r.Detect()
+	a, err := r.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "claude-code" {
+		t.Errorf("got %q, want %q", a.Name, "claude-code")
+	}
+}
+
+func TestDefaultErrorsWhenNoneDetected(t *testing.T) {
+	cfg := config.Config{}
+	r := stubRegistry(cfg, lookPathNotFound, statNotFound)
+	r.Detect()
+	_, err := r.Default()
+	if err == nil {
+		t.Error("expected error when no agents detected")
+	}
+}
+
+func TestDefaultErrorsWhenConfiguredAgentNotDetected(t *testing.T) {
+	cfg := config.Config{DefaultAgent: "claude-code"}
+	r := stubRegistry(cfg, lookPathNotFound, statNotFound)
+	r.Detect()
+	_, err := r.Default()
+	if err == nil {
+		t.Error("expected error when configured default agent is not detected")
+	}
+}
+
+func TestDefaultAutoDetectsIfNotCalled(t *testing.T) {
+	cfg := config.Config{}
+	r := stubRegistry(cfg, lookPathFound, statFound)
+	a, err := r.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "claude-code" {
+		t.Errorf("got %q, want %q", a.Name, "claude-code")
+	}
+}
