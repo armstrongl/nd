@@ -55,11 +55,64 @@ func New(cfg config.Config) *Registry {
 	}
 }
 
+// SetLookPath replaces the PATH lookup function (for testing).
+func (r *Registry) SetLookPath(fn func(string) (string, error)) {
+	r.lookPath = fn
+}
+
+// SetStat replaces the filesystem stat function (for testing).
+func (r *Registry) SetStat(fn func(string) (os.FileInfo, error)) {
+	r.stat = fn
+}
+
 // All returns all known agents (detected or not).
 func (r *Registry) All() []Agent {
 	result := make([]Agent, len(r.agents))
 	copy(result, r.agents)
 	return result
+}
+
+// agentBinaries maps agent names to their expected binary names in PATH.
+var agentBinaries = map[string]string{
+	"claude-code": "claude",
+}
+
+// Detect probes the system for installed agents (PATH + config dir).
+// Safe to call multiple times (subsequent calls are no-ops).
+func (r *Registry) Detect() DetectionResult {
+	if r.detected {
+		return DetectionResult{Agents: r.All()}
+	}
+
+	var warnings []string
+	anyDetected := false
+
+	for i := range r.agents {
+		binary := agentBinaries[r.agents[i].Name]
+		if binary != "" {
+			if _, err := r.lookPath(binary); err == nil {
+				r.agents[i].InPath = true
+			}
+		}
+
+		dirExists := false
+		if _, err := r.stat(r.agents[i].GlobalDir); err == nil {
+			dirExists = true
+		}
+
+		r.agents[i].Detected = r.agents[i].InPath || dirExists
+		if r.agents[i].Detected {
+			anyDetected = true
+		}
+	}
+
+	if !anyDetected {
+		warnings = append(warnings,
+			"No coding agents detected. Install Claude Code or configure a custom agent path in config.yaml (see: nd settings edit).")
+	}
+
+	r.detected = true
+	return DetectionResult{Agents: r.All(), Warnings: warnings}
 }
 
 func expandHome(path, homeDir string) string {
