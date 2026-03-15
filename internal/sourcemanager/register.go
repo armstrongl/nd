@@ -77,6 +77,32 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 	}, nil
 }
 
+// Remove unregisters a source by ID. Does not delete deployed assets
+// or cloned directories — that is the caller's responsibility.
+func (sm *SourceManager) Remove(sourceID string) error {
+	idx := -1
+	for i, s := range sm.cfg.Sources {
+		if s.ID == sourceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("source %q not found", sourceID)
+	}
+
+	removed := sm.cfg.Sources[idx]
+	sm.cfg.Sources = append(sm.cfg.Sources[:idx], sm.cfg.Sources[idx+1:]...)
+
+	if err := WriteConfig(sm.configPath, sm.cfg); err != nil {
+		// Roll back
+		sm.cfg.Sources = append(sm.cfg.Sources[:idx], append([]config.SourceEntry{removed}, sm.cfg.Sources[idx:]...)...)
+		return fmt.Errorf("save config: %w", err)
+	}
+
+	return nil
+}
+
 // AddGit registers a Git repository as an asset source by cloning it.
 // Clone target is derived from sm.sourcesDir (e.g., ~/.config/nd/sources/).
 func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error) {
