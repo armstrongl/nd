@@ -1,6 +1,7 @@
 package deploy_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -177,6 +178,200 @@ func TestSyncRemovesBroken(t *testing.T) {
 	}
 	if len(store.saved.Deployments) != 0 {
 		t.Error("state should have 0 deployments after removing broken")
+	}
+}
+
+func TestSyncRepairsDrifted(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	removedPath := ""
+	createdOld := ""
+	createdNew := ""
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return "/wrong/path", nil // drifted
+	})
+	engine.SetRemove(func(name string) error { removedPath = name; return nil })
+	engine.SetSymlink(func(old, new string) error {
+		createdOld = old
+		createdNew = new
+		return nil
+	})
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Repaired) != 1 {
+		t.Errorf("repaired: got %d, want 1", len(result.Repaired))
+	}
+	if removedPath != "/home/.claude/skills/review" {
+		t.Errorf("should have removed drifted symlink, got %q", removedPath)
+	}
+	if createdOld != "/src/skills/review" || createdNew != "/home/.claude/skills/review" {
+		t.Errorf("should have re-created correct symlink, got %q -> %q", createdOld, createdNew)
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Error("deployment should be kept after drift repair")
+	}
+}
+
+func TestSyncMissingSourceGone(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetStat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }) // source also gone
+	engine.SetRemove(func(string) error { return nil })
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Errorf("removed: got %d, want 1", len(result.Removed))
+	}
+	if len(store.saved.Deployments) != 0 {
+		t.Error("state should be empty when both symlink and source are gone")
+	}
+}
+
+func TestSyncDriftedRepairFails(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return "/wrong/path", nil // drifted
+	})
+	engine.SetRemove(func(string) error { return nil })
+	engine.SetSymlink(func(old, new string) error {
+		return fmt.Errorf("disk full")
+	})
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Warnings) != 1 {
+		t.Errorf("expected 1 warning about failed repair, got %d", len(result.Warnings))
+	}
+	// Deployment should be kept (might be fixable later)
+	if len(store.saved.Deployments) != 1 {
+		t.Error("deployment should be kept even when repair fails")
+	}
+}
+
+func TestCheckLoadError(t *testing.T) {
+	store := newMockStore()
+	store.loadErr = fmt.Errorf("corrupt state")
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	_, err := engine.Check()
+	if err == nil {
+		t.Fatal("expected error when load fails")
+	}
+}
+
+func TestSyncLoadError(t *testing.T) {
+	store := newMockStore()
+	store.loadErr = fmt.Errorf("corrupt state")
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	_, err := engine.Sync()
+	if err == nil {
+		t.Fatal("expected error when load fails")
+	}
+}
+
+func TestStatusLoadError(t *testing.T) {
+	store := newMockStore()
+	store.loadErr = fmt.Errorf("corrupt state")
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	_, err := engine.Status()
+	if err == nil {
+		t.Fatal("expected error when load fails")
+	}
+}
+
+func TestSyncHealthyNoOp(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return "/src/skills/review", nil
+	})
+	engine.SetStat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{}, nil
+	})
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Repaired) != 0 {
+		t.Errorf("repaired: got %d, want 0", len(result.Repaired))
+	}
+	if len(result.Removed) != 0 {
+		t.Errorf("removed: got %d, want 0", len(result.Removed))
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Error("deployment should remain after healthy sync")
+	}
+}
+
+func TestSyncMissingRepairFails(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetStat(func(string) (os.FileInfo, error) { return fakeFileInfo{}, nil }) // source exists
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	engine.SetSymlink(func(o, n string) error { return fmt.Errorf("disk full") })
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Errorf("removed: got %d, want 1 (failed repair should remove)", len(result.Removed))
+	}
+	if len(result.Warnings) != 1 {
+		t.Errorf("expected 1 warning about failed re-creation, got %d", len(result.Warnings))
 	}
 }
 
