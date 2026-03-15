@@ -39,6 +39,7 @@ func TestRepoNameFromURL(t *testing.T) {
 		{"git@github.com:owner/repo.git", "repo"},
 		{"owner/repo", "repo"},
 		{"owner/my-cool-skills", "my-cool-skills"},
+		{"ssh://git@github.com/owner/repo.git", "repo"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
