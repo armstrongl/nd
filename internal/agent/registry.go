@@ -126,6 +126,31 @@ func (r *Registry) Get(name string) (*Agent, error) {
 	return nil, fmt.Errorf("agent %q not found", name)
 }
 
+// Default returns the default agent: the one named in config.DefaultAgent if
+// detected, otherwise the first detected agent, otherwise an error.
+// Calls Detect() automatically if not already called.
+func (r *Registry) Default() (*Agent, error) {
+	if !r.detected {
+		r.Detect()
+	}
+
+	if r.defaultCfg != "" {
+		for i := range r.agents {
+			if r.agents[i].Name == r.defaultCfg && r.agents[i].Detected {
+				return &r.agents[i], nil
+			}
+		}
+	}
+
+	for i := range r.agents {
+		if r.agents[i].Detected {
+			return &r.agents[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("no coding agents detected; install Claude Code or configure a custom agent path in config.yaml")
+}
+
 func expandHome(path, homeDir string) string {
 	if strings.HasPrefix(path, "~/") {
 		return filepath.Join(homeDir, path[2:])
