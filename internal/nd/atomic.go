@@ -32,6 +32,11 @@ func AtomicWrite(path string, data []byte) error {
 		return fmt.Errorf("fsync temp file: %w", err)
 	}
 
+	if err := f.Chmod(0o644); err != nil {
+		cleanup()
+		return fmt.Errorf("chmod temp file: %w", err)
+	}
+
 	if err := f.Close(); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("close temp file: %w", err)
