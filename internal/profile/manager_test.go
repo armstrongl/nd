@@ -170,3 +170,320 @@ func TestManagerDeleteProfileAllowsInactive(t *testing.T) {
 		t.Error("profile should be deleted")
 	}
 }
+
+// --- Switch tests ---
+
+func TestManagerSwitch(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old-skill", Scope: nd.ScopeGlobal},
+		},
+	})
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "new-skill", Scope: nd.ScopeGlobal},
+		},
+	})
+
+	// Seed deployment state so old-skill has the correct profile origin
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old-skill",
+			SourcePath: "/src/skills/old-skill", LinkPath: "/link/old-skill",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginProfile("current")},
+	}
+
+	// Build a source index with the target asset
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "new-skill"},
+			SourcePath: "/src/skills/new-skill", IsDir: true},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.Switch("current", "target", eng, idx, "")
+	if err != nil {
+		t.Fatalf("Switch: %v", err)
+	}
+	if result.FromProfile != "current" || result.ToProfile != "target" {
+		t.Errorf("profiles: %q -> %q", result.FromProfile, result.ToProfile)
+	}
+	if !eng.removeBulkCalled {
+		t.Error("RemoveBulk was not called")
+	}
+	if !eng.deployBulkCalled {
+		t.Error("DeployBulk was not called")
+	}
+	if len(eng.removeReqs) != 1 {
+		t.Fatalf("expected 1 remove request, got %d", len(eng.removeReqs))
+	}
+	if eng.removeReqs[0].Identity.Name != "old-skill" {
+		t.Errorf("remove request name: got %q, want %q", eng.removeReqs[0].Identity.Name, "old-skill")
+	}
+	if len(eng.deployReqs) != 1 {
+		t.Fatalf("expected 1 deploy request, got %d", len(eng.deployReqs))
+	}
+	if eng.deployReqs[0].Origin != nd.OriginProfile("target") {
+		t.Errorf("deploy request origin: got %q, want %q", eng.deployReqs[0].Origin, nd.OriginProfile("target"))
+	}
+	if len(result.SkippedPinned) != 0 {
+		t.Errorf("expected 0 skipped pinned, got %d", len(result.SkippedPinned))
+	}
+	if len(result.Conflicts) != 0 {
+		t.Errorf("expected 0 conflicts, got %d", len(result.Conflicts))
+	}
+
+	// Active profile should be updated
+	active, _ := mgr.ActiveProfile()
+	if active != "target" {
+		t.Errorf("active profile should be 'target', got %q", active)
+	}
+}
+
+func TestManagerSwitchProfileNotFound(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil)
+
+	_, err := mgr.Switch("nonexistent", "also-missing", eng, idx, "")
+	if err == nil {
+		t.Error("should error on nonexistent profiles")
+	}
+}
+
+func TestManagerSwitchMissingAssetInIndex(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "from", CreatedAt: now, UpdatedAt: now,
+	})
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "to", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "missing", Scope: nd.ScopeGlobal},
+		},
+	})
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil) // Empty index — asset won't be found
+
+	result, err := mgr.Switch("from", "to", eng, idx, "")
+	if err != nil {
+		t.Fatalf("Switch should succeed with warnings: %v", err)
+	}
+	if len(result.MissingAssets) != 1 {
+		t.Errorf("expected 1 missing asset, got %d", len(result.MissingAssets))
+	}
+}
+
+func TestManagerSwitchIdenticalProfiles(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	assets := []profile.ProfileAsset{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "shared", Scope: nd.ScopeGlobal},
+	}
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "alpha", CreatedAt: now, UpdatedAt: now, Assets: assets,
+	})
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "beta", CreatedAt: now, UpdatedAt: now, Assets: assets,
+	})
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil)
+
+	result, err := mgr.Switch("alpha", "beta", eng, idx, "")
+	if err != nil {
+		t.Fatalf("Switch: %v", err)
+	}
+	if eng.removeBulkCalled {
+		t.Error("RemoveBulk should not be called for identical profiles")
+	}
+	if eng.deployBulkCalled {
+		t.Error("DeployBulk should not be called for identical profiles")
+	}
+
+	active, _ := mgr.ActiveProfile()
+	if active != "beta" {
+		t.Errorf("active profile should be 'beta', got %q", active)
+	}
+	_ = result
+}
+
+func TestManagerSwitchSkipsPinnedAssets(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "pinned-skill", Scope: nd.ScopeGlobal},
+		},
+	})
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
+	})
+
+	// Deployment state has asset X with origin "pinned" (not profile:current)
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "pinned-skill",
+			SourcePath: "/src/pinned", LinkPath: "/link/pinned",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginPinned},
+	}
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil)
+
+	result, err := mgr.Switch("current", "target", eng, idx, "")
+	if err != nil {
+		t.Fatalf("Switch: %v", err)
+	}
+
+	if eng.removeBulkCalled {
+		t.Error("RemoveBulk should not be called when all removals are skipped")
+	}
+	if len(result.SkippedPinned) != 1 {
+		t.Fatalf("expected 1 skipped pinned asset, got %d", len(result.SkippedPinned))
+	}
+	if result.SkippedPinned[0].AssetName != "pinned-skill" {
+		t.Errorf("skipped asset name: got %q, want %q", result.SkippedPinned[0].AssetName, "pinned-skill")
+	}
+}
+
+func TestManagerSwitchDetectsConflicts(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
+	})
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "manual-skill", Scope: nd.ScopeGlobal},
+		},
+	})
+
+	// Deployment state already has asset Y with origin "manual"
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "manual-skill",
+			SourcePath: "/src/manual", LinkPath: "/link/manual",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "manual-skill"},
+			SourcePath: "/src/manual", IsDir: true},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.Switch("current", "target", eng, idx, "")
+	if err != nil {
+		t.Fatalf("Switch: %v", err)
+	}
+
+	if len(result.Conflicts) != 1 {
+		t.Fatalf("expected 1 conflict, got %d", len(result.Conflicts))
+	}
+	if result.Conflicts[0].AssetName != "manual-skill" {
+		t.Errorf("conflict asset name: got %q, want %q", result.Conflicts[0].AssetName, "manual-skill")
+	}
+
+	if !eng.deployBulkCalled {
+		t.Error("DeployBulk should still be called even with conflicts")
+	}
+	if len(eng.deployReqs) != 1 {
+		t.Fatalf("expected 1 deploy request, got %d", len(eng.deployReqs))
+	}
+	if eng.deployReqs[0].Origin != nd.OriginProfile("target") {
+		t.Errorf("deploy request origin: got %q, want %q", eng.deployReqs[0].Origin, nd.OriginProfile("target"))
+	}
+}
+
+// --- DeployProfile tests ---
+
+func TestManagerDeployProfile(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	now := time.Now().Truncate(time.Second)
+	store.CreateProfile(profile.Profile{
+		Version: nd.SchemaVersion, Name: "first-profile", CreatedAt: now, UpdatedAt: now,
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "my-skill", Scope: nd.ScopeGlobal},
+		},
+	})
+
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "my-skill"},
+			SourcePath: "/src/skills/my-skill", IsDir: true},
+	})
+
+	eng := &mockDeployEngine{}
+
+	result, err := mgr.DeployProfile("first-profile", eng, idx, "")
+	if err != nil {
+		t.Fatalf("DeployProfile: %v", err)
+	}
+	if !eng.deployBulkCalled {
+		t.Error("DeployBulk was not called")
+	}
+	if eng.removeBulkCalled {
+		t.Error("RemoveBulk should not be called for first deploy")
+	}
+	if len(eng.deployReqs) != 1 {
+		t.Errorf("expected 1 deploy request, got %d", len(eng.deployReqs))
+	}
+	if eng.deployReqs[0].Origin != nd.OriginProfile("first-profile") {
+		t.Errorf("expected origin profile:first-profile, got %v", eng.deployReqs[0].Origin)
+	}
+
+	active, _ := mgr.ActiveProfile()
+	if active != "first-profile" {
+		t.Errorf("active profile should be 'first-profile', got %q", active)
+	}
+	_ = result
+}
+
+func TestManagerDeployProfileNotFound(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	eng := &mockDeployEngine{}
+	idx := asset.NewIndex(nil)
+
+	_, err := mgr.DeployProfile("nonexistent", eng, idx, "")
+	if err == nil {
+		t.Error("should error on nonexistent profile")
+	}
+}
