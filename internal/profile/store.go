@@ -171,3 +171,140 @@ func (s *Store) UpdateProfile(p Profile) error {
 	}
 	return nd.AtomicWrite(path, data)
 }
+
+// --- Snapshot methods ---
+
+// userSnapshotDir returns the directory for user-created snapshots.
+func (s *Store) userSnapshotDir() string {
+	return filepath.Join(s.snapshotsDir, "user")
+}
+
+// autoSnapshotDir returns the directory for auto-created snapshots.
+func (s *Store) autoSnapshotDir() string {
+	return filepath.Join(s.snapshotsDir, "auto")
+}
+
+// snapshotPath returns the filesystem path for a snapshot.
+func (s *Store) snapshotPath(name string, auto bool) string {
+	if auto {
+		return filepath.Join(s.autoSnapshotDir(), name+".yaml")
+	}
+	return filepath.Join(s.userSnapshotDir(), name+".yaml")
+}
+
+// SaveSnapshot validates and persists a snapshot.
+// Returns an error if a snapshot with the same name already exists.
+func (s *Store) SaveSnapshot(snap Snapshot) error {
+	if err := ValidateName(snap.Name); err != nil {
+		return fmt.Errorf("save snapshot: %w", err)
+	}
+	if errs := snap.Validate(); len(errs) > 0 {
+		return fmt.Errorf("save snapshot %q: %w", snap.Name, errs[0])
+	}
+
+	dir := s.userSnapshotDir()
+	if snap.Auto {
+		dir = s.autoSnapshotDir()
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create snapshots directory: %w", err)
+	}
+
+	path := s.snapshotPath(snap.Name, snap.Auto)
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("snapshot %q already exists", snap.Name)
+	}
+
+	data, err := yaml.Marshal(&snap)
+	if err != nil {
+		return fmt.Errorf("marshal snapshot %q: %w", snap.Name, err)
+	}
+	return nd.AtomicWrite(path, data)
+}
+
+// GetSnapshot reads a snapshot from disk.
+func (s *Store) GetSnapshot(name string, auto bool) (*Snapshot, error) {
+	if err := ValidateName(name); err != nil {
+		return nil, fmt.Errorf("get snapshot: %w", err)
+	}
+
+	data, err := os.ReadFile(s.snapshotPath(name, auto))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("snapshot %q not found", name)
+		}
+		return nil, fmt.Errorf("read snapshot %q: %w", name, err)
+	}
+
+	var snap Snapshot
+	if err := yaml.Unmarshal(data, &snap); err != nil {
+		return nil, fmt.Errorf("parse snapshot %q: %w", name, err)
+	}
+	return &snap, nil
+}
+
+// listSnapshotsInDir reads snapshot summaries from a single directory.
+func (s *Store) listSnapshotsInDir(dir string) ([]SnapshotSummary, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var summaries []SnapshotSummary
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+		name := strings.TrimSuffix(entry.Name(), ".yaml")
+		isAuto := dir == s.autoSnapshotDir()
+		snap, err := s.GetSnapshot(name, isAuto)
+		if err != nil {
+			continue
+		}
+		summaries = append(summaries, SnapshotSummary{
+			Name:            snap.Name,
+			Auto:            snap.Auto,
+			DeploymentCount: len(snap.Deployments),
+			CreatedAt:       snap.CreatedAt,
+		})
+	}
+	return summaries, nil
+}
+
+// ListSnapshots returns summaries of all snapshots (user + auto).
+func (s *Store) ListSnapshots() ([]SnapshotSummary, error) {
+	user, err := s.listSnapshotsInDir(s.userSnapshotDir())
+	if err != nil {
+		return nil, fmt.Errorf("list user snapshots: %w", err)
+	}
+	auto, err := s.listSnapshotsInDir(s.autoSnapshotDir())
+	if err != nil {
+		return nil, fmt.Errorf("list auto snapshots: %w", err)
+	}
+
+	result := append(user, auto...)
+	if result == nil {
+		result = []SnapshotSummary{}
+	}
+	return result, nil
+}
+
+// DeleteSnapshot removes a snapshot from disk.
+func (s *Store) DeleteSnapshot(name string, auto bool) error {
+	if err := ValidateName(name); err != nil {
+		return fmt.Errorf("delete snapshot: %w", err)
+	}
+
+	path := s.snapshotPath(name, auto)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("snapshot %q not found", name)
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("delete snapshot %q: %w", name, err)
+	}
+	return nil
+}

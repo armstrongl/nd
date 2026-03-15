@@ -238,3 +238,163 @@ func TestStoreUpdateProfileNotFound(t *testing.T) {
 		t.Error("should error on nonexistent profile")
 	}
 }
+
+// --- Snapshot tests ---
+
+func TestStoreSaveAndGetSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	snap := profile.Snapshot{
+		Version:   nd.SchemaVersion,
+		Name:      "before-switch",
+		CreatedAt: time.Now().Truncate(time.Second),
+		Auto:      false,
+		Deployments: []profile.SnapshotEntry{
+			{
+				SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "review",
+				SourcePath: "/a/b", LinkPath: "/c/d", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: time.Now().Truncate(time.Second),
+			},
+		},
+	}
+	if err := store.SaveSnapshot(snap); err != nil {
+		t.Fatalf("SaveSnapshot: %v", err)
+	}
+
+	got, err := store.GetSnapshot("before-switch", false)
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+	if got.Name != "before-switch" {
+		t.Errorf("name: got %q", got.Name)
+	}
+	if len(got.Deployments) != 1 {
+		t.Errorf("deployments: got %d", len(got.Deployments))
+	}
+}
+
+func TestStoreSaveSnapshotDuplicate(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	snap := profile.Snapshot{Version: nd.SchemaVersion, Name: "dup", CreatedAt: time.Now()}
+	store.SaveSnapshot(snap)
+	if err := store.SaveSnapshot(snap); err == nil {
+		t.Error("should reject duplicate snapshot name")
+	}
+}
+
+func TestStoreGetSnapshotNotFound(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	_, err := store.GetSnapshot("nope", false)
+	if err == nil {
+		t.Error("should error on nonexistent snapshot")
+	}
+}
+
+func TestStoreSaveSnapshotRejectsPlugins(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	snap := profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "bad", CreatedAt: time.Now(),
+		Deployments: []profile.SnapshotEntry{
+			{AssetType: nd.AssetPlugin, AssetName: "p"},
+		},
+	}
+	if err := store.SaveSnapshot(snap); err == nil {
+		t.Error("should reject snapshot with plugin assets")
+	}
+}
+
+func TestStoreListSnapshots(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	now := time.Now().Truncate(time.Second)
+	store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "snap-a", CreatedAt: now,
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "x",
+				SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: now},
+		},
+	})
+	store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "snap-b", CreatedAt: now,
+	})
+
+	summaries, err := store.ListSnapshots()
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(summaries) != 2 {
+		t.Fatalf("expected 2 snapshots, got %d", len(summaries))
+	}
+}
+
+func TestStoreListSnapshotsIncludesAuto(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	now := time.Now().Truncate(time.Second)
+	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "user-snap", CreatedAt: now})
+	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "auto-20260315T140000", CreatedAt: now, Auto: true})
+
+	summaries, err := store.ListSnapshots()
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(summaries) != 2 {
+		t.Fatalf("expected 2 snapshots, got %d", len(summaries))
+	}
+
+	autoCount := 0
+	for _, s := range summaries {
+		if s.Auto {
+			autoCount++
+		}
+	}
+	if autoCount != 1 {
+		t.Errorf("expected 1 auto snapshot, got %d", autoCount)
+	}
+}
+
+func TestStoreListSnapshotsEmpty(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	summaries, err := store.ListSnapshots()
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(summaries) != 0 {
+		t.Errorf("expected 0, got %d", len(summaries))
+	}
+}
+
+func TestStoreDeleteSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "doomed", CreatedAt: time.Now()})
+	if err := store.DeleteSnapshot("doomed", false); err != nil {
+		t.Fatalf("DeleteSnapshot: %v", err)
+	}
+	_, err := store.GetSnapshot("doomed", false)
+	if err == nil {
+		t.Error("snapshot should be deleted")
+	}
+}
+
+func TestStoreDeleteSnapshotNotFound(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	if err := store.DeleteSnapshot("ghost", false); err == nil {
+		t.Error("should error on nonexistent snapshot")
+	}
+}
