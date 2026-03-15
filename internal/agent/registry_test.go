@@ -166,3 +166,22 @@ func TestDetectIsIdempotent(t *testing.T) {
 		t.Errorf("lookPath called %d times, want 1 (idempotent)", callCount)
 	}
 }
+
+func TestGetFoundAgent(t *testing.T) {
+	r := agent.New(config.Config{})
+	a, err := r.Get("claude-code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "claude-code" {
+		t.Errorf("got name %q, want %q", a.Name, "claude-code")
+	}
+}
+
+func TestGetUnknownAgent(t *testing.T) {
+	r := agent.New(config.Config{})
+	_, err := r.Get("unknown")
+	if err == nil {
+		t.Error("expected error for unknown agent")
+	}
+}

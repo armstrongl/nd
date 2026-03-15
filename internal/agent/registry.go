@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -113,6 +114,16 @@ func (r *Registry) Detect() DetectionResult {
 
 	r.detected = true
 	return DetectionResult{Agents: r.All(), Warnings: warnings}
+}
+
+// Get returns the agent with the given name, or an error if not found.
+func (r *Registry) Get(name string) (*Agent, error) {
+	for i := range r.agents {
+		if r.agents[i].Name == name {
+			return &r.agents[i], nil
+		}
+	}
+	return nil, fmt.Errorf("agent %q not found", name)
 }
 
 func expandHome(path, homeDir string) string {
