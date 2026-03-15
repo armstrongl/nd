@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/larah/nd/internal/asset"
 	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/sourcemanager"
 )
@@ -120,5 +121,84 @@ func TestScanConventionAssetIdentity(t *testing.T) {
 	}
 	if !a.IsDir {
 		t.Error("skills should be directories")
+	}
+}
+
+func TestScanContextAssets(t *testing.T) {
+	root := t.TempDir()
+
+	// Create context folder structure
+	ctx1 := filepath.Join(root, "context", "go-project-rules")
+	os.MkdirAll(ctx1, 0o755)
+	os.WriteFile(filepath.Join(ctx1, "CLAUDE.md"), []byte("# Go rules"), 0o644)
+	os.WriteFile(filepath.Join(ctx1, "_meta.yaml"), []byte("description: Go project rules\ntags:\n  - go\n"), 0o644)
+
+	ctx2 := filepath.Join(root, "context", "web-frontend")
+	os.MkdirAll(ctx2, 0o755)
+	os.WriteFile(filepath.Join(ctx2, "CLAUDE.md"), []byte("# Web rules"), 0o644)
+	// No _meta.yaml for this one
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 2 {
+		t.Fatalf("expected 2 context assets, got %d", len(result.Assets))
+	}
+
+	// Find the one with metadata
+	var withMeta, withoutMeta *asset.Asset
+	for i := range result.Assets {
+		if result.Assets[i].Name == "go-project-rules" {
+			withMeta = &result.Assets[i]
+		}
+		if result.Assets[i].Name == "web-frontend" {
+			withoutMeta = &result.Assets[i]
+		}
+	}
+
+	if withMeta == nil {
+		t.Fatal("go-project-rules not found")
+	}
+	if withMeta.Type != nd.AssetContext {
+		t.Errorf("type: got %q", withMeta.Type)
+	}
+	if withMeta.ContextFile == nil {
+		t.Fatal("ContextFile should be set")
+	}
+	if withMeta.ContextFile.FolderName != "go-project-rules" {
+		t.Errorf("folder: got %q", withMeta.ContextFile.FolderName)
+	}
+	if withMeta.ContextFile.FileName != "CLAUDE.md" {
+		t.Errorf("file: got %q", withMeta.ContextFile.FileName)
+	}
+	if withMeta.Meta == nil {
+		t.Fatal("Meta should be set for asset with _meta.yaml")
+	}
+	if withMeta.Meta.Description != "Go project rules" {
+		t.Errorf("description: got %q", withMeta.Meta.Description)
+	}
+
+	if withoutMeta == nil {
+		t.Fatal("web-frontend not found")
+	}
+	if withoutMeta.Meta != nil {
+		t.Error("Meta should be nil for asset without _meta.yaml")
+	}
+	if withoutMeta.ContextFile == nil {
+		t.Fatal("ContextFile should still be set")
+	}
+}
+
+func TestScanContextLocalOnly(t *testing.T) {
+	root := t.TempDir()
+
+	ctx := filepath.Join(root, "context", "local-rules")
+	os.MkdirAll(ctx, 0o755)
+	os.WriteFile(filepath.Join(ctx, "CLAUDE.local.md"), []byte("# Local"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 asset, got %d", len(result.Assets))
+	}
+	if result.Assets[0].ContextFile.FileName != "CLAUDE.local.md" {
+		t.Errorf("file: got %q", result.Assets[0].ContextFile.FileName)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/larah/nd/internal/asset"
 	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/source"
+	"gopkg.in/yaml.v3"
 )
 
 // excludedDirs are directories that source scanning always skips (NFR-017).
@@ -84,7 +85,85 @@ func scanAssetDir(result *source.ScanResult, sourceID string, assetType nd.Asset
 }
 
 // scanContextDir scans the context/ directory for context assets.
-// Context assets use a folder-per-asset layout with optional _meta.yaml.
+// Context assets use a folder-per-asset layout (FR-016b):
+//
+//	context/
+//	  go-project-rules/
+//	    CLAUDE.md
+//	    _meta.yaml
 func scanContextDir(result *source.ScanResult, sourceID string, dirPath string) {
-	// Implemented in Task 10
+	folders, err := os.ReadDir(dirPath)
+	if err != nil {
+		result.Errors = append(result.Errors, err)
+		return
+	}
+
+	for _, folder := range folders {
+		if !folder.IsDir() || folder.Name()[0] == '.' {
+			continue
+		}
+
+		folderPath := filepath.Join(dirPath, folder.Name())
+		contextFile := findContextFile(folderPath)
+		if contextFile == "" {
+			result.Warnings = append(result.Warnings,
+				"context folder "+folder.Name()+" has no context file")
+			continue
+		}
+
+		a := asset.Asset{
+			Identity: asset.Identity{
+				SourceID: sourceID,
+				Type:     nd.AssetContext,
+				Name:     folder.Name(),
+			},
+			SourcePath: filepath.Join(folderPath, contextFile),
+			IsDir:      false,
+			ContextFile: &asset.ContextInfo{
+				FolderName: folder.Name(),
+				FileName:   contextFile,
+			},
+		}
+
+		// Load optional _meta.yaml
+		metaPath := filepath.Join(folderPath, "_meta.yaml")
+		if meta, err := loadContextMeta(metaPath); err == nil && meta != nil {
+			a.Meta = meta
+		}
+
+		result.Assets = append(result.Assets, a)
+	}
+}
+
+// findContextFile looks for a recognized context file in a folder.
+func findContextFile(folderPath string) string {
+	entries, err := os.ReadDir(folderPath)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() || e.Name()[0] == '_' {
+			continue
+		}
+		// Accept any .md file that isn't _meta.yaml
+		if filepath.Ext(e.Name()) == ".md" {
+			return e.Name()
+		}
+	}
+	return ""
+}
+
+// loadContextMeta loads and validates a _meta.yaml file.
+func loadContextMeta(path string) (*asset.ContextMeta, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var meta asset.ContextMeta
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return nil, err
+	}
+
+	return &meta, nil
 }
