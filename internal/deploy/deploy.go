@@ -19,11 +19,18 @@ type StateStore interface {
 	WithLock(fn func() error) error
 }
 
+// SnapshotSaver creates auto-snapshots before destructive bulk operations (FR-029a).
+// Implementations should be best-effort: a snapshot failure must not block the operation.
+type SnapshotSaver interface {
+	AutoSave(deployments []state.Deployment) error
+}
+
 // Engine orchestrates symlink deployment, removal, health checks, and repair.
 type Engine struct {
-	store     StateStore
-	agent     *agent.Agent
-	backupDir string
+	store         StateStore
+	agent         *agent.Agent
+	backupDir     string
+	snapshotSaver SnapshotSaver
 
 	// Injected for testing (default to os.*)
 	symlink  func(oldname, newname string) error
@@ -76,6 +83,18 @@ func (e *Engine) SetRename(fn func(oldpath, newpath string) error) { e.rename = 
 
 // SetNow replaces the time function (for testing).
 func (e *Engine) SetNow(fn func() time.Time) { e.now = fn }
+
+// SetSnapshotSaver sets the auto-snapshot saver (optional, nil disables).
+func (e *Engine) SetSnapshotSaver(s SnapshotSaver) { e.snapshotSaver = s }
+
+// autoSnapshot calls the snapshot saver if configured. Errors are logged but do not block.
+func (e *Engine) autoSnapshot(deployments []state.Deployment) {
+	if e.snapshotSaver == nil {
+		return
+	}
+	// Best-effort: ignore errors (FR-029a says auto-snapshots should not block operations)
+	_ = e.snapshotSaver.AutoSave(deployments)
+}
 
 // DeployRequest describes a single asset deployment.
 type DeployRequest struct {
@@ -362,6 +381,8 @@ func (e *Engine) DeployBulk(reqs []DeployRequest) (*BulkDeployResult, error) {
 			return fmt.Errorf("load state: %w", err)
 		}
 
+		e.autoSnapshot(st.Deployments)
+
 		for _, req := range reqs {
 			dr, err := e.deployOne(req, st)
 			if err != nil {
@@ -410,6 +431,8 @@ func (e *Engine) RemoveBulk(reqs []RemoveRequest) (*BulkRemoveResult, error) {
 		if err != nil {
 			return fmt.Errorf("load state: %w", err)
 		}
+
+		e.autoSnapshot(st.Deployments)
 
 		for _, req := range reqs {
 			if err := e.removeOne(req, st); err != nil {
