@@ -2,6 +2,7 @@ package sourcemanager_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -117,5 +118,66 @@ func TestAddLocalPersistsToConfig(t *testing.T) {
 	}
 	if sources[0].Path != sourceDir {
 		t.Errorf("persisted path: got %q, want %q", sources[0].Path, sourceDir)
+	}
+}
+
+func execGit(t *testing.T, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %s: %v", args, out, err)
+	}
+}
+
+func TestAddGitWithBareRepo(t *testing.T) {
+	sm, _ := newTestManager(t)
+
+	bareRepo := t.TempDir()
+	execGit(t, "init", "--bare", bareRepo)
+
+	src, err := sm.AddGit(bareRepo, "test-alias")
+	if err != nil {
+		t.Fatalf("AddGit: %v", err)
+	}
+	if src.Type != nd.SourceGit {
+		t.Errorf("type: got %q", src.Type)
+	}
+	if src.Alias != "test-alias" {
+		t.Errorf("alias: got %q", src.Alias)
+	}
+	if src.URL != bareRepo {
+		t.Errorf("url: got %q", src.URL)
+	}
+}
+
+func TestAddGitDuplicateURL(t *testing.T) {
+	sm, _ := newTestManager(t)
+
+	bareRepo := t.TempDir()
+	execGit(t, "init", "--bare", bareRepo)
+
+	sm.AddGit(bareRepo, "")
+
+	_, err := sm.AddGit(bareRepo, "")
+	if err == nil {
+		t.Fatal("expected error for duplicate URL")
+	}
+}
+
+func TestAddGitDuplicateAfterReload(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, _ := sourcemanager.New(configPath, "")
+
+	bareRepo := t.TempDir()
+	execGit(t, "init", "--bare", bareRepo)
+
+	sm.AddGit(bareRepo, "")
+
+	// Reload from disk — URL should be persisted
+	sm2, _ := sourcemanager.New(configPath, "")
+	_, err := sm2.AddGit(bareRepo, "")
+	if err == nil {
+		t.Fatal("expected error for duplicate URL after reload")
 	}
 }

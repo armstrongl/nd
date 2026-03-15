@@ -13,6 +13,10 @@ func ExpandGitURL(input string) string {
 	if strings.Contains(input, "://") || strings.HasPrefix(input, "git@") {
 		return input
 	}
+	// Absolute paths are valid Git URLs (file:// protocol implied)
+	if filepath.IsAbs(input) {
+		return input
+	}
 	// GitHub shorthand: owner/repo
 	parts := strings.SplitN(input, "/", 2)
 	if len(parts) == 2 && !strings.Contains(parts[0], ".") {
