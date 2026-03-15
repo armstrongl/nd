@@ -149,3 +149,20 @@ func TestDetectNoPATHNoDir(t *testing.T) {
 		t.Error("expected warning when no agents detected")
 	}
 }
+
+func TestDetectIsIdempotent(t *testing.T) {
+	callCount := 0
+	countingLookPath := func(file string) (string, error) {
+		callCount++
+		return "/usr/local/bin/" + file, nil
+	}
+	r := stubRegistry(config.Config{}, countingLookPath, statFound)
+
+	r.Detect()
+	r.Detect()
+	r.Detect()
+
+	if callCount != 1 {
+		t.Errorf("lookPath called %d times, want 1 (idempotent)", callCount)
+	}
+}
