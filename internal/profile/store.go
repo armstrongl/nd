@@ -292,6 +292,79 @@ func (s *Store) ListSnapshots() ([]SnapshotSummary, error) {
 	return result, nil
 }
 
+// AutoSnapshot creates a timestamped auto-snapshot from current deployments.
+// Auto-snapshot names use format "auto-YYYYMMDDTHHmmss-NNNNNNNNN" with nanosecond
+// precision to avoid collisions when multiple auto-snapshots are created within
+// the same second.
+func (s *Store) AutoSnapshot(deployments []SnapshotEntry) (*Snapshot, error) {
+	now := time.Now()
+	name := "auto-" + now.Format("20060102T150405") + fmt.Sprintf("-%09d", now.Nanosecond())
+
+	if deployments == nil {
+		deployments = []SnapshotEntry{}
+	}
+
+	snap := Snapshot{
+		Version:     nd.SchemaVersion,
+		Name:        name,
+		CreatedAt:   now.Truncate(time.Second),
+		Auto:        true,
+		Deployments: deployments,
+	}
+
+	dir := s.autoSnapshotDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create auto snapshot directory: %w", err)
+	}
+
+	path := s.snapshotPath(name, true)
+	data, err := yaml.Marshal(&snap)
+	if err != nil {
+		return nil, fmt.Errorf("marshal auto snapshot: %w", err)
+	}
+
+	if err := nd.AtomicWrite(path, data); err != nil {
+		return nil, fmt.Errorf("write auto snapshot: %w", err)
+	}
+
+	return &snap, nil
+}
+
+// PruneAutoSnapshots removes the oldest auto-snapshots beyond the keep limit.
+// Auto-snapshot filenames sort chronologically because they use timestamps.
+func (s *Store) PruneAutoSnapshots(keep int) error {
+	dir := s.autoSnapshotDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read auto snapshots directory: %w", err)
+	}
+
+	var yamlFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".yaml" {
+			yamlFiles = append(yamlFiles, entry.Name())
+		}
+	}
+
+	if len(yamlFiles) <= keep {
+		return nil
+	}
+
+	// ReadDir returns entries sorted by name. Timestamps sort chronologically.
+	// Remove oldest (first entries) keeping the newest `keep` entries.
+	toRemove := yamlFiles[:len(yamlFiles)-keep]
+	for _, name := range toRemove {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove auto snapshot %q: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
 // DeleteSnapshot removes a snapshot from disk.
 func (s *Store) DeleteSnapshot(name string, auto bool) error {
 	if err := ValidateName(name); err != nil {

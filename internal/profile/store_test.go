@@ -398,3 +398,101 @@ func TestStoreDeleteSnapshotNotFound(t *testing.T) {
 		t.Error("should error on nonexistent snapshot")
 	}
 }
+
+// --- Auto-snapshot and pruning tests ---
+
+func TestStoreAutoSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	deps := []profile.SnapshotEntry{
+		{
+			SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/a/b", LinkPath: "/c/d", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: time.Now().Truncate(time.Second),
+		},
+	}
+
+	snap, err := store.AutoSnapshot(deps)
+	if err != nil {
+		t.Fatalf("AutoSnapshot: %v", err)
+	}
+	if !snap.Auto {
+		t.Error("auto should be true")
+	}
+	if len(snap.Deployments) != 1 {
+		t.Errorf("deployments: got %d", len(snap.Deployments))
+	}
+
+	// Should be retrievable as auto
+	got, err := store.GetSnapshot(snap.Name, true)
+	if err != nil {
+		t.Fatalf("GetSnapshot auto: %v", err)
+	}
+	if got.Name != snap.Name {
+		t.Errorf("name mismatch: %q vs %q", got.Name, snap.Name)
+	}
+}
+
+func TestStoreAutoSnapshotEmptyDeployments(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	snap, err := store.AutoSnapshot(nil)
+	if err != nil {
+		t.Fatalf("AutoSnapshot with nil: %v", err)
+	}
+	if len(snap.Deployments) != 0 {
+		t.Errorf("deployments: got %d", len(snap.Deployments))
+	}
+}
+
+func TestStorePruneAutoSnapshots(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	// Create 7 auto-snapshots with distinct names
+	for i := 0; i < 7; i++ {
+		name := fmt.Sprintf("auto-20260315T14%02d00", i)
+		snap := profile.Snapshot{
+			Version: nd.SchemaVersion, Name: name,
+			CreatedAt: time.Now().Truncate(time.Second), Auto: true,
+		}
+		if err := store.SaveSnapshot(snap); err != nil {
+			t.Fatalf("save auto snapshot %d: %v", i, err)
+		}
+	}
+
+	if err := store.PruneAutoSnapshots(5); err != nil {
+		t.Fatalf("PruneAutoSnapshots: %v", err)
+	}
+
+	// List auto snapshots via directory
+	entries, _ := os.ReadDir(filepath.Join(snapshotsDir, "auto"))
+	if len(entries) != 5 {
+		t.Errorf("expected 5 auto snapshots after prune, got %d", len(entries))
+	}
+}
+
+func TestStorePruneAutoSnapshotsNoOp(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	// Only 2 auto snapshots, keep=5 => no pruning
+	for i := 0; i < 2; i++ {
+		name := fmt.Sprintf("auto-20260315T14%02d00", i)
+		store.SaveSnapshot(profile.Snapshot{
+			Version: nd.SchemaVersion, Name: name,
+			CreatedAt: time.Now(), Auto: true,
+		})
+	}
+
+	if err := store.PruneAutoSnapshots(5); err != nil {
+		t.Fatalf("PruneAutoSnapshots: %v", err)
+	}
+
+	entries, _ := os.ReadDir(filepath.Join(snapshotsDir, "auto"))
+	if len(entries) != 2 {
+		t.Errorf("expected 2 auto snapshots, got %d", len(entries))
+	}
+}
