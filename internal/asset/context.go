@@ -1,5 +1,7 @@
 package asset
 
+import "fmt"
+
 // ContextInfo holds context-specific details for context assets.
 // FileName is a plain string (not an enum) to support custom context file
 // types registered via config.
@@ -19,5 +21,8 @@ type ContextMeta struct {
 
 // Validate checks ContextMeta fields for correctness.
 func (m *ContextMeta) Validate() error {
+	if m.Description == "" {
+		return fmt.Errorf("context meta: description must not be empty")
+	}
 	return nil
 }
