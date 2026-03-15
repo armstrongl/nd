@@ -327,3 +327,77 @@ func TestProfileAddAssetCmd(t *testing.T) {
 		t.Errorf("expected asset name in output, got: %s", got)
 	}
 }
+
+func TestProfileAddAssetCmd_Duplicate(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Create profile with greeting
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "dup-asset-test",
+		"--assets", "skills/greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	// Try adding the same asset again — should fail
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "add-asset", "dup-asset-test", "skills/greeting"})
+	if err := rootCmd2.Execute(); err == nil {
+		t.Fatal("expected error for duplicate asset")
+	}
+}
+
+func TestProfileAddAssetCmd_DryRun(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Create profile
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "dryrun-add-test",
+		"--assets", "skills/greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	// Add asset with --dry-run
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--dry-run", "profile", "add-asset", "dryrun-add-test", "commands/hello"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("dry-run add-asset failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "dry-run") {
+		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Verify the asset was NOT actually added
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	out.Reset()
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "--json", "profile", "list"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+	// Profile should still have only 1 asset (the original greeting)
+	if strings.Contains(out.String(), `"asset_count":2`) {
+		t.Error("dry-run should not have persisted the asset addition")
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/larah/nd/internal/config"
 	"github.com/larah/nd/internal/doctor"
 	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/sourcemanager"
@@ -25,7 +26,9 @@ func newDoctorCmd(app *App) *cobra.Command {
 			sm, smErr := app.SourceManager()
 			if smErr != nil {
 				report.Config.GlobalValid = false
-				report.Config.Errors = nil // error is in smErr
+				report.Config.Errors = []config.ValidationError{
+					{Field: "config", Message: smErr.Error()},
+				}
 				report.Summary.Fail++
 			} else {
 				cfg := sm.Config()
