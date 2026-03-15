@@ -57,6 +57,113 @@ func TestProjectConfigPointerSemantics(t *testing.T) {
 	}
 }
 
+func TestConfigValidateValid(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources:         []config.SourceEntry{},
+	}
+	errs := c.Validate()
+	if len(errs) != 0 {
+		t.Errorf("expected no errors, got %v", errs)
+	}
+}
+
+func TestConfigValidateInvalidVersion(t *testing.T) {
+	c := config.Config{Version: 0}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for version 0")
+	}
+}
+
+func TestConfigValidateInvalidScope(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    "invalid",
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for invalid scope")
+	}
+}
+
+func TestConfigValidateEmptyAgent(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for empty agent")
+	}
+}
+
+func TestConfigValidateInvalidSymlinkStrategy(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: "invalid",
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for invalid symlink strategy")
+	}
+}
+
+func TestConfigValidateFutureVersion(t *testing.T) {
+	c := config.Config{
+		Version:         99,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for future schema version")
+	}
+}
+
+func TestConfigValidateDuplicateSourceIDs(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources: []config.SourceEntry{
+			{ID: "dup", Type: nd.SourceLocal, Path: "/a"},
+			{ID: "dup", Type: nd.SourceLocal, Path: "/b"},
+		},
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for duplicate source IDs")
+	}
+}
+
+func TestConfigValidateSourceMissingPath(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources: []config.SourceEntry{
+			{ID: "s1", Type: nd.SourceLocal, Path: ""},
+		},
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for empty source path")
+	}
+}
+
 func TestValidationErrorImplementsError(t *testing.T) {
 	ve := config.ValidationError{
 		File: "config.yaml", Line: 5, Field: "sources[0].path", Message: "path does not exist",
