@@ -3,6 +3,7 @@ package sourcemanager
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"sort"
 	"strings"
@@ -29,7 +30,7 @@ func DefaultConfig() config.Config {
 func LoadConfig(path string) (config.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return DefaultConfig(), nil
 		}
 		return config.Config{}, fmt.Errorf("read config: %w", err)
@@ -56,7 +57,7 @@ func LoadConfig(path string) (config.Config, error) {
 func LoadProjectConfig(path string) (*config.ProjectConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("read project config: %w", err)
