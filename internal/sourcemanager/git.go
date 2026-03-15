@@ -27,6 +27,11 @@ func ExpandGitURL(input string) string {
 
 // RepoNameFromURL extracts the repository name from a Git URL or shorthand.
 func RepoNameFromURL(url string) string {
+	// Absolute filesystem paths
+	if filepath.IsAbs(url) {
+		return filepath.Base(url)
+	}
+
 	// Handle shorthand: owner/repo
 	if !strings.Contains(url, "://") && !strings.HasPrefix(url, "git@") {
 		parts := strings.SplitN(url, "/", 2)
@@ -52,7 +57,7 @@ func RepoNameFromURL(url string) string {
 
 // gitClone clones a repository to the target directory.
 func gitClone(url, targetDir string) error {
-	cmd := exec.Command("git", "clone", url, targetDir)
+	cmd := exec.Command("git", "clone", "--", url, targetDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git clone %s: %s: %w", url, string(output), err)

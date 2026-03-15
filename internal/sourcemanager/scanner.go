@@ -86,7 +86,7 @@ func scanAssetDir(result *source.ScanResult, sourceID string, assetType nd.Asset
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if excludedDirs[name] || name[0] == '.' {
+		if excludedDirs[name] || strings.HasPrefix(name, ".") {
 			continue
 		}
 
@@ -117,7 +117,7 @@ func scanContextDir(result *source.ScanResult, sourceID string, dirPath string) 
 	}
 
 	for _, folder := range folders {
-		if !folder.IsDir() || folder.Name()[0] == '.' {
+		if !folder.IsDir() || strings.HasPrefix(folder.Name(), ".") {
 			continue
 		}
 
@@ -160,7 +160,7 @@ func findContextFile(folderPath string) string {
 		return ""
 	}
 	for _, e := range entries {
-		if e.IsDir() || e.Name()[0] == '_' {
+		if e.IsDir() || strings.HasPrefix(e.Name(), "_") {
 			continue
 		}
 		// Accept any .md file that isn't _meta.yaml
@@ -240,7 +240,7 @@ func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if excludedDirs[name] || name[0] == '.' || excludeSet[name] {
+		if excludedDirs[name] || strings.HasPrefix(name, ".") || excludeSet[name] {
 			continue
 		}
 
