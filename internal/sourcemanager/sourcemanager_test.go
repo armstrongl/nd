@@ -1,6 +1,7 @@
 package sourcemanager_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -118,5 +119,67 @@ sources:
 	}
 	if sources[1].Order != 1 {
 		t.Errorf("source[1].Order: got %d", sources[1].Order)
+	}
+}
+
+func TestSyncSourceNotFound(t *testing.T) {
+	sm, _ := newTestManager(t)
+	err := sm.SyncSource("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent source")
+	}
+}
+
+func TestSyncSourceNotGit(t *testing.T) {
+	sm, _ := newTestManager(t)
+	sourceDir := t.TempDir()
+	sm.AddLocal(sourceDir, "")
+	id := sm.Sources()[0].ID
+
+	err := sm.SyncSource(id)
+	if err == nil {
+		t.Fatal("expected error for non-git source")
+	}
+}
+
+func TestSyncSourceGit(t *testing.T) {
+	// Create a bare repo, seed it with a commit, then clone it
+	bareRepo := t.TempDir()
+	execGit(t, "init", "--bare", bareRepo)
+
+	// Seed the bare repo with an initial commit via a temporary clone
+	seedDir := t.TempDir()
+	execGit(t, "clone", bareRepo, seedDir)
+	os.WriteFile(filepath.Join(seedDir, "README.md"), []byte("init"), 0o644)
+	execGit(t, "-C", seedDir, "add", ".")
+	execGit(t, "-C", seedDir, "commit", "-m", "initial")
+	execGit(t, "-C", seedDir, "push")
+
+	cloneDir := t.TempDir()
+	execGit(t, "clone", bareRepo, cloneDir)
+
+	// Set up manager with the clone as a git source (manual config)
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := fmt.Sprintf(`version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: test-repo
+    type: git
+    path: %s
+`, cloneDir)
+	os.WriteFile(configPath, []byte(content), 0o644)
+
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Sync should succeed (nothing to pull, but git pull should work)
+	err = sm.SyncSource("test-repo")
+	if err != nil {
+		t.Fatalf("SyncSource: %v", err)
 	}
 }
