@@ -12,11 +12,6 @@ import (
 	"github.com/larah/nd/internal/state"
 )
 
-// Silence unused import warnings for later tests.
-var (
-	_ = fmt.Sprintf
-	_ = state.DeploymentState{}
-)
 
 func tempDirs(t *testing.T) (string, string) {
 	t.Helper()
@@ -99,7 +94,7 @@ func TestStoreGetProfile(t *testing.T) {
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "x", Scope: nd.ScopeGlobal},
 		},
 	}
-	store.CreateProfile(p)
+	_ = store.CreateProfile(p)
 
 	got, err := store.GetProfile("my-profile")
 	if err != nil {
@@ -128,8 +123,8 @@ func TestStoreListProfiles(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "alpha", CreatedAt: now, UpdatedAt: now})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "alpha", CreatedAt: now, UpdatedAt: now})
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "beta", Description: "Beta profile",
 		CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
@@ -181,7 +176,7 @@ func TestStoreDeleteProfile(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "doomed", CreatedAt: now, UpdatedAt: now})
+	_ = store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "doomed", CreatedAt: now, UpdatedAt: now})
 
 	if err := store.DeleteProfile("doomed"); err != nil {
 		t.Fatalf("DeleteProfile: %v", err)
@@ -207,7 +202,7 @@ func TestStoreUpdateProfile(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "evolving", CreatedAt: now, UpdatedAt: now})
+	_ = store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "evolving", CreatedAt: now, UpdatedAt: now})
 
 	updated := profile.Profile{
 		Version: nd.SchemaVersion, Name: "evolving", Description: "now with description",
@@ -279,7 +274,7 @@ func TestStoreSaveSnapshotDuplicate(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	snap := profile.Snapshot{Version: nd.SchemaVersion, Name: "dup", CreatedAt: time.Now()}
-	store.SaveSnapshot(snap)
+	_ = store.SaveSnapshot(snap)
 	if err := store.SaveSnapshot(snap); err == nil {
 		t.Error("should reject duplicate snapshot name")
 	}
@@ -315,7 +310,7 @@ func TestStoreListSnapshots(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	now := time.Now().Truncate(time.Second)
-	store.SaveSnapshot(profile.Snapshot{
+	_ = store.SaveSnapshot(profile.Snapshot{
 		Version: nd.SchemaVersion, Name: "snap-a", CreatedAt: now,
 		Deployments: []profile.SnapshotEntry{
 			{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "x",
@@ -323,7 +318,7 @@ func TestStoreListSnapshots(t *testing.T) {
 				Origin: nd.OriginManual, DeployedAt: now},
 		},
 	})
-	store.SaveSnapshot(profile.Snapshot{
+	_ = store.SaveSnapshot(profile.Snapshot{
 		Version: nd.SchemaVersion, Name: "snap-b", CreatedAt: now,
 	})
 
@@ -341,8 +336,8 @@ func TestStoreListSnapshotsIncludesAuto(t *testing.T) {
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
 	now := time.Now().Truncate(time.Second)
-	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "user-snap", CreatedAt: now})
-	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "auto-20260315T140000", CreatedAt: now, Auto: true})
+	_ = store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "user-snap", CreatedAt: now})
+	_ = store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "auto-20260315T140000", CreatedAt: now, Auto: true})
 
 	summaries, err := store.ListSnapshots()
 	if err != nil {
@@ -380,7 +375,7 @@ func TestStoreDeleteSnapshot(t *testing.T) {
 	profilesDir, snapshotsDir := tempDirs(t)
 	store := profile.NewStore(profilesDir, snapshotsDir)
 
-	store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "doomed", CreatedAt: time.Now()})
+	_ = store.SaveSnapshot(profile.Snapshot{Version: nd.SchemaVersion, Name: "doomed", CreatedAt: time.Now()})
 	if err := store.DeleteSnapshot("doomed", false); err != nil {
 		t.Fatalf("DeleteSnapshot: %v", err)
 	}
@@ -481,7 +476,7 @@ func TestStorePruneAutoSnapshotsNoOp(t *testing.T) {
 	// Only 2 auto snapshots, keep=5 => no pruning
 	for i := 0; i < 2; i++ {
 		name := fmt.Sprintf("auto-20260315T14%02d00", i)
-		store.SaveSnapshot(profile.Snapshot{
+		_ = store.SaveSnapshot(profile.Snapshot{
 			Version: nd.SchemaVersion, Name: name,
 			CreatedAt: time.Now(), Auto: true,
 		})
@@ -494,5 +489,54 @@ func TestStorePruneAutoSnapshotsNoOp(t *testing.T) {
 	entries, _ := os.ReadDir(filepath.Join(snapshotsDir, "auto"))
 	if len(entries) != 2 {
 		t.Errorf("expected 2 auto snapshots, got %d", len(entries))
+	}
+}
+
+func TestStoreAutoSaveImplementsSnapshotSaver(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	deps := []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/a/b", LinkPath: "/c/d", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: time.Now().Truncate(time.Second)},
+	}
+
+	if err := store.AutoSave(deps); err != nil {
+		t.Fatalf("AutoSave: %v", err)
+	}
+
+	// Should have created an auto-snapshot
+	summaries, _ := store.ListSnapshots()
+	autoCount := 0
+	for _, s := range summaries {
+		if s.Auto {
+			autoCount++
+		}
+	}
+	if autoCount != 1 {
+		t.Errorf("expected 1 auto snapshot, got %d", autoCount)
+	}
+}
+
+func TestStoreAutoSavePrunes(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	// Create 6 auto snapshots directly
+	for i := 0; i < 6; i++ {
+		name := fmt.Sprintf("auto-20260315T14%02d00", i)
+		_ = store.SaveSnapshot(profile.Snapshot{
+			Version: nd.SchemaVersion, Name: name,
+			CreatedAt: time.Now().Truncate(time.Second), Auto: true,
+		})
+	}
+
+	// AutoSave creates one more and should prune to 5
+	_ = store.AutoSave(nil)
+
+	entries, _ := os.ReadDir(filepath.Join(snapshotsDir, "auto"))
+	if len(entries) != 5 {
+		t.Errorf("expected 5 auto snapshots after prune, got %d", len(entries))
 	}
 }
