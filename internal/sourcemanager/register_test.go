@@ -164,6 +164,50 @@ func TestAddGitDuplicateURL(t *testing.T) {
 	}
 }
 
+func TestRemove(t *testing.T) {
+	sm, _ := newTestManager(t)
+
+	sourceDir := t.TempDir()
+	sm.AddLocal(sourceDir, "")
+	if len(sm.Sources()) != 1 {
+		t.Fatal("setup: expected 1 source")
+	}
+
+	id := sm.Sources()[0].ID
+	err := sm.Remove(id)
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if len(sm.Sources()) != 0 {
+		t.Errorf("expected 0 sources after remove, got %d", len(sm.Sources()))
+	}
+}
+
+func TestRemoveNotFound(t *testing.T) {
+	sm, _ := newTestManager(t)
+	err := sm.Remove("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent source")
+	}
+}
+
+func TestRemovePersists(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, _ := sourcemanager.New(configPath, "")
+
+	sourceDir := t.TempDir()
+	sm.AddLocal(sourceDir, "")
+	id := sm.Sources()[0].ID
+	sm.Remove(id)
+
+	// Reload from disk
+	sm2, _ := sourcemanager.New(configPath, "")
+	if len(sm2.Sources()) != 0 {
+		t.Errorf("expected 0 sources after reload, got %d", len(sm2.Sources()))
+	}
+}
+
 func TestAddGitDuplicateAfterReload(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
