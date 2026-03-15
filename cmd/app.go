@@ -1,0 +1,157 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/larah/nd/internal/agent"
+	"github.com/larah/nd/internal/deploy"
+	"github.com/larah/nd/internal/nd"
+	"github.com/larah/nd/internal/profile"
+	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/larah/nd/internal/state"
+)
+
+// App holds configuration derived from flags and lazily initialized services.
+type App struct {
+	// Set from flags/env in root PersistentPreRunE
+	ConfigPath  string
+	Scope       nd.Scope
+	ProjectRoot string
+	BackupDir   string
+	Verbose     bool
+	Quiet       bool
+	JSON        bool
+	DryRun      bool
+	NoColor     bool
+	Yes         bool
+
+	// Lazily initialized
+	sm      *sourcemanager.SourceManager
+	reg     *agent.Registry
+	eng     *deploy.Engine
+	profMgr *profile.Manager
+	pstore  *profile.Store
+	sstore  *state.Store
+}
+
+// SourceManager returns the source manager, creating it on first call.
+func (a *App) SourceManager() (*sourcemanager.SourceManager, error) {
+	if a.sm != nil {
+		return a.sm, nil
+	}
+	sm, err := sourcemanager.New(a.ConfigPath, a.ProjectRoot)
+	if err != nil {
+		return nil, fmt.Errorf("init source manager: %w", err)
+	}
+	a.sm = sm
+	return a.sm, nil
+}
+
+// AgentRegistry returns the agent registry, creating it on first call.
+func (a *App) AgentRegistry() (*agent.Registry, error) {
+	if a.reg != nil {
+		return a.reg, nil
+	}
+	sm, err := a.SourceManager()
+	if err != nil {
+		return nil, err
+	}
+	a.reg = agent.New(*sm.Config())
+	return a.reg, nil
+}
+
+// DefaultAgent returns the default detected agent.
+func (a *App) DefaultAgent() (*agent.Agent, error) {
+	reg, err := a.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return reg.Default()
+}
+
+// DeployEngine returns the deploy engine, creating it on first call.
+func (a *App) DeployEngine() (*deploy.Engine, error) {
+	if a.eng != nil {
+		return a.eng, nil
+	}
+	ag, err := a.DefaultAgent()
+	if err != nil {
+		return nil, err
+	}
+	sstore := a.StateStore()
+	eng := deploy.New(sstore, ag, a.BackupDir)
+
+	// Wire auto-snapshot saver
+	pstore, err := a.ProfileStore()
+	if err == nil {
+		eng.SetSnapshotSaver(pstore)
+	}
+
+	a.eng = eng
+	return a.eng, nil
+}
+
+// ProfileManager returns the profile manager, creating it on first call.
+func (a *App) ProfileManager() (*profile.Manager, error) {
+	if a.profMgr != nil {
+		return a.profMgr, nil
+	}
+	pstore, err := a.ProfileStore()
+	if err != nil {
+		return nil, err
+	}
+	a.profMgr = profile.NewManager(pstore, a.StateStore())
+	return a.profMgr, nil
+}
+
+// ProfileStore returns the profile store, creating it on first call.
+func (a *App) ProfileStore() (*profile.Store, error) {
+	if a.pstore != nil {
+		return a.pstore, nil
+	}
+	configDir := filepath.Dir(a.ConfigPath)
+	a.pstore = profile.NewStore(
+		filepath.Join(configDir, "profiles"),
+		filepath.Join(configDir, "snapshots"),
+	)
+	return a.pstore, nil
+}
+
+// StateStore returns the state store, creating it on first call.
+func (a *App) StateStore() *state.Store {
+	if a.sstore != nil {
+		return a.sstore
+	}
+	configDir := filepath.Dir(a.ConfigPath)
+	a.sstore = state.NewStore(filepath.Join(configDir, "state", "deployments.yaml"))
+	return a.sstore
+}
+
+// ResolveProjectRoot finds the project root when scope is project.
+// Uses nd.FindProjectRoot from cwd if ProjectRoot is not already set.
+func (a *App) ResolveProjectRoot() (string, error) {
+	if a.ProjectRoot != "" {
+		return a.ProjectRoot, nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get working directory: %w", err)
+	}
+	root, err := nd.FindProjectRoot(cwd)
+	if err != nil {
+		return "", fmt.Errorf("find project root: %w", err)
+	}
+	a.ProjectRoot = root
+	return root, nil
+}
+
+// ScanIndex scans all sources and returns the scan summary.
+func (a *App) ScanIndex() (*sourcemanager.ScanSummary, error) {
+	sm, err := a.SourceManager()
+	if err != nil {
+		return nil, err
+	}
+	return sm.Scan()
+}

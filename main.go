@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/larah/nd/cmd"
+)
 
 func main() {
-	fmt.Println("nd - Napoleon Dynamite asset manager")
+	code := cmd.Execute()
+	os.Exit(code)
 }

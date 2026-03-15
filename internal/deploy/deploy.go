@@ -454,6 +454,32 @@ func (e *Engine) RemoveBulk(reqs []RemoveRequest) (*BulkRemoveResult, error) {
 	return &result, nil
 }
 
+// SetOrigin updates the deploy origin for an existing deployment.
+// Used by nd pin / nd unpin to change origin between manual and pinned.
+func (e *Engine) SetOrigin(identity asset.Identity, scope nd.Scope, projectRoot string, origin nd.DeployOrigin) error {
+	return e.store.WithLock(func() error {
+		st, _, err := e.store.Load()
+		if err != nil {
+			return fmt.Errorf("load state: %w", err)
+		}
+
+		for i, d := range st.Deployments {
+			if d.SourceID == identity.SourceID &&
+				d.AssetType == identity.Type &&
+				d.AssetName == identity.Name &&
+				d.Scope == scope {
+				if scope == nd.ScopeProject && d.ProjectPath != projectRoot {
+					continue
+				}
+				st.Deployments[i].Origin = origin
+				return e.store.Save(st)
+			}
+		}
+
+		return fmt.Errorf("deployment not found: %s/%s from %s", identity.Type, identity.Name, identity.SourceID)
+	})
+}
+
 // removeOne removes a single deployment within an existing lock+state context.
 func (e *Engine) removeOne(req RemoveRequest, st *state.DeploymentState) error {
 	idx := -1
