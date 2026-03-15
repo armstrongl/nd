@@ -173,6 +173,22 @@ func TestValidationErrorImplementsError(t *testing.T) {
 	}
 }
 
+func TestConfigValidateInvalidSourceType(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources: []config.SourceEntry{
+			{ID: "s1", Type: "sftp", Path: "/some/path"},
+		},
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for invalid source type")
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }

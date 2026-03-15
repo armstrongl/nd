@@ -15,7 +15,10 @@ type ValidationError struct {
 }
 
 func (e ValidationError) Error() string {
-	return fmt.Sprintf("%s:%d: field %s: %s", e.File, e.Line, e.Field, e.Message)
+	if e.File != "" {
+		return fmt.Sprintf("%s:%d: field %s: %s", e.File, e.Line, e.Field, e.Message)
+	}
+	return fmt.Sprintf("field %s: %s", e.Field, e.Message)
 }
 
 // Validate checks all fields for correctness.
