@@ -6,7 +6,7 @@
 
 **Architecture:** Single `SourceManager` struct in `internal/sourcemanager/` that owns the full source lifecycle. Uses existing data types from `internal/config/`, `internal/source/`, `internal/asset/`, and `internal/nd/`. Shells out to `git` for clone/pull. All file writes use atomic temp-file-then-rename pattern.
 
-**Tech Stack:** Go 1.25, gopkg.in/yaml.v3, os/exec for git, t.TempDir() for tests
+**Tech Stack:** Go 1.23+, gopkg.in/yaml.v3, os/exec for git, t.TempDir() for tests
 
 ---
 
@@ -228,6 +228,19 @@ func TestConfigValidateInvalidSymlinkStrategy(t *testing.T) {
 	}
 }
 
+func TestConfigValidateFutureVersion(t *testing.T) {
+	c := config.Config{
+		Version:         99,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	if len(errs) == 0 {
+		t.Error("expected error for future schema version")
+	}
+}
+
 func TestConfigValidateDuplicateSourceIDs(t *testing.T) {
 	c := config.Config{
 		Version:         1,
@@ -269,7 +282,7 @@ Expected: FAIL — most tests will pass with empty slice (stub returns nil), but
 
 ### Step 3: Write implementation
 
-Replace the `Validate` method in `internal/config/validation.go`:
+Replace the **entire file** `internal/config/validation.go` (the existing file contains the `ValidationError` type and the `Validate` stub — this replaces both):
 
 ```go
 package config
@@ -300,6 +313,13 @@ func (c *Config) Validate() []ValidationError {
 	if c.Version < 1 {
 		errs = append(errs, ValidationError{
 			Field: "version", Message: "must be >= 1",
+		})
+	}
+
+	if c.Version > nd.SchemaVersion {
+		errs = append(errs, ValidationError{
+			Field:   "version",
+			Message: fmt.Sprintf("config version %d is newer than supported version %d (downgrade?)", c.Version, nd.SchemaVersion),
 		})
 	}
 
@@ -599,6 +619,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -697,9 +718,14 @@ func MergeConfigs(global config.Config, project *config.ProjectConfig) config.Co
 		for _, a := range project.Agents {
 			agentMap[a.Name] = a
 		}
+		names := make([]string, 0, len(agentMap))
+		for name := range agentMap {
+			names = append(names, name)
+		}
+		sort.Strings(names)
 		merged.Agents = make([]config.AgentOverride, 0, len(agentMap))
-		for _, a := range agentMap {
-			merged.Agents = append(merged.Agents, a)
+		for _, name := range names {
+			merged.Agents = append(merged.Agents, agentMap[name])
 		}
 	}
 
@@ -844,6 +870,7 @@ import (
 // scanning, and sync.
 type SourceManager struct {
 	configPath string
+	sourcesDir string // derived from configPath: <configDir>/sources/
 	projectDir string
 	cfg        config.Config
 }
@@ -868,6 +895,7 @@ func New(configPath string, projectDir string) (*SourceManager, error) {
 
 	return &SourceManager{
 		configPath: configPath,
+		sourcesDir: filepath.Join(filepath.Dir(configPath), "sources"),
 		projectDir: projectDir,
 		cfg:        cfg,
 	}, nil
@@ -886,6 +914,7 @@ func (sm *SourceManager) Sources() []source.Source {
 			ID:    entry.ID,
 			Type:  entry.Type,
 			Path:  entry.Path,
+			URL:   entry.URL,
 			Alias: entry.Alias,
 			Order: i,
 		}
@@ -1311,30 +1340,84 @@ git commit -m "feat(sourcemanager): add source ID generation and AddLocal"
 
 ## Task 7: AddGit
 
-Register Git repositories as asset sources by cloning them.
+Register Git repositories as asset sources by cloning them. This task also adds a `URL` field to `config.SourceEntry` to persist the original Git URL for duplicate detection after config reload.
 
 **Files:**
 
+- Modify: `internal/config/config.go` (add URL field to SourceEntry)
+- Modify: `internal/sourcemanager/sourcemanager.go` (add sourcesDir field)
 - Modify: `internal/sourcemanager/register.go`
 - Modify: `internal/sourcemanager/register_test.go`
 
-### Step 1: Write the failing tests
+### Step 1: Add URL field to SourceEntry
+
+Add a `URL` field to `config.SourceEntry` in `internal/config/config.go` so Git source URLs are persisted and survive config reloads:
+
+```go
+// SourceEntry represents a source registration in the config file.
+// Sources are listed in registration order (first registered = highest priority per FR-016a).
+type SourceEntry struct {
+	ID    string        `yaml:"id"              json:"id"`
+	Type  nd.SourceType `yaml:"type"            json:"type"`
+	Path  string        `yaml:"path"            json:"path"`
+	URL   string        `yaml:"url,omitempty"   json:"url,omitempty"`
+	Alias string        `yaml:"alias,omitempty" json:"alias,omitempty"`
+}
+```
+
+Also add `sourcesDir` to `SourceManager` in `internal/sourcemanager/sourcemanager.go`:
+
+```go
+type SourceManager struct {
+	configPath string
+	sourcesDir string
+	projectDir string
+	cfg        config.Config
+}
+```
+
+And update `New()` to derive `sourcesDir` from `configPath`:
+
+```go
+return &SourceManager{
+	configPath: configPath,
+	sourcesDir: filepath.Join(filepath.Dir(configPath), "sources"),
+	projectDir: projectDir,
+	cfg:        cfg,
+}, nil
+```
+
+Also update `Sources()` to include the URL field:
+
+```go
+func (sm *SourceManager) Sources() []source.Source {
+	sources := make([]source.Source, len(sm.cfg.Sources))
+	for i, entry := range sm.cfg.Sources {
+		sources[i] = source.Source{
+			ID:    entry.ID,
+			Type:  entry.Type,
+			Path:  entry.Path,
+			URL:   entry.URL,
+			Alias: entry.Alias,
+			Order: i,
+		}
+	}
+	return sources
+}
+```
+
+### Step 2: Write the failing tests
 
 Add to `internal/sourcemanager/register_test.go`:
 
 ```go
-func TestAddGitExpandsShorthand(t *testing.T) {
-	sm, dir := newTestManager(t)
-	sourcesDir := filepath.Join(dir, "sources")
-	os.MkdirAll(sourcesDir, 0o755)
+func TestAddGitWithBareRepo(t *testing.T) {
+	sm, _ := newTestManager(t)
 
-	// We can't actually clone in unit tests, so test that URL expansion
-	// and ID generation work correctly by testing AddGit with a local
-	// bare repo as the "URL".
 	bareRepo := t.TempDir()
 	exec_git(t, "init", "--bare", bareRepo)
 
-	src, err := sm.AddGit(bareRepo, sourcesDir, "test-alias")
+	src, err := sm.AddGit(bareRepo, "test-alias")
 	if err != nil {
 		t.Fatalf("AddGit: %v", err)
 	}
@@ -1350,18 +1433,34 @@ func TestAddGitExpandsShorthand(t *testing.T) {
 }
 
 func TestAddGitDuplicateURL(t *testing.T) {
-	sm, dir := newTestManager(t)
-	sourcesDir := filepath.Join(dir, "sources")
-	os.MkdirAll(sourcesDir, 0o755)
+	sm, _ := newTestManager(t)
 
 	bareRepo := t.TempDir()
 	exec_git(t, "init", "--bare", bareRepo)
 
-	sm.AddGit(bareRepo, sourcesDir, "")
+	sm.AddGit(bareRepo, "")
 
-	_, err := sm.AddGit(bareRepo, sourcesDir, "")
+	_, err := sm.AddGit(bareRepo, "")
 	if err == nil {
 		t.Fatal("expected error for duplicate URL")
+	}
+}
+
+func TestAddGitDuplicateAfterReload(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, _ := sourcemanager.New(configPath, "")
+
+	bareRepo := t.TempDir()
+	exec_git(t, "init", "--bare", bareRepo)
+
+	sm.AddGit(bareRepo, "")
+
+	// Reload from disk — URL should be persisted
+	sm2, _ := sourcemanager.New(configPath, "")
+	_, err := sm2.AddGit(bareRepo, "")
+	if err == nil {
+		t.Fatal("expected error for duplicate URL after reload")
 	}
 }
 
@@ -1376,28 +1475,25 @@ func exec_git(t *testing.T, args ...string) {
 
 Add `"os/exec"` to the import block.
 
-### Step 2: Run tests to verify they fail
+### Step 3: Run tests to verify they fail
 
 Run: `go test ./internal/sourcemanager/ -run TestAddGit -v`
 Expected: FAIL — `AddGit` not defined
 
-### Step 3: Write implementation
+### Step 4: Write implementation
 
 Add to `internal/sourcemanager/register.go`:
 
 ```go
 // AddGit registers a Git repository as an asset source by cloning it.
-// The sourcesDir is where cloned repos are stored (e.g., ~/.config/nd/sources/).
-func (sm *SourceManager) AddGit(url string, sourcesDir string, alias string) (*source.Source, error) {
+// Clone target is derived from sm.sourcesDir (e.g., ~/.config/nd/sources/).
+func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error) {
 	expandedURL := ExpandGitURL(url)
 
-	// Check for duplicate URL
+	// Check for duplicate URL (persisted in config via SourceEntry.URL)
 	for _, s := range sm.cfg.Sources {
-		if s.Type == nd.SourceGit {
-			existingExpanded := ExpandGitURL(s.Path)
-			if existingExpanded == expandedURL || s.Path == expandedURL {
-				return nil, fmt.Errorf("git source %q is already registered as %q", url, s.ID)
-			}
+		if s.Type == nd.SourceGit && s.URL == expandedURL {
+			return nil, fmt.Errorf("git source %q is already registered as %q", url, s.ID)
 		}
 	}
 
@@ -1406,9 +1502,13 @@ func (sm *SourceManager) AddGit(url string, sourcesDir string, alias string) (*s
 		existingIDs[s.ID] = true
 	}
 	repoName := RepoNameFromURL(url)
-	id := GenerateSourceID(filepath.Join(sourcesDir, repoName), existingIDs)
+	id := GenerateSourceID(filepath.Join(sm.sourcesDir, repoName), existingIDs)
 
-	cloneTarget := filepath.Join(sourcesDir, id)
+	cloneTarget := filepath.Join(sm.sourcesDir, id)
+
+	if err := os.MkdirAll(sm.sourcesDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create sources dir: %w", err)
+	}
 
 	if err := gitClone(expandedURL, cloneTarget); err != nil {
 		os.RemoveAll(cloneTarget)
@@ -1419,6 +1519,7 @@ func (sm *SourceManager) AddGit(url string, sourcesDir string, alias string) (*s
 		ID:    id,
 		Type:  nd.SourceGit,
 		Path:  cloneTarget,
+		URL:   expandedURL,
 		Alias: alias,
 	}
 
@@ -1441,16 +1542,16 @@ func (sm *SourceManager) AddGit(url string, sourcesDir string, alias string) (*s
 }
 ```
 
-### Step 4: Run tests to verify they pass
+### Step 5: Run tests to verify they pass
 
 Run: `go test ./internal/sourcemanager/ -run TestAddGit -v`
 Expected: PASS
 
-### Step 5: Commit
+### Step 6: Commit
 
 ```shell
-git add internal/sourcemanager/register.go internal/sourcemanager/register_test.go
-git commit -m "feat(sourcemanager): add AddGit for Git repository registration"
+git add internal/config/config.go internal/sourcemanager/sourcemanager.go internal/sourcemanager/register.go internal/sourcemanager/register_test.go
+git commit -m "feat(sourcemanager): add URL to SourceEntry and implement AddGit"
 ```
 
 ---
@@ -2089,6 +2190,33 @@ paths:
 	}
 }
 
+func TestScanManifestExclude(t *testing.T) {
+	root := t.TempDir()
+
+	// Create skills
+	os.MkdirAll(filepath.Join(root, "skills", "keep"), 0o755)
+	os.MkdirAll(filepath.Join(root, "skills", "experimental"), 0o755)
+
+	manifest := `version: 1
+paths:
+  skills:
+    - skills
+exclude:
+  - experimental
+`
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), []byte(manifest), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 asset (excluded experimental), got %d", len(result.Assets))
+	}
+	for _, a := range result.Assets {
+		if a.Name == "experimental" {
+			t.Error("excluded asset should not be discovered")
+		}
+	}
+}
+
 func TestScanManifestSizeLimit(t *testing.T) {
 	root := t.TempDir()
 	// Create a manifest larger than 1MB
@@ -2191,7 +2319,13 @@ func loadManifest(path string, sourceRoot string) (*source.Manifest, error) {
 }
 
 // scanWithManifest scans using manifest-defined paths instead of conventions.
+// Respects the manifest's Exclude list (FR-008).
 func scanWithManifest(result *source.ScanResult, sourceID string, rootPath string, m *source.Manifest) {
+	excludeSet := make(map[string]bool)
+	for _, e := range m.Exclude {
+		excludeSet[strings.TrimSuffix(e, "/")] = true
+	}
+
 	for assetType, paths := range m.Paths {
 		for _, p := range paths {
 			dirPath := filepath.Join(rootPath, p)
@@ -2205,14 +2339,40 @@ func scanWithManifest(result *source.ScanResult, sourceID string, rootPath strin
 			if assetType == nd.AssetContext {
 				scanContextDir(result, sourceID, dirPath)
 			} else {
-				scanAssetDir(result, sourceID, assetType, dirPath)
+				scanAssetDirExcluding(result, sourceID, assetType, dirPath, excludeSet)
 			}
 		}
 	}
 }
+
+// scanAssetDirExcluding is like scanAssetDir but skips entries matching the exclude set.
+func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		result.Errors = append(result.Errors, err)
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if excludedDirs[name] || name[0] == '.' || excludeSet[name] {
+			continue
+		}
+
+		result.Assets = append(result.Assets, asset.Asset{
+			Identity: asset.Identity{
+				SourceID: sourceID,
+				Type:     assetType,
+				Name:     name,
+			},
+			SourcePath: filepath.Join(dirPath, name),
+			IsDir:      entry.IsDir(),
+		})
+	}
+}
 ```
 
-Add `"fmt"` to the import block if not already present.
+Add `"fmt"` and `"strings"` to the import block if not already present.
 
 ### Step 4: Run tests to verify they pass
 
@@ -2242,12 +2402,12 @@ func TestScan(t *testing.T) {
 	sm.AddLocal(src1, "")
 	sm.AddLocal(src2, "")
 
-	idx, err := sm.Scan()
+	summary, err := sm.Scan()
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
 
-	all := idx.All()
+	all := summary.Index.All()
 	if len(all) != 5 {
 		t.Errorf("expected 5 assets, got %d", len(all))
 		for _, a := range all {
@@ -2272,10 +2432,34 @@ func TestScanConflictDetection(t *testing.T) {
 	sm.AddLocal(src1, "")
 	sm.AddLocal(src2, "")
 
-	idx, _ := sm.Scan()
-	conflicts := idx.Conflicts()
+	summary, _ := sm.Scan()
+	conflicts := summary.Index.Conflicts()
 	if len(conflicts) != 1 {
 		t.Fatalf("expected 1 conflict, got %d", len(conflicts))
+	}
+}
+
+func TestScanUnavailableSourceWarning(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: gone
+    type: local
+    path: /nonexistent/source
+`
+	os.WriteFile(configPath, []byte(content), 0o644)
+	sm, _ := sourcemanager.New(configPath, "")
+
+	summary, err := sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan should not error for unavailable sources: %v", err)
+	}
+	if len(summary.Warnings) == 0 {
+		t.Error("expected warning for unavailable source")
 	}
 }
 ```
@@ -2300,17 +2484,28 @@ import (
 Add method:
 
 ```go
+// ScanSummary holds the result of a full scan across all sources.
+type ScanSummary struct {
+	Index    *asset.Index
+	Warnings []string
+}
+
 // Scan discovers all assets across all registered sources and builds an index.
 // Unavailable sources produce warnings but do not fail the scan (NFR-006).
-func (sm *SourceManager) Scan() (*asset.Index, error) {
+func (sm *SourceManager) Scan() (*ScanSummary, error) {
 	var allAssets []asset.Asset
+	var allWarnings []string
 
 	for _, entry := range sm.cfg.Sources {
 		result := ScanSource(entry.ID, entry.Path)
 		allAssets = append(allAssets, result.Assets...)
+		allWarnings = append(allWarnings, result.Warnings...)
 	}
 
-	return asset.NewIndex(allAssets), nil
+	return &ScanSummary{
+		Index:    asset.NewIndex(allAssets),
+		Warnings: allWarnings,
+	}, nil
 }
 ```
 
