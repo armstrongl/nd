@@ -2,6 +2,7 @@ package deploy_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -241,5 +242,116 @@ func TestDeployHookWarnsSettings(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected settings registration warning for hook deploy")
+	}
+}
+
+func TestDeployBulkPartialFailure(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	callCount := 0
+	engine.SetSymlink(func(o, n string) error {
+		callCount++
+		if callCount == 2 {
+			return fmt.Errorf("disk full")
+		}
+		return nil
+	})
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"}, SourcePath: "/s/a"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, SourcePath: "/s/b"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "c"}, SourcePath: "/s/c"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+
+	result, err := engine.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk: %v", err)
+	}
+	if len(result.Succeeded) != 2 {
+		t.Errorf("succeeded: got %d, want 2", len(result.Succeeded))
+	}
+	if len(result.Failed) != 1 {
+		t.Errorf("failed: got %d, want 1", len(result.Failed))
+	}
+}
+
+func TestRemoveAsset(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/s/skills/review", LinkPath: "/home/user/.claude/skills/review",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+
+	removed := false
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(name string) error { removed = true; return nil })
+
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+	})
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if !removed {
+		t.Error("symlink should have been removed")
+	}
+	if store.saved == nil || len(store.saved.Deployments) != 0 {
+		t.Error("state should have 0 deployments after remove")
+	}
+}
+
+func TestRemoveAlreadyGone(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/home/user/.claude/skills/review", Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(string) error { return os.ErrNotExist })
+
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+	})
+	if err != nil {
+		t.Fatalf("Remove should tolerate missing symlink: %v", err)
+	}
+}
+
+func TestRemoveBulk(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a",
+			LinkPath: "/home/user/.claude/skills/a", Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "b",
+			LinkPath: "/home/user/.claude/skills/b", Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(string) error { return nil })
+
+	reqs := []deploy.RemoveRequest{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"}, Scope: nd.ScopeGlobal},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, Scope: nd.ScopeGlobal},
+	}
+
+	result, err := engine.RemoveBulk(reqs)
+	if err != nil {
+		t.Fatalf("RemoveBulk: %v", err)
+	}
+	if len(result.Succeeded) != 2 {
+		t.Errorf("succeeded: got %d, want 2", len(result.Succeeded))
+	}
+	if len(result.Failed) != 0 {
+		t.Errorf("failed: got %d, want 0", len(result.Failed))
+	}
+	if len(store.saved.Deployments) != 0 {
+		t.Error("state should have 0 deployments after bulk remove")
 	}
 }
