@@ -21,6 +21,7 @@ type SourceEntry struct {
 	ID    string        `yaml:"id"              json:"id"`
 	Type  nd.SourceType `yaml:"type"            json:"type"`
 	Path  string        `yaml:"path"            json:"path"`
+	URL   string        `yaml:"url,omitempty"   json:"url,omitempty"`
 	Alias string        `yaml:"alias,omitempty" json:"alias,omitempty"`
 }
 

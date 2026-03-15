@@ -56,6 +56,7 @@ func (sm *SourceManager) Sources() []source.Source {
 			ID:    entry.ID,
 			Type:  entry.Type,
 			Path:  entry.Path,
+			URL:   entry.URL,
 			Alias: entry.Alias,
 			Order: i,
 		}
