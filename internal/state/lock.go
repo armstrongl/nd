@@ -22,8 +22,13 @@ func NewFileLock(path string) *FileLock {
 	return &FileLock{Path: path}
 }
 
+// staleLockThreshold is the age beyond which a lock file is considered stale.
+const staleLockThreshold = 60 * time.Second
+
 // Acquire attempts to acquire an exclusive flock within the given timeout.
-// Returns *nd.LockError if the lock cannot be acquired.
+// If the timeout expires and the lock file's modification time is older than
+// 60 seconds, the lock is considered stale: the file is removed and acquisition
+// is retried once. Returns *nd.LockError if the lock cannot be acquired.
 func (l *FileLock) Acquire(timeout time.Duration) error {
 	f, err := os.OpenFile(l.Path, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
@@ -41,6 +46,10 @@ func (l *FileLock) Acquire(timeout time.Duration) error {
 
 		if time.Now().After(deadline) {
 			f.Close()
+			// Check for stale lock before giving up.
+			if l.isStale() {
+				return l.breakAndRetry(timeout)
+			}
 			return &nd.LockError{
 				Path:    l.Path,
 				Timeout: timeout.String(),
@@ -48,6 +57,45 @@ func (l *FileLock) Acquire(timeout time.Duration) error {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+// isStale checks whether the lock file's modification time exceeds the
+// stale threshold (60s).
+func (l *FileLock) isStale() bool {
+	info, err := os.Stat(l.Path)
+	if err != nil {
+		return false
+	}
+	return time.Since(info.ModTime()) > staleLockThreshold
+}
+
+// breakAndRetry removes the stale lock file and attempts one more acquisition.
+// Returns *nd.LockError with Stale=true if the retry also fails.
+func (l *FileLock) breakAndRetry(timeout time.Duration) error {
+	os.Remove(l.Path)
+
+	f, err := os.OpenFile(l.Path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return &nd.LockError{
+			Path:    l.Path,
+			Timeout: timeout.String(),
+			Stale:   true,
+		}
+	}
+
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		f.Close()
+		return &nd.LockError{
+			Path:    l.Path,
+			Timeout: timeout.String(),
+			Stale:   true,
+		}
+	}
+
+	l.file = f
+	l.AcquiredAt = time.Now()
+	return nil
 }
 
 // Release releases the file lock. Safe to call multiple times.
