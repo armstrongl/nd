@@ -9,8 +9,13 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/larah/nd/internal/deploy"
 	"github.com/larah/nd/internal/nd"
+	"github.com/larah/nd/internal/state"
 )
+
+// Compile-time check that Store implements deploy.SnapshotSaver.
+var _ deploy.SnapshotSaver = (*Store)(nil)
 
 // ProfileSummary is a lightweight view of a profile for listing.
 type ProfileSummary struct {
@@ -380,4 +385,29 @@ func (s *Store) DeleteSnapshot(name string, auto bool) error {
 		return fmt.Errorf("delete snapshot %q: %w", name, err)
 	}
 	return nil
+}
+
+// AutoSave converts deployments to snapshot entries, creates an auto-snapshot,
+// and prunes old auto-snapshots to keep the last 5.
+// Implements deploy.SnapshotSaver interface.
+func (s *Store) AutoSave(deployments []state.Deployment) error {
+	entries := make([]SnapshotEntry, len(deployments))
+	for i, d := range deployments {
+		entries[i] = SnapshotEntry{
+			SourceID:    d.SourceID,
+			AssetType:   d.AssetType,
+			AssetName:   d.AssetName,
+			SourcePath:  d.SourcePath,
+			LinkPath:    d.LinkPath,
+			Scope:       d.Scope,
+			ProjectPath: d.ProjectPath,
+			Origin:      d.Origin,
+			DeployedAt:  d.DeployedAt,
+		}
+	}
+
+	if _, err := s.AutoSnapshot(entries); err != nil {
+		return err
+	}
+	return s.PruneAutoSnapshots(5)
 }

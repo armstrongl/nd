@@ -122,7 +122,7 @@ func TestManagerClearActiveProfile(t *testing.T) {
 	ss := newMockStateStore()
 	mgr := profile.NewManager(store, ss)
 
-	mgr.SetActiveProfile("something")
+	_ = mgr.SetActiveProfile("something")
 	if err := mgr.SetActiveProfile(""); err != nil {
 		t.Fatalf("SetActiveProfile empty: %v", err)
 	}
@@ -140,8 +140,8 @@ func TestManagerDeleteProfileRefusesActive(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "active-one", CreatedAt: now, UpdatedAt: now})
-	mgr.SetActiveProfile("active-one")
+	_ = store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "active-one", CreatedAt: now, UpdatedAt: now})
+	_ = mgr.SetActiveProfile("active-one")
 
 	if err := mgr.DeleteProfile("active-one"); err == nil {
 		t.Error("should refuse to delete the active profile")
@@ -160,7 +160,7 @@ func TestManagerDeleteProfileAllowsInactive(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "deletable", CreatedAt: now, UpdatedAt: now})
+	_ = store.CreateProfile(profile.Profile{Version: nd.SchemaVersion, Name: "deletable", CreatedAt: now, UpdatedAt: now})
 
 	if err := mgr.DeleteProfile("deletable"); err != nil {
 		t.Fatalf("DeleteProfile: %v", err)
@@ -180,13 +180,13 @@ func TestManagerSwitch(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old-skill", Scope: nd.ScopeGlobal},
 		},
 	})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "new-skill", Scope: nd.ScopeGlobal},
@@ -269,10 +269,10 @@ func TestManagerSwitchMissingAssetInIndex(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "from", CreatedAt: now, UpdatedAt: now,
 	})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "to", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "missing", Scope: nd.ScopeGlobal},
@@ -301,10 +301,10 @@ func TestManagerSwitchIdenticalProfiles(t *testing.T) {
 	assets := []profile.ProfileAsset{
 		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "shared", Scope: nd.ScopeGlobal},
 	}
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "alpha", CreatedAt: now, UpdatedAt: now, Assets: assets,
 	})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "beta", CreatedAt: now, UpdatedAt: now, Assets: assets,
 	})
 
@@ -336,13 +336,13 @@ func TestManagerSwitchSkipsPinnedAssets(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "pinned-skill", Scope: nd.ScopeGlobal},
 		},
 	})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
 	})
 
@@ -379,10 +379,10 @@ func TestManagerSwitchDetectsConflicts(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "current", CreatedAt: now, UpdatedAt: now,
 	})
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "target", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "manual-skill", Scope: nd.ScopeGlobal},
@@ -435,7 +435,7 @@ func TestManagerDeployProfile(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.CreateProfile(profile.Profile{
+	_ = store.CreateProfile(profile.Profile{
 		Version: nd.SchemaVersion, Name: "first-profile", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "my-skill", Scope: nd.ScopeGlobal},
@@ -505,7 +505,7 @@ func TestManagerRestore(t *testing.T) {
 
 	// Create a snapshot to restore
 	now := time.Now().Truncate(time.Second)
-	store.SaveSnapshot(profile.Snapshot{
+	_ = store.SaveSnapshot(profile.Snapshot{
 		Version: nd.SchemaVersion, Name: "restore-me", CreatedAt: now,
 		Deployments: []profile.SnapshotEntry{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old-skill",
@@ -565,7 +565,7 @@ func TestManagerRestoreMissingAssets(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.SaveSnapshot(profile.Snapshot{
+	_ = store.SaveSnapshot(profile.Snapshot{
 		Version: nd.SchemaVersion, Name: "has-missing", CreatedAt: now,
 		Deployments: []profile.SnapshotEntry{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "gone",
@@ -604,7 +604,7 @@ func TestManagerRestoreAutoSnapshot(t *testing.T) {
 	mgr := profile.NewManager(store, ss)
 
 	now := time.Now().Truncate(time.Second)
-	store.SaveSnapshot(profile.Snapshot{
+	_ = store.SaveSnapshot(profile.Snapshot{
 		Version: nd.SchemaVersion, Name: "auto-20260315T140000", CreatedAt: now, Auto: true,
 		Deployments: []profile.SnapshotEntry{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "restored",
