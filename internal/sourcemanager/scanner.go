@@ -1,14 +1,21 @@
 package sourcemanager
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/larah/nd/internal/asset"
 	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/source"
 	"gopkg.in/yaml.v3"
 )
+
+// maxManifestSize is the maximum size of an nd-source.yaml file (NFR-013).
+const maxManifestSize = 1024 * 1024 // 1MB
 
 // excludedDirs are directories that source scanning always skips (NFR-017).
 var excludedDirs = map[string]bool{
@@ -28,8 +35,8 @@ var dirToAssetType = map[string]nd.AssetType{
 	"hooks":         nd.AssetHook,
 }
 
-// ScanSource scans a single source directory for assets using convention-based
-// discovery. Returns a ScanResult with discovered assets, warnings, and errors.
+// ScanSource scans a single source directory for assets.
+// If nd-source.yaml exists, uses manifest paths. Otherwise uses convention-based discovery.
 func ScanSource(sourceID string, rootPath string) source.ScanResult {
 	result := source.ScanResult{SourceID: sourceID}
 
@@ -40,6 +47,17 @@ func ScanSource(sourceID string, rootPath string) source.ScanResult {
 		return result
 	}
 
+	// Check for manifest
+	manifestPath := filepath.Join(rootPath, "nd-source.yaml")
+	if manifest, err := loadManifest(manifestPath, rootPath); err != nil {
+		result.Errors = append(result.Errors, err)
+		return result
+	} else if manifest != nil {
+		scanWithManifest(&result, sourceID, rootPath, manifest)
+		return result
+	}
+
+	// Convention-based discovery
 	for dirName, assetType := range dirToAssetType {
 		dirPath := filepath.Join(rootPath, dirName)
 		info, err := os.Stat(dirPath)
@@ -151,6 +169,91 @@ func findContextFile(folderPath string) string {
 		}
 	}
 	return ""
+}
+
+// loadManifest reads and validates an nd-source.yaml file.
+// Returns nil, nil if the file does not exist.
+func loadManifest(path string, sourceRoot string) (*source.Manifest, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if info.Size() > maxManifestSize {
+		return nil, fmt.Errorf("manifest %s is %d bytes, maximum is %d (NFR-013)", path, info.Size(), maxManifestSize)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var m source.Manifest
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parse manifest %s: %w", path, err)
+	}
+
+	if errs := m.Validate(sourceRoot); len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	return &m, nil
+}
+
+// scanWithManifest scans using manifest-defined paths instead of conventions.
+// Respects the manifest's Exclude list (FR-008).
+func scanWithManifest(result *source.ScanResult, sourceID string, rootPath string, m *source.Manifest) {
+	excludeSet := make(map[string]bool)
+	for _, e := range m.Exclude {
+		excludeSet[strings.TrimSuffix(e, "/")] = true
+	}
+
+	for assetType, paths := range m.Paths {
+		for _, p := range paths {
+			dirPath := filepath.Join(rootPath, p)
+			info, err := os.Stat(dirPath)
+			if err != nil || !info.IsDir() {
+				result.Warnings = append(result.Warnings,
+					"manifest path "+p+" for "+string(assetType)+" not found")
+				continue
+			}
+
+			if assetType == nd.AssetContext {
+				scanContextDir(result, sourceID, dirPath)
+			} else {
+				scanAssetDirExcluding(result, sourceID, assetType, dirPath, excludeSet)
+			}
+		}
+	}
+}
+
+// scanAssetDirExcluding is like scanAssetDir but skips entries matching the exclude set.
+func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		result.Errors = append(result.Errors, err)
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if excludedDirs[name] || name[0] == '.' || excludeSet[name] {
+			continue
+		}
+
+		result.Assets = append(result.Assets, asset.Asset{
+			Identity: asset.Identity{
+				SourceID: sourceID,
+				Type:     assetType,
+				Name:     name,
+			},
+			SourcePath: filepath.Join(dirPath, name),
+			IsDir:      entry.IsDir(),
+		})
+	}
 }
 
 // loadContextMeta loads and validates a _meta.yaml file.

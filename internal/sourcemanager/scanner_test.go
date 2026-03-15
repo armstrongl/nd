@@ -187,6 +187,90 @@ func TestScanContextAssets(t *testing.T) {
 	}
 }
 
+func TestScanWithManifest(t *testing.T) {
+	root := t.TempDir()
+
+	// Non-conventional layout with manifest
+	os.MkdirAll(filepath.Join(root, "go-skills", "skills"), 0o755)
+	os.MkdirAll(filepath.Join(root, "go-skills", "skills", "review"), 0o755)
+	os.WriteFile(filepath.Join(root, "go-skills", "skills", "review", "SKILL.md"), []byte("# review"), 0o644)
+	os.MkdirAll(filepath.Join(root, "custom-agents"), 0o755)
+	os.MkdirAll(filepath.Join(root, "custom-agents", "builder"), 0o755)
+
+	// Also has conventional skills/ that should be IGNORED when manifest exists
+	os.MkdirAll(filepath.Join(root, "skills"), 0o755)
+	os.MkdirAll(filepath.Join(root, "skills", "ignored"), 0o755)
+
+	manifest := `version: 1
+paths:
+  skills:
+    - go-skills/skills
+  agents:
+    - custom-agents
+`
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), []byte(manifest), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("errors: %v", result.Errors)
+	}
+	if len(result.Assets) != 2 {
+		t.Errorf("expected 2 assets (1 skill + 1 agent), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+
+	// The conventional skills/ignored should NOT be discovered
+	for _, a := range result.Assets {
+		if a.Name == "ignored" {
+			t.Error("conventional skills/ignored should not be discovered when manifest exists")
+		}
+	}
+}
+
+func TestScanManifestExclude(t *testing.T) {
+	root := t.TempDir()
+
+	// Create skills
+	os.MkdirAll(filepath.Join(root, "skills", "keep"), 0o755)
+	os.MkdirAll(filepath.Join(root, "skills", "experimental"), 0o755)
+
+	manifest := `version: 1
+paths:
+  skills:
+    - skills
+exclude:
+  - experimental
+`
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), []byte(manifest), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 asset (excluded experimental), got %d", len(result.Assets))
+	}
+	for _, a := range result.Assets {
+		if a.Name == "experimental" {
+			t.Error("excluded asset should not be discovered")
+		}
+	}
+}
+
+func TestScanManifestSizeLimit(t *testing.T) {
+	root := t.TempDir()
+	// Create a manifest larger than 1MB
+	data := make([]byte, 1024*1024+1)
+	for i := range data {
+		data[i] = 'x'
+	}
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), data, 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) == 0 {
+		t.Error("expected error for oversized manifest")
+	}
+}
+
 func TestScanContextLocalOnly(t *testing.T) {
 	root := t.TempDir()
 

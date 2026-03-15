@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/larah/nd/internal/asset"
 	"github.com/larah/nd/internal/config"
 	"github.com/larah/nd/internal/nd"
 	"github.com/larah/nd/internal/source"
@@ -84,4 +85,28 @@ func (sm *SourceManager) SyncSource(sourceID string) error {
 	}
 
 	return gitPull(entry.Path)
+}
+
+// ScanSummary holds the result of a full scan across all sources.
+type ScanSummary struct {
+	Index    *asset.Index
+	Warnings []string
+}
+
+// Scan discovers all assets across all registered sources and builds an index.
+// Unavailable sources produce warnings but do not fail the scan (NFR-006).
+func (sm *SourceManager) Scan() (*ScanSummary, error) {
+	var allAssets []asset.Asset
+	var allWarnings []string
+
+	for _, entry := range sm.cfg.Sources {
+		result := ScanSource(entry.ID, entry.Path)
+		allAssets = append(allAssets, result.Assets...)
+		allWarnings = append(allWarnings, result.Warnings...)
+	}
+
+	return &ScanSummary{
+		Index:    asset.NewIndex(allAssets),
+		Warnings: allWarnings,
+	}, nil
 }

@@ -122,6 +122,85 @@ sources:
 	}
 }
 
+func TestScan(t *testing.T) {
+	// Create two source directories with assets
+	src1 := makeSourceTree(t, map[string][]string{
+		"skills": {"review/", "deploy/"},
+		"agents": {"go-dev/"},
+	})
+	src2 := makeSourceTree(t, map[string][]string{
+		"skills": {"test/"},
+		"rules":  {"no-emojis.md"},
+	})
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, _ := sourcemanager.New(configPath, "")
+
+	sm.AddLocal(src1, "")
+	sm.AddLocal(src2, "")
+
+	summary, err := sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+
+	all := summary.Index.All()
+	if len(all) != 5 {
+		t.Errorf("expected 5 assets, got %d", len(all))
+		for _, a := range all {
+			t.Logf("  %s", a.Identity)
+		}
+	}
+}
+
+func TestScanConflictDetection(t *testing.T) {
+	// Two sources with same skill name — first registered wins
+	src1 := makeSourceTree(t, map[string][]string{
+		"skills": {"review/"},
+	})
+	src2 := makeSourceTree(t, map[string][]string{
+		"skills": {"review/"},
+	})
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, _ := sourcemanager.New(configPath, "")
+
+	sm.AddLocal(src1, "")
+	sm.AddLocal(src2, "")
+
+	summary, _ := sm.Scan()
+	conflicts := summary.Index.Conflicts()
+	if len(conflicts) != 1 {
+		t.Fatalf("expected 1 conflict, got %d", len(conflicts))
+	}
+}
+
+func TestScanUnavailableSourceWarning(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: gone
+    type: local
+    path: /nonexistent/source
+`
+	os.WriteFile(configPath, []byte(content), 0o644)
+	sm, _ := sourcemanager.New(configPath, "")
+
+	summary, err := sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan should not error for unavailable sources: %v", err)
+	}
+	if len(summary.Warnings) == 0 {
+		t.Error("expected warning for unavailable source")
+	}
+}
+
 func TestSyncSourceNotFound(t *testing.T) {
 	sm, _ := newTestManager(t)
 	err := sm.SyncSource("nonexistent")
