@@ -792,3 +792,128 @@ func TestPruneBackups(t *testing.T) {
 		t.Errorf("expected 5 backups after pruning, got %d", count)
 	}
 }
+
+// --- SnapshotSaver tests ---
+
+type mockSnapshotSaver struct {
+	called      bool
+	deployments []state.Deployment
+	err         error
+}
+
+func (m *mockSnapshotSaver) AutoSave(deployments []state.Deployment) error {
+	m.called = true
+	m.deployments = deployments
+	return m.err
+}
+
+func TestDeployBulkTriggersAutoSnapshot(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	eng := deploy.New(store, ag, t.TempDir())
+
+	saver := &mockSnapshotSaver{}
+	eng.SetSnapshotSaver(saver)
+
+	// Seed an existing deployment so the snapshot captures it
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "existing",
+			SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual},
+	}
+
+	eng.SetSymlink(func(_, _ string) error { return nil })
+	eng.SetLstat(func(_ string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "new"},
+			SourcePath: "/src/skills/new"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+	_, err := eng.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk: %v", err)
+	}
+
+	if !saver.called {
+		t.Error("SnapshotSaver.AutoSave was not called")
+	}
+	if len(saver.deployments) != 1 {
+		t.Errorf("expected 1 existing deployment captured, got %d", len(saver.deployments))
+	}
+}
+
+func TestRemoveBulkTriggersAutoSnapshot(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	eng := deploy.New(store, ag, t.TempDir())
+
+	saver := &mockSnapshotSaver{}
+	eng.SetSnapshotSaver(saver)
+
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "target",
+			SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual},
+	}
+
+	eng.SetRemove(func(_ string) error { return nil })
+
+	reqs := []deploy.RemoveRequest{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "target"},
+			Scope: nd.ScopeGlobal},
+	}
+	_, err := eng.RemoveBulk(reqs)
+	if err != nil {
+		t.Fatalf("RemoveBulk: %v", err)
+	}
+
+	if !saver.called {
+		t.Error("SnapshotSaver.AutoSave was not called")
+	}
+}
+
+func TestBulkWorksWithoutSnapshotSaver(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	eng := deploy.New(store, ag, t.TempDir())
+	// No saver set — should still work
+
+	eng.SetSymlink(func(_, _ string) error { return nil })
+	eng.SetLstat(func(_ string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
+			SourcePath: "/src/skills/x"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+	_, err := eng.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk without saver: %v", err)
+	}
+}
+
+func TestAutoSnapshotFailureDoesNotBlockBulk(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	eng := deploy.New(store, ag, t.TempDir())
+
+	saver := &mockSnapshotSaver{err: fmt.Errorf("disk full")}
+	eng.SetSnapshotSaver(saver)
+
+	eng.SetSymlink(func(_, _ string) error { return nil })
+	eng.SetLstat(func(_ string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
+			SourcePath: "/src/skills/x"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+	result, err := eng.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk should proceed despite snapshot failure: %v", err)
+	}
+	if len(result.Succeeded) != 1 {
+		t.Errorf("expected 1 succeeded, got %d", len(result.Succeeded))
+	}
+}
