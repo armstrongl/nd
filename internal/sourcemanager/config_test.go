@@ -79,6 +79,54 @@ func TestLoadConfigInvalid(t *testing.T) {
 	}
 }
 
+func TestLoadProjectConfigMissing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	pc, err := sourcemanager.LoadProjectConfig(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pc != nil {
+		t.Error("expected nil for missing project config")
+	}
+}
+
+func TestLoadProjectConfigValid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	content := `version: 1
+default_scope: project
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	pc, err := sourcemanager.LoadProjectConfig(path)
+	if err != nil {
+		t.Fatalf("LoadProjectConfig: %v", err)
+	}
+	if pc == nil {
+		t.Fatal("expected non-nil project config")
+	}
+	if pc.DefaultScope == nil || *pc.DefaultScope != nd.ScopeProject {
+		t.Errorf("scope: got %v", pc.DefaultScope)
+	}
+}
+
+func TestLoadProjectConfigMalformed(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("{{not yaml"), 0o644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	_, err := sourcemanager.LoadProjectConfig(path)
+	if err == nil {
+		t.Fatal("expected error for malformed YAML")
+	}
+}
+
 func TestMergeConfigs(t *testing.T) {
 	global := sourcemanager.DefaultConfig()
 	global.Sources = []config.SourceEntry{
@@ -114,6 +162,35 @@ func TestMergeConfigsNilProject(t *testing.T) {
 	merged := sourcemanager.MergeConfigs(global, nil)
 	if merged.DefaultScope != global.DefaultScope {
 		t.Error("nil project should return global unchanged")
+	}
+}
+
+func TestMergeConfigsAgentOverrides(t *testing.T) {
+	global := sourcemanager.DefaultConfig()
+	global.Agents = []config.AgentOverride{
+		{Name: "claude-code", GlobalDir: "/global/claude"},
+		{Name: "cursor", GlobalDir: "/global/cursor"},
+	}
+
+	project := config.ProjectConfig{
+		Version: 1,
+		Agents: []config.AgentOverride{
+			{Name: "claude-code", GlobalDir: "/project/claude"},
+			{Name: "windsurf", GlobalDir: "/project/windsurf"},
+		},
+	}
+
+	merged := sourcemanager.MergeConfigs(global, &project)
+	if len(merged.Agents) != 3 {
+		t.Fatalf("expected 3 agents, got %d", len(merged.Agents))
+	}
+	// Should be sorted by name
+	if merged.Agents[0].Name != "claude-code" {
+		t.Errorf("first agent: got %q", merged.Agents[0].Name)
+	}
+	// claude-code should use project override
+	if merged.Agents[0].GlobalDir != "/project/claude" {
+		t.Errorf("claude-code dir: got %q, want /project/claude", merged.Agents[0].GlobalDir)
 	}
 }
 
