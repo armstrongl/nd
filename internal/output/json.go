@@ -2,7 +2,8 @@ package output
 
 // JSONResponse is the standard envelope for all --json output.
 type JSONResponse struct {
-	Status string      `json:"status"`           // "ok", "error", "partial"
+	Status string      `json:"status"`               // "ok", "error", "partial"
+	DryRun bool        `json:"dry_run,omitempty"`
 	Data   interface{} `json:"data,omitempty"`
 	Errors []JSONError `json:"errors,omitempty"`
 }

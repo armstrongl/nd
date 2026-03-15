@@ -387,10 +387,9 @@ func (s *Store) DeleteSnapshot(name string, auto bool) error {
 	return nil
 }
 
-// AutoSave converts deployments to snapshot entries, creates an auto-snapshot,
-// and prunes old auto-snapshots to keep the last 5.
-// Implements deploy.SnapshotSaver interface.
-func (s *Store) AutoSave(deployments []state.Deployment) error {
+// DeploymentsToEntries converts deployment state records into snapshot entries.
+// Used by AutoSave and by cmd/snapshot.go for nd snapshot save.
+func DeploymentsToEntries(deployments []state.Deployment) []SnapshotEntry {
 	entries := make([]SnapshotEntry, len(deployments))
 	for i, d := range deployments {
 		entries[i] = SnapshotEntry{
@@ -405,6 +404,14 @@ func (s *Store) AutoSave(deployments []state.Deployment) error {
 			DeployedAt:  d.DeployedAt,
 		}
 	}
+	return entries
+}
+
+// AutoSave converts deployments to snapshot entries, creates an auto-snapshot,
+// and prunes old auto-snapshots to keep the last 5.
+// Implements deploy.SnapshotSaver interface.
+func (s *Store) AutoSave(deployments []state.Deployment) error {
+	entries := DeploymentsToEntries(deployments)
 
 	if _, err := s.AutoSnapshot(entries); err != nil {
 		return err
