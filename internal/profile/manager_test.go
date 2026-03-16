@@ -666,6 +666,51 @@ func TestManagerRestoreMissingAssets(t *testing.T) {
 	}
 }
 
+func TestManagerSaveSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Seed deployment state with two deployments.
+	now := time.Now().Truncate(time.Second)
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "skill-a",
+			SourcePath: "/src/a", LinkPath: "/link/a", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: now},
+		{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "agent-b",
+			SourcePath: "/src/b", LinkPath: "/link/b", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: now},
+	}
+
+	if err := mgr.SaveSnapshot("my-snapshot"); err != nil {
+		t.Fatalf("SaveSnapshot: %v", err)
+	}
+
+	// Verify the snapshot was persisted.
+	snap, err := store.GetSnapshot("my-snapshot", false)
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+	if len(snap.Deployments) != 2 {
+		t.Errorf("expected 2 deployments, got %d", len(snap.Deployments))
+	}
+	if snap.Auto {
+		t.Error("snapshot should not be auto")
+	}
+}
+
+func TestManagerSaveSnapshotInvalidName(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	if err := mgr.SaveSnapshot(""); err == nil {
+		t.Error("should reject empty name")
+	}
+}
+
 func TestManagerRestoreAutoSnapshot(t *testing.T) {
 	profilesDir, snapshotsDir := tempDirs(t)
 	store := profile.NewStore(profilesDir, snapshotsDir)
