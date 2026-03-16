@@ -1,7 +1,7 @@
 ---
 title: "feat: TUI Layer (Bubble Tea) — Interactive Dashboard"
 type: feat
-status: active
+status: completed
 date: 2026-03-15
 origin: docs/plans/2026-03-15-tui-layer-design.md
 ---
