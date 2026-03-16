@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	charm.land/bubbles/v2 v2.0.0
+	charm.land/bubbletea/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.41.0
