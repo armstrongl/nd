@@ -85,6 +85,75 @@ var (
 	_ = deploy.DeployRequest{}
 )
 
+func TestManagerListProfiles(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Create two profiles via the store.
+	if err := store.CreateProfile(profile.Profile{
+		Name:        "alpha",
+		Description: "first",
+		Assets:      []profile.ProfileAsset{},
+	}); err != nil {
+		t.Fatalf("create alpha: %v", err)
+	}
+	if err := store.CreateProfile(profile.Profile{
+		Name:        "beta",
+		Description: "second",
+		Assets:      []profile.ProfileAsset{},
+	}); err != nil {
+		t.Fatalf("create beta: %v", err)
+	}
+
+	summaries, err := mgr.ListProfiles()
+	if err != nil {
+		t.Fatalf("ListProfiles: %v", err)
+	}
+	if len(summaries) != 2 {
+		t.Fatalf("expected 2 profiles, got %d", len(summaries))
+	}
+	// Store.ListProfiles returns same result — verify names match.
+	storeSummaries, _ := store.ListProfiles()
+	if len(summaries) != len(storeSummaries) {
+		t.Errorf("manager vs store count mismatch: %d != %d", len(summaries), len(storeSummaries))
+	}
+}
+
+func TestManagerListSnapshots(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Save a snapshot via the store.
+	if err := store.SaveSnapshot(profile.Snapshot{
+		Name: "snap1",
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "foo", Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		},
+	}); err != nil {
+		t.Fatalf("save snapshot: %v", err)
+	}
+
+	summaries, err := mgr.ListSnapshots()
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("expected 1 snapshot, got %d", len(summaries))
+	}
+	if summaries[0].Name != "snap1" {
+		t.Errorf("expected snap1, got %q", summaries[0].Name)
+	}
+	// Verify store and manager return same result.
+	storeSummaries, _ := store.ListSnapshots()
+	if len(summaries) != len(storeSummaries) {
+		t.Errorf("manager vs store count mismatch: %d != %d", len(summaries), len(storeSummaries))
+	}
+}
+
 func TestManagerActiveProfileEmpty(t *testing.T) {
 	profilesDir, snapshotsDir := tempDirs(t)
 	store := profile.NewStore(profilesDir, snapshotsDir)
@@ -594,6 +663,51 @@ func TestManagerRestoreMissingAssets(t *testing.T) {
 	}
 	if result.MissingAssets[0].AssetName != "gone" {
 		t.Errorf("missing asset name: got %q", result.MissingAssets[0].AssetName)
+	}
+}
+
+func TestManagerSaveSnapshot(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Seed deployment state with two deployments.
+	now := time.Now().Truncate(time.Second)
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "skill-a",
+			SourcePath: "/src/a", LinkPath: "/link/a", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: now},
+		{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "agent-b",
+			SourcePath: "/src/b", LinkPath: "/link/b", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, DeployedAt: now},
+	}
+
+	if err := mgr.SaveSnapshot("my-snapshot"); err != nil {
+		t.Fatalf("SaveSnapshot: %v", err)
+	}
+
+	// Verify the snapshot was persisted.
+	snap, err := store.GetSnapshot("my-snapshot", false)
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+	if len(snap.Deployments) != 2 {
+		t.Errorf("expected 2 deployments, got %d", len(snap.Deployments))
+	}
+	if snap.Auto {
+		t.Error("snapshot should not be auto")
+	}
+}
+
+func TestManagerSaveSnapshotInvalidName(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	if err := mgr.SaveSnapshot(""); err == nil {
+		t.Error("should reject empty name")
 	}
 }
 

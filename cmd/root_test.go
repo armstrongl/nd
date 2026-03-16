@@ -8,7 +8,7 @@ import (
 func TestRootCmd_Help(t *testing.T) {
 	app := &App{}
 	rootCmd := NewRootCmd(app)
-	rootCmd.SetArgs([]string{})
+	rootCmd.SetArgs([]string{"--help"})
 
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
