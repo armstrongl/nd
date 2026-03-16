@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/larah/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/spf13/cobra"
 )
 

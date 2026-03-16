@@ -1,8 +1,8 @@
 package state
 
 import (
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // FindByIdentity returns deployments matching an asset identity.

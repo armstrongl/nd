@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/larah/nd/internal/version"
+	"github.com/armstrongl/nd/internal/version"
 )
 
 func newVersionCmd(app *App) *cobra.Command {

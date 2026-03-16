@@ -3,7 +3,7 @@ package nd_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestOriginProfile(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 func TestJSONResponseOK(t *testing.T) {

@@ -3,8 +3,8 @@ package asset_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestIdentityString(t *testing.T) {

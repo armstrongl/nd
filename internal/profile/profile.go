@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Profile represents a named, curated collection of assets (FR-022).

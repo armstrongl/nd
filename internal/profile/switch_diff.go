@@ -1,6 +1,6 @@
 package profile
 
-import "github.com/larah/nd/internal/nd"
+import "github.com/armstrongl/nd/internal/nd"
 
 // SwitchDiff represents the computed difference between two profiles
 // for the profile switch algorithm (spec: profile scope semantics).

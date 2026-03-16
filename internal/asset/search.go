@@ -3,7 +3,7 @@ package asset
 import (
 	"strings"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // SearchByName returns all assets matching the given name (case-insensitive)

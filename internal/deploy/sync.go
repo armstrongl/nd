@@ -1,6 +1,6 @@
 package deploy
 
-import "github.com/larah/nd/internal/state"
+import "github.com/armstrongl/nd/internal/state"
 
 // SyncPlan represents what the sync command will do.
 type SyncPlan struct {

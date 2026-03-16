@@ -10,8 +10,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // DefaultConfig returns a Config with built-in defaults.

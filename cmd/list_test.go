@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 func TestListCmd(t *testing.T) {

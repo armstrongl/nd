@@ -1,8 +1,8 @@
 package doctor
 
 import (
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // Report is the aggregate output of nd doctor.

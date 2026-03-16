@@ -3,8 +3,8 @@ package agent_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func claudeCode() agent.Agent {

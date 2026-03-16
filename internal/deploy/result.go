@@ -1,6 +1,6 @@
 package deploy
 
-import "github.com/larah/nd/internal/asset"
+import "github.com/armstrongl/nd/internal/asset"
 
 // Result represents the outcome of a single deploy/remove operation.
 type Result struct {

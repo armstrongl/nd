@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 // setupTestConfig creates a temp directory with a config file and returns the path.

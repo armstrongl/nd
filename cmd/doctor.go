@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/doctor"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/doctor"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/spf13/cobra"
 )
 

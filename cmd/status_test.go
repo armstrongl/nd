@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 func TestStatusCmd_Empty(t *testing.T) {

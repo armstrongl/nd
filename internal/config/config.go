@@ -1,6 +1,6 @@
 package config
 
-import "github.com/larah/nd/internal/nd"
+import "github.com/armstrongl/nd/internal/nd"
 
 // Config represents the merged, resolved configuration.
 // This is what the rest of the application uses after loading + merging.

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
 	"github.com/spf13/cobra"
 )
 

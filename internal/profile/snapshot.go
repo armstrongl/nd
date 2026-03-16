@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Snapshot represents a point-in-time record of all deployments (FR-020).

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/oplog"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 )
 
 func TestLogEntryJSONRoundTrip(t *testing.T) {

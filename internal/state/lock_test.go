@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestFileLockAcquireRelease(t *testing.T) {

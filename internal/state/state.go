@@ -3,8 +3,8 @@ package state
 import (
 	"time"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // DeploymentState is the root structure of deployments.yaml.

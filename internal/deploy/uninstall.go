@@ -1,6 +1,6 @@
 package deploy
 
-import "github.com/larah/nd/internal/state"
+import "github.com/armstrongl/nd/internal/state"
 
 // UninstallPlan represents what nd uninstall --dry-run would do.
 type UninstallPlan struct {

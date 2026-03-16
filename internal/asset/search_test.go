@@ -3,7 +3,7 @@ package asset
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func testIndex() *Index {

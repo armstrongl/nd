@@ -3,7 +3,7 @@ package sourcemanager_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestExpandGitURL(t *testing.T) {

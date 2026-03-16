@@ -1,6 +1,6 @@
 package source
 
-import "github.com/larah/nd/internal/asset"
+import "github.com/armstrongl/nd/internal/asset"
 
 // ScanResult holds the output of scanning a single source.
 type ScanResult struct {

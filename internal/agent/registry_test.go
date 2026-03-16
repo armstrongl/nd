@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/config"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/config"
 )
 
 func stubRegistry(cfg config.Config, lookPath func(string) (string, error), stat func(string) (os.FileInfo, error)) *agent.Registry {

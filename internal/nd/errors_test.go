@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestPathTraversalError(t *testing.T) {
