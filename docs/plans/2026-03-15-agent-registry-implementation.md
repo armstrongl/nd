@@ -28,8 +28,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/config"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/config"
 )
 
 func TestNewRegistryHasClaudeCode(t *testing.T) {
@@ -64,7 +64,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/larah/nd/internal/config"
+	"github.com/armstrongl/nd/internal/config"
 )
 
 // Registry manages agent detection, lookup, and config override application.

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/deploy"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestResultJSONRoundTrip(t *testing.T) {

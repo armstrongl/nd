@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/larah/nd/internal/config"
+	"github.com/armstrongl/nd/internal/config"
 )
 
 // Registry manages agent detection, lookup, and config override application.

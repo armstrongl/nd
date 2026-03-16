@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestDefaultConfig(t *testing.T) {

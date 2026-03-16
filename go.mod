@@ -1,4 +1,4 @@
-module github.com/larah/nd
+module github.com/armstrongl/nd
 
 go 1.25.1
 

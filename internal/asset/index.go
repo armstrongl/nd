@@ -3,7 +3,7 @@ package asset
 import (
 	"strings"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Index is an in-memory collection of all discovered assets across all sources.

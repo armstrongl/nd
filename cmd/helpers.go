@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 // printJSON marshals a JSONResponse envelope to the writer.

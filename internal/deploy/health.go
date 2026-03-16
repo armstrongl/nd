@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // StatusEntry pairs a deployment with its health status.

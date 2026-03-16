@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/deploy"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/spf13/cobra"
 )
 

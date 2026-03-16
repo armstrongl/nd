@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 	"gopkg.in/yaml.v3"
 )
 

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 // makeSourceTree creates a source directory with assets in conventional layout.

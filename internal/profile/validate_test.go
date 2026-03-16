@@ -3,7 +3,7 @@ package profile_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestValidateNameAcceptsValid(t *testing.T) {

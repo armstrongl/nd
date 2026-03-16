@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 // GenerateSourceID creates a source ID from a path's base name,

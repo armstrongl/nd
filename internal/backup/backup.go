@@ -3,7 +3,7 @@ package backup
 import (
 	"time"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Backup represents a backed-up file.

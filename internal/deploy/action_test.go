@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/deploy"
 )
 
 func TestActionString(t *testing.T) {

@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/deploy"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
-	"github.com/larah/nd/internal/sourcemanager"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // App holds configuration derived from flags and lazily initialized services.

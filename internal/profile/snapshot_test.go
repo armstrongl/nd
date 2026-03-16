@@ -6,8 +6,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestSnapshotYAMLRoundTrip(t *testing.T) {

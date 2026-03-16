@@ -1,6 +1,6 @@
 package source
 
-import "github.com/larah/nd/internal/nd"
+import "github.com/armstrongl/nd/internal/nd"
 
 // Source represents a registered asset source (local directory or Git repo).
 type Source struct {

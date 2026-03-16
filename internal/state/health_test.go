@@ -3,7 +3,7 @@ package state_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestHealthStatusString(t *testing.T) {

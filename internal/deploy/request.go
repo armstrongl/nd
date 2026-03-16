@@ -1,9 +1,9 @@
 package deploy
 
 import (
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Request represents a single deploy or remove operation.

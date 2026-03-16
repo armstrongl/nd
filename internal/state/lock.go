@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // FileLock provides advisory file locking on deployments.yaml.

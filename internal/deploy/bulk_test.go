@@ -3,7 +3,7 @@ package deploy_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/deploy"
 )
 
 func TestBulkResultHasFailures(t *testing.T) {

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 // SourceManager owns the full source lifecycle: config, registration,

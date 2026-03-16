@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/backup"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/backup"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestBackupJSONRoundTrip(t *testing.T) {

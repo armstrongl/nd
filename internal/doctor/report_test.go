@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/doctor"
+	"github.com/armstrongl/nd/internal/doctor"
 )
 
 func TestReportJSONRoundTrip(t *testing.T) {

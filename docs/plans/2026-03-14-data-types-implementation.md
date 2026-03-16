@@ -35,7 +35,7 @@ All 48 Go types across 12 packages implemented with 91.2% test coverage. 15 comm
 
 ```shell
 cd /Users/larah/Repos/nd
-go mod init github.com/larah/nd
+go mod init github.com/armstrongl/nd
 go get gopkg.in/yaml.v3
 ```
 
@@ -116,7 +116,7 @@ package nd_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestAllAssetTypes(t *testing.T) {
@@ -211,7 +211,7 @@ package nd_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestOriginProfile(t *testing.T) {
@@ -246,7 +246,7 @@ package nd_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestBuiltinContextFileNames(t *testing.T) {
@@ -310,7 +310,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestPathTraversalError(t *testing.T) {
@@ -400,8 +400,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestConfigYAMLRoundTrip(t *testing.T) {
@@ -529,8 +529,8 @@ package asset_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestIdentityString(t *testing.T) {
@@ -566,8 +566,8 @@ package asset_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func makeAsset(source string, at nd.AssetType, name string) asset.Asset {
@@ -669,7 +669,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/asset"
 )
 
 func TestCachedIndexYAMLRoundTrip(t *testing.T) {
@@ -718,7 +718,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/asset"
 )
 
 func TestContextMetaYAMLRoundTrip(t *testing.T) {
@@ -795,8 +795,8 @@ package agent_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func claudeCode() agent.Agent {
@@ -924,8 +924,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/backup"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/backup"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestBackupJSONRoundTrip(t *testing.T) {
@@ -980,8 +980,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 func TestManifestYAMLRoundTrip(t *testing.T) {
@@ -1075,8 +1075,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestDeploymentStateYAMLRoundTrip(t *testing.T) {
@@ -1142,7 +1142,7 @@ package state_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestHealthStatusString(t *testing.T) {
@@ -1173,9 +1173,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func sampleState() state.DeploymentState {
@@ -1272,8 +1272,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestProfileYAMLRoundTrip(t *testing.T) {
@@ -1337,8 +1337,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestSnapshotYAMLRoundTrip(t *testing.T) {
@@ -1404,8 +1404,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/profile"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestComputeSwitchDiff(t *testing.T) {
@@ -1505,9 +1505,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/oplog"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/oplog"
 )
 
 func TestLogEntryJSONRoundTrip(t *testing.T) {
@@ -1567,7 +1567,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/deploy"
 )
 
 func TestActionString(t *testing.T) {
@@ -1609,7 +1609,7 @@ package deploy_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/deploy"
 )
 
 func TestBulkResultHasFailures(t *testing.T) {
@@ -1686,7 +1686,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/doctor"
+	"github.com/armstrongl/nd/internal/doctor"
 )
 
 func TestReportJSONRoundTrip(t *testing.T) {
@@ -1739,7 +1739,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/larah/nd/internal/output"
+	"github.com/armstrongl/nd/internal/output"
 )
 
 func TestJSONResponseOK(t *testing.T) {

@@ -31,7 +31,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 func TestAtomicWriteCreatesFile(t *testing.T) {
@@ -290,7 +290,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // ValidationError represents a single config validation failure.
@@ -466,9 +466,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -624,8 +624,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // DefaultConfig returns a Config with built-in defaults.
@@ -777,8 +777,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestNewWithMissingConfig(t *testing.T) {
@@ -862,8 +862,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 // SourceManager owns the full source lifecycle: config, registration,
@@ -956,7 +956,7 @@ package sourcemanager_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestExpandGitURL(t *testing.T) {
@@ -1118,8 +1118,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 func TestGenerateSourceID(t *testing.T) {
@@ -1251,9 +1251,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/config"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 // GenerateSourceID creates a source ID from a path's base name,
@@ -1687,8 +1687,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/sourcemanager"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 // makeSourceTree creates a source directory with assets in conventional layout.
@@ -1821,9 +1821,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/source"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/source"
 )
 
 // excludedDirs are directories that source scanning always skips (NFR-017).
@@ -2019,7 +2019,7 @@ func TestScanContextLocalOnly(t *testing.T) {
 }
 ```
 
-Add `"github.com/larah/nd/internal/asset"` to the test file imports.
+Add `"github.com/armstrongl/nd/internal/asset"` to the test file imports.
 
 ### Step 2: Run tests to verify they fail
 
@@ -2477,7 +2477,7 @@ Add to `internal/sourcemanager/sourcemanager.go`:
 
 ```go
 import (
-	"github.com/larah/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/asset"
 )
 ```
 
@@ -2626,7 +2626,7 @@ func (sm *SourceManager) SyncSource(sourceID string) error {
 }
 ```
 
-Add `"github.com/larah/nd/internal/nd"` to the imports in `sourcemanager.go`.
+Add `"github.com/armstrongl/nd/internal/nd"` to the imports in `sourcemanager.go`.
 
 ### Step 4: Run tests to verify they pass
 

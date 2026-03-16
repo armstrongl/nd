@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/larah/nd/cmd"
+	"github.com/armstrongl/nd/cmd"
 )
 
 func main() {

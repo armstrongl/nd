@@ -65,8 +65,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestFileLockAcquireRelease(t *testing.T) {
@@ -157,7 +157,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // FileLock provides advisory file locking on deployments.yaml.
@@ -256,8 +256,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestStoreLoadMissingFile(t *testing.T) {
@@ -460,7 +460,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Store manages the deployment state file on disk.
@@ -582,10 +582,10 @@ package deploy_test
 import (
 	"testing"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/deploy"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // mockStore implements deploy.StateStore for testing.
@@ -667,10 +667,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/larah/nd/internal/agent"
-	"github.com/larah/nd/internal/asset"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/agent"
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // StateStore abstracts state persistence for testing.
@@ -1586,9 +1586,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/larah/nd/internal/deploy"
-	"github.com/larah/nd/internal/nd"
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 func TestCheckHealthy(t *testing.T) {
@@ -1713,7 +1713,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/larah/nd/internal/state"
+	"github.com/armstrongl/nd/internal/state"
 )
 
 // StatusEntry pairs a deployment with its health status.

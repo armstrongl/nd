@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/larah/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/asset"
 )
 
 func TestCachedIndexYAMLRoundTrip(t *testing.T) {

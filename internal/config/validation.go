@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/larah/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // ValidationError represents a single config validation failure.
