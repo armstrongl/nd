@@ -2,6 +2,7 @@ package profile
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
@@ -98,6 +99,27 @@ func (m *Manager) ListProfiles() ([]ProfileSummary, error) {
 // ListSnapshots returns summaries of all saved snapshots (user + auto).
 func (m *Manager) ListSnapshots() ([]SnapshotSummary, error) {
 	return m.store.ListSnapshots()
+}
+
+// SaveSnapshot captures the current deployment state as a user snapshot.
+func (m *Manager) SaveSnapshot(name string) error {
+	if err := ValidateName(name); err != nil {
+		return fmt.Errorf("save snapshot: %w", err)
+	}
+
+	st, _, err := m.stateStore.Load()
+	if err != nil {
+		return fmt.Errorf("save snapshot: load state: %w", err)
+	}
+
+	entries := DeploymentsToEntries(st.Deployments)
+	snap := Snapshot{
+		Version:     st.Version,
+		Name:        name,
+		CreatedAt:   time.Now().Truncate(time.Second),
+		Deployments: entries,
+	}
+	return m.store.SaveSnapshot(snap)
 }
 
 // DeleteProfile deletes a profile, refusing if it is the active profile.
