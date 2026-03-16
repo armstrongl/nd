@@ -90,6 +90,16 @@ func (m *Manager) SetActiveProfile(name string) error {
 	})
 }
 
+// ListProfiles returns summaries of all saved profiles.
+func (m *Manager) ListProfiles() ([]ProfileSummary, error) {
+	return m.store.ListProfiles()
+}
+
+// ListSnapshots returns summaries of all saved snapshots (user + auto).
+func (m *Manager) ListSnapshots() ([]SnapshotSummary, error) {
+	return m.store.ListSnapshots()
+}
+
 // DeleteProfile deletes a profile, refusing if it is the active profile.
 func (m *Manager) DeleteProfile(name string) error {
 	active, err := m.ActiveProfile()
