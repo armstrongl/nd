@@ -34,8 +34,8 @@ func TestHeaderViewGlobal(t *testing.T) {
 
 func TestHeaderViewProject(t *testing.T) {
 	h := components.Header{
-		Scope: nd.ScopeProject,
-		Width: 120,
+		Scope:  nd.ScopeProject,
+		Width:  120,
 		Styles: tui.DefaultStyles(),
 	}
 	view := h.View()
