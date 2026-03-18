@@ -89,5 +89,8 @@ func newSyncCmd(app *App) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&sourceID, "source", "", "sync a specific git source")
+	cmd.RegisterFlagCompletionFunc("source", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeSourceIDs(app, toComplete)
+	})
 	return cmd
 }

@@ -155,6 +155,13 @@ Asset references can be:
 		return names, cobra.ShellCompDirectiveNoFileComp
 	}
 	cmd.Flags().StringVar(&assetType, "type", "", "asset type filter (skills, commands, rules, etc.)")
+	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var types []string
+		for _, t := range nd.AllAssetTypes() {
+			types = append(types, string(t))
+		}
+		return types, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
