@@ -44,6 +44,10 @@ func NewRootCmd(app *App) *cobra.Command {
 
 	rootCmd.MarkFlagsMutuallyExclusive("verbose", "quiet")
 
+	rootCmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"global\tDeploy to ~/.claude/", "project\tDeploy to .claude/ in project"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	// Disable Cobra's default completion command; we provide our own with --install support.
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 

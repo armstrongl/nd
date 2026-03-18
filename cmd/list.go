@@ -54,11 +54,11 @@ func newListCmd(app *App) *cobra.Command {
 
 			// Apply filters
 			type listEntry struct {
-				Type     string `json:"type"`
-				Name     string `json:"name"`
-				Source   string `json:"source"`
-				Status   string `json:"status"`
-				IsDir    bool   `json:"is_dir"`
+				Type   string `json:"type"`
+				Name   string `json:"name"`
+				Source string `json:"source"`
+				Status string `json:"status"`
+				IsDir  bool   `json:"is_dir"`
 			}
 
 			var entries []listEntry
@@ -113,6 +113,16 @@ func newListCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&assetType, "type", "", "filter by asset type")
 	cmd.Flags().StringVar(&sourceID, "source", "", "filter by source ID")
 	cmd.Flags().StringVar(&pattern, "pattern", "", "filter by name pattern")
+	cmd.RegisterFlagCompletionFunc("type", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var types []string
+		for _, t := range nd.AllAssetTypes() {
+			types = append(types, string(t))
+		}
+		return types, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.RegisterFlagCompletionFunc("source", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeSourceIDs(app, toComplete)
+	})
 	return cmd
 }
 
