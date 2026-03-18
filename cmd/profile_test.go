@@ -401,3 +401,33 @@ func TestProfileAddAssetCmd_DryRun(t *testing.T) {
 		t.Error("dry-run should not have persisted the asset addition")
 	}
 }
+
+func TestProfileSwitchCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Create a profile first so completions have something to return
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var devNull bytes.Buffer
+	rootCmd.SetOut(&devNull)
+	rootCmd.SetErr(&devNull)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "test-profile", "--from-current"})
+	_ = rootCmd.Execute()
+
+	// Now test completions
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+
+	var out bytes.Buffer
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "__complete", "profile", "switch", ""})
+
+	_ = rootCmd2.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "test-profile") {
+		t.Errorf("expected 'test-profile' in profile switch completions, got:\n%s", got)
+	}
+}

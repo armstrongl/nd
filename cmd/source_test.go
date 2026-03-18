@@ -342,3 +342,22 @@ func TestSourceRemove_JSON(t *testing.T) {
 		t.Errorf("expected status ok, got %q", resp.Status)
 	}
 }
+
+func TestSourceRemoveCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "__complete", "source", "remove", ""})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "my-source") {
+		t.Errorf("expected 'my-source' in source remove completions, got:\n%s", got)
+	}
+}
