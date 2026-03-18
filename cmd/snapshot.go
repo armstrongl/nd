@@ -72,7 +72,7 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 }
 
 func newSnapshotRestoreCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "restore <name>",
 		Short: "Restore deployments from a snapshot",
 		Args:  cobra.ExactArgs(1),
@@ -159,6 +159,10 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeSnapshotNames(app, toComplete)
+	}
+	return cmd
 }
 
 func newSnapshotListCmd(app *App) *cobra.Command {
@@ -203,7 +207,7 @@ func newSnapshotListCmd(app *App) *cobra.Command {
 }
 
 func newSnapshotDeleteCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a snapshot",
 		Args:  cobra.ExactArgs(1),
@@ -237,4 +241,8 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeSnapshotNames(app, toComplete)
+	}
+	return cmd
 }

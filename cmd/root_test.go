@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,23 @@ func TestRootCmd_MutualExclusion(t *testing.T) {
 	err := rootCmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for --verbose + --quiet")
+	}
+}
+
+func TestScopeFlagCompletion(t *testing.T) {
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"__complete", "list", "--scope", ""})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "global") || !strings.Contains(got, "project") {
+		t.Errorf("expected 'global' and 'project' in scope completions, got:\n%s", got)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 func newPinCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pin <asset>",
 		Short: "Pin an asset to prevent profile switches from removing it",
 		Args:  cobra.ExactArgs(1),
@@ -16,10 +16,14 @@ func newPinCmd(app *App) *cobra.Command {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginPinned, "Pinned")
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeDeployedAssets(app, toComplete)
+	}
+	return cmd
 }
 
 func newUnpinCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "unpin <asset>",
 		Short: "Unpin an asset, allowing profile switches to manage it",
 		Args:  cobra.ExactArgs(1),
@@ -27,6 +31,10 @@ func newUnpinCmd(app *App) *cobra.Command {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginManual, "Unpinned")
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeDeployedAssets(app, toComplete)
+	}
+	return cmd
 }
 
 func setAssetOrigin(cmd *cobra.Command, app *App, ref string, origin nd.DeployOrigin, verb string) error {

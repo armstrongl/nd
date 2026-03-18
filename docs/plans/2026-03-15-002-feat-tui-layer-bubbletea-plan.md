@@ -1,10 +1,13 @@
 ---
 title: "feat: TUI Layer (Bubble Tea) — Interactive Dashboard"
 type: feat
-status: completed
+status: deprecated
 date: 2026-03-15
+deprecated: 2026-03-18
 origin: docs/plans/2026-03-15-tui-layer-design.md
 ---
+
+> **DEPRECATED (2026-03-18):** This implementation did not meet expectations and will be reworked from scratch. The merged code from PR #6 remains in `internal/tui/` but should not be extended. Additional uncommitted styling/component refinements were stashed (`git stash list` — "wip: TUI styling/component refinements (to be revisited)"). The spec requirements (FR-001, FR-017, FR-028, FR-029, etc.) still apply — only the design and implementation are being replaced.
 
 ## Overview
 

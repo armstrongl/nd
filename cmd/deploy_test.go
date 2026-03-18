@@ -161,3 +161,22 @@ func TestDeployCmd_Multiple(t *testing.T) {
 		t.Errorf("expected both assets in output, got: %s", got)
 	}
 }
+
+func TestDeployCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "__complete", "deploy", ""})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "greeting") {
+		t.Errorf("expected 'greeting' in completions, got:\n%s", got)
+	}
+}

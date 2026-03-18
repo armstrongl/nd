@@ -180,6 +180,9 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "skip confirmation and remove deployed assets")
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeSourceIDs(app, toComplete)
+	}
 	return cmd
 }
 

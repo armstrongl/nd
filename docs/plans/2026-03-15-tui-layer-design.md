@@ -1,11 +1,14 @@
 # TUI Layer design
 
+> **DEPRECATED (2026-03-18):** This design and its implementation (PR #6) did not meet expectations. The TUI will be reworked from scratch with a new design. The spec requirements (FR-001, FR-017, FR-028, FR-029, etc.) still define the desired behavior — this design's approach to fulfilling them is what's being replaced. See also: `docs/plans/2026-03-15-002-feat-tui-layer-bubbletea-plan.md`.
+
 | Field | Value |
 | --- | --- |
 | **Date** | 2026-03-15 |
 | **Author** | Larah |
-| **Status** | Draft |
+| **Status** | Deprecated |
 | **Version** | 0.2 (audit-remediated) |
+| **Deprecated** | 2026-03-18 |
 | **Packages** | `internal/tui/` (new), `internal/tui/components/` (new) |
 | **Spec refs** | FR-001, FR-010, FR-016a, FR-016b, FR-016c, FR-017, FR-018, FR-019, FR-020, FR-021, FR-023, FR-024a, FR-028, FR-029, FR-029a, NFR-001, NFR-006 |
 | **Framework** | Bubble Tea v2, Lip Gloss |

@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"golang.org/x/term"
 
 	"github.com/armstrongl/nd/internal/output"
+	"github.com/spf13/cobra"
 )
 
 // printJSON marshals a JSONResponse envelope to the writer.
@@ -95,4 +98,112 @@ func promptChoice(r io.Reader, w io.Writer, prompt string, choices []string) (st
 // isTerminal checks if stdin is a terminal.
 func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+// completionInitApp does lightweight App initialization for completion contexts.
+// PersistentPreRunE is not guaranteed to run during shell completion, so this
+// handles the essential setup: expanding ~ in ConfigPath and deriving BackupDir.
+// This function is idempotent and safe to call multiple times.
+func completionInitApp(app *App) {
+	if strings.HasPrefix(app.ConfigPath, "~/") {
+		if u, err := user.Current(); err == nil {
+			app.ConfigPath = filepath.Join(u.HomeDir, app.ConfigPath[2:])
+		}
+	}
+	if app.BackupDir == "" {
+		app.BackupDir = filepath.Join(filepath.Dir(app.ConfigPath), "backups")
+	}
+}
+
+// completeDeployedAssets returns names of deployed assets for shell completion.
+// NOTE: Returns ALL deployed assets regardless of scope because PersistentPreRunE
+// hasn't run during completion, so scope defaults to "global". This is acceptable
+// since completions are advisory.
+func completeDeployedAssets(app *App, toComplete string) ([]string, cobra.ShellCompDirective) {
+	completionInitApp(app)
+	eng, err := app.DeployEngine()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	entries, err := eng.Status()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var names []string
+	for _, e := range entries {
+		d := e.Deployment
+		name := fmt.Sprintf("%s/%s", d.AssetType, d.AssetName)
+		if toComplete == "" || strings.HasPrefix(name, toComplete) || strings.HasPrefix(string(d.AssetName), toComplete) {
+			names = append(names, fmt.Sprintf("%s/%s\t%s from %s", d.AssetType, d.AssetName, d.Scope, d.SourceID))
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeProfileNames returns profile names for shell completion.
+func completeProfileNames(app *App, toComplete string) ([]string, cobra.ShellCompDirective) {
+	completionInitApp(app)
+	pstore, err := app.ProfileStore()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	profiles, err := pstore.ListProfiles()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var names []string
+	for _, p := range profiles {
+		if toComplete == "" || strings.HasPrefix(p.Name, toComplete) {
+			desc := fmt.Sprintf("%d assets", p.AssetCount)
+			if p.Description != "" {
+				desc = p.Description
+			}
+			names = append(names, fmt.Sprintf("%s\t%s", p.Name, desc))
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeSnapshotNames returns snapshot names for shell completion.
+func completeSnapshotNames(app *App, toComplete string) ([]string, cobra.ShellCompDirective) {
+	completionInitApp(app)
+	pstore, err := app.ProfileStore()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	snapshots, err := pstore.ListSnapshots()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var names []string
+	for _, s := range snapshots {
+		if toComplete == "" || strings.HasPrefix(s.Name, toComplete) {
+			desc := fmt.Sprintf("%d deployments", s.DeploymentCount)
+			if s.Auto {
+				desc += " (auto)"
+			}
+			names = append(names, fmt.Sprintf("%s\t%s", s.Name, desc))
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeSourceIDs returns source IDs for shell completion.
+func completeSourceIDs(app *App, toComplete string) ([]string, cobra.ShellCompDirective) {
+	completionInitApp(app)
+	sm, err := app.SourceManager()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var names []string
+	for _, s := range sm.Sources() {
+		if toComplete == "" || strings.HasPrefix(s.ID, toComplete) {
+			desc := string(s.Type)
+			if s.Alias != "" {
+				desc = s.Alias
+			}
+			names = append(names, fmt.Sprintf("%s\t%s", s.ID, desc))
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
 }
