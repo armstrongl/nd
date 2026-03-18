@@ -4,6 +4,7 @@
 | --- | --- |
 | **Date** | 2026-03-15 |
 | **Topic** | tui-layer |
+| **Status** | Deprecated (2026-03-18) |
 
 ## What We're Building
 
