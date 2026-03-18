@@ -44,6 +44,9 @@ func NewRootCmd(app *App) *cobra.Command {
 
 	rootCmd.MarkFlagsMutuallyExclusive("verbose", "quiet")
 
+	// Disable Cobra's default completion command; we provide our own with --install support.
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	// Register subcommands
 	rootCmd.AddCommand(
 		newVersionCmd(app),
@@ -61,6 +64,7 @@ func NewRootCmd(app *App) *cobra.Command {
 		newInitCmd(app),
 		newSettingsCmd(app),
 		newUninstallCmd(app),
+		newCompletionCmd(app),
 	)
 
 	return rootCmd
