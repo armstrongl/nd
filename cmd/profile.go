@@ -119,7 +119,7 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 }
 
 func newProfileDeleteCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a profile",
 		Args:  cobra.ExactArgs(1),
@@ -145,6 +145,10 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeProfileNames(app, toComplete)
+	}
+	return cmd
 }
 
 func newProfileListCmd(app *App) *cobra.Command {
@@ -213,7 +217,7 @@ func newProfileListCmd(app *App) *cobra.Command {
 }
 
 func newProfileDeployCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "deploy <name>",
 		Short: "Deploy all assets in a profile",
 		Args:  cobra.ExactArgs(1),
@@ -280,10 +284,14 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeProfileNames(app, toComplete)
+	}
+	return cmd
 }
 
 func newProfileSwitchCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "switch <name>",
 		Short: "Switch from current profile to another",
 		Args:  cobra.ExactArgs(1),
@@ -370,10 +378,14 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeProfileNames(app, toComplete)
+	}
+	return cmd
 }
 
 func newProfileAddAssetCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "add-asset <profile> <asset>",
 		Short: "Add an asset to an existing profile",
 		Args:  cobra.ExactArgs(2),
@@ -442,4 +454,26 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return completeProfileNames(app, toComplete)
+		}
+		if len(args) == 1 {
+			completionInitApp(app)
+			summary, err := app.ScanIndex()
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			var names []string
+			for _, a := range summary.Index.All() {
+				name := fmt.Sprintf("%s/%s", a.Type, a.Name)
+				if toComplete == "" || strings.HasPrefix(name, toComplete) || strings.HasPrefix(a.Name, toComplete) {
+					names = append(names, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))
+				}
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return cmd
 }

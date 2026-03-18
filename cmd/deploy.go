@@ -139,6 +139,21 @@ Asset references can be:
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		completionInitApp(app)
+		summary, err := app.ScanIndex()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		var names []string
+		for _, a := range summary.Index.All() {
+			name := fmt.Sprintf("%s/%s", a.Type, a.Name)
+			if toComplete == "" || strings.HasPrefix(name, toComplete) || strings.HasPrefix(a.Name, toComplete) {
+				names = append(names, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))
+			}
+		}
+		return names, cobra.ShellCompDirectiveNoFileComp
+	}
 	cmd.Flags().StringVar(&assetType, "type", "", "asset type filter (skills, commands, rules, etc.)")
 	return cmd
 }

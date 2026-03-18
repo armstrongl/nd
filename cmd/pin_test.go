@@ -132,3 +132,33 @@ func TestPinCmd_JSON(t *testing.T) {
 		t.Errorf("expected status ok, got %q", resp.Status)
 	}
 }
+
+func TestPinCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	// Deploy first
+	var devNull bytes.Buffer
+	rootCmd.SetOut(&devNull)
+	rootCmd.SetErr(&devNull)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+	_ = rootCmd.Execute()
+
+	// Test pin completions
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+
+	var out bytes.Buffer
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "__complete", "pin", ""})
+
+	_ = rootCmd2.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "greeting") {
+		t.Errorf("expected 'greeting' in pin completions, got:\n%s", got)
+	}
+}

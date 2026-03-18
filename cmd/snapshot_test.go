@@ -288,3 +288,19 @@ func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
 	}
 }
+
+func TestSnapshotRestoreCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "__complete", "snapshot", "restore", ""})
+
+	_ = rootCmd.Execute()
+
+	// Completions may be empty if no snapshots exist; the key test is no panic/error
+}
