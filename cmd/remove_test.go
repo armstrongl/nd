@@ -150,3 +150,33 @@ func TestRemoveCmd_TypeQualified(t *testing.T) {
 		t.Fatalf("remove failed: %v", err)
 	}
 }
+
+func TestRemoveCmd_Completions(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	// Deploy an asset first
+	var devNull bytes.Buffer
+	rootCmd.SetOut(&devNull)
+	rootCmd.SetErr(&devNull)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+	_ = rootCmd.Execute()
+
+	// Test completions for remove
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+
+	var out bytes.Buffer
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "__complete", "remove", ""})
+
+	_ = rootCmd2.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "greeting") {
+		t.Errorf("expected 'greeting' in remove completions, got:\n%s", got)
+	}
+}

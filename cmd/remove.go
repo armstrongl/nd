@@ -11,7 +11,7 @@ import (
 )
 
 func newRemoveCmd(app *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "remove <asset> [assets...]",
 		Short: "Remove deployed assets",
 		Args:  cobra.MinimumNArgs(1),
@@ -120,6 +120,10 @@ func newRemoveCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return completeDeployedAssets(app, toComplete)
+	}
+	return cmd
 }
 
 // findDeployedAsset finds a deployment matching a reference string.

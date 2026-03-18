@@ -109,6 +109,23 @@ func TestListCmd_Empty(t *testing.T) {
 	}
 }
 
+func TestListCmd_TypeFlagCompletion(t *testing.T) {
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"__complete", "list", "--type", ""})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "skills") || !strings.Contains(got, "commands") {
+		t.Errorf("expected asset types in type flag completions, got:\n%s", got)
+	}
+}
+
 func TestListCmd_JSON(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
