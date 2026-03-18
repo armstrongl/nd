@@ -108,3 +108,28 @@ func TestPromptChoice_Valid(t *testing.T) {
 		t.Errorf("confirm with yesFlag should return true, got ok=%v err=%v", ok, err)
 	}
 }
+
+func TestCompletionInitApp(t *testing.T) {
+	app := &App{ConfigPath: "~/.config/nd/config.yaml"}
+	completionInitApp(app)
+
+	if strings.Contains(app.ConfigPath, "~") {
+		t.Errorf("ConfigPath still contains ~: %s", app.ConfigPath)
+	}
+	if app.BackupDir == "" {
+		t.Error("BackupDir not set")
+	}
+	if !strings.HasSuffix(app.BackupDir, "backups") {
+		t.Errorf("BackupDir should end with 'backups', got: %s", app.BackupDir)
+	}
+}
+
+func TestCompletionInitApp_Idempotent(t *testing.T) {
+	app := &App{ConfigPath: "/tmp/nd/config.yaml"}
+	completionInitApp(app)
+	first := app.ConfigPath
+	completionInitApp(app)
+	if app.ConfigPath != first {
+		t.Errorf("not idempotent: %s != %s", first, app.ConfigPath)
+	}
+}
