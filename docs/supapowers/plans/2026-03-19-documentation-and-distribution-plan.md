@@ -40,6 +40,23 @@
 
 ## Chunk 1: Distribution Pipeline + Command Reference
 
+### Prerequisite: Update .gitignore
+
+goreleaser generates a `dist/` directory and CI generates `coverage.out`. Both must be gitignored.
+
+- [ ] **Step 1: Add entries to `.gitignore`**
+
+Add `dist/` and `coverage.out` to `.gitignore`.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add .gitignore
+git commit -m "chore: add dist/ and coverage.out to .gitignore"
+```
+
+---
+
 ### Task 1: Create goreleaser config
 
 The goreleaser config builds nd for darwin/linux (amd64/arm64), creates archives, generates changelog from Conventional Commits, and pushes a Homebrew formula to the tap repo.
@@ -349,7 +366,11 @@ Expected: Compiles without errors.
 
 - [ ] **Step 5: Generate the command reference**
 
-Run: `go run ./cmd/gendocs/`
+Run:
+```bash
+rm -rf docs/reference/
+go run ./cmd/gendocs/
+```
 Expected: `docs/reference/` is populated with markdown files (one per command).
 
 Verify: `ls docs/reference/ | head -10` — should show files like `nd.md`, `nd_deploy.md`, `nd_source_add.md`, etc.
@@ -546,7 +567,7 @@ Asset types and indexing.
 Source data types.
 
 - `Source` -- A registered source: ID, type, path, URL, alias, manifest
-- `Manifest` -- Convention-based directory structure discovered from a source
+- `Manifest` -- Explicit `nd-source.yaml` file defining custom asset paths and exclusions (overrides convention scanning)
 
 ### internal/state
 
@@ -565,7 +586,7 @@ Source lifecycle management.
 - `SourceManager` -- Config loading, source registration, asset scanning, git syncing
 - `AddLocal()` / `AddGit()` -- Register new sources
 - `Remove()` -- Unregister sources (with deployed asset handling)
-- `ScanSource()` -- Convention-based + manifest discovery of assets
+- `ScanSource()` -- Asset discovery: manifest (`nd-source.yaml`) overrides convention; convention used when no manifest present
 - Git operations: clone, pull (--ff-only)
 
 ### internal/deploy
@@ -573,11 +594,9 @@ Source lifecycle management.
 Symlink deployment engine.
 
 - `Engine` -- Deploy, remove, health check, repair, bulk operations
-- `Deploy()` -- Create symlink from agent config dir to source asset
-- `Remove()` -- Delete managed symlinks
-- `Check()` -- Health check: broken symlinks, drift detection
-- `Sync()` -- Repair broken/drifted symlinks
-- `Uninstall()` -- Remove all managed symlinks
+- `Deploy()` / `DeployBulk()` -- Create symlinks from agent config dir to source assets
+- `Remove()` / `RemoveBulk()` -- Delete managed symlinks
+- `SetOrigin()` -- Update deployment origin (manual, pinned, profile)
 
 ### internal/profile
 
@@ -624,7 +643,7 @@ Bubble Tea v2 dashboard.
 ```
 cmd/deploy.go
   -> app.SourceManager().Scan()     -- discover assets from all sources
-  -> asset.Index.Resolve()          -- find "skills/greeting" in index
+  -> asset.Index.Lookup()           -- find "skills/greeting" in index
   -> app.DeployEngine().Deploy()    -- create symlink
   -> state.Save()                   -- persist deployment record
   -> print confirmation
@@ -975,7 +994,11 @@ git commit -m "docs: add Getting Started guide"
 **Files:**
 - Create: `docs/guide/user-guide.md`
 
-- [ ] **Step 1: Create `docs/guide/user-guide.md`**
+- [ ] **Step 1: Ensure directory exists**
+
+Run: `mkdir -p docs/guide`
+
+- [ ] **Step 2: Create `docs/guide/user-guide.md`**
 
 ```markdown
 # User Guide
@@ -1074,7 +1097,13 @@ If assets from this source are currently deployed, nd asks whether to remove the
 nd deploy skills/greeting
 ```
 
-Asset references use the format `type/name`. If the name is unique across types, you can omit the type: `nd deploy greeting`.
+Asset references use the format `type/name`. If the name is unique across types, you can omit the type: `nd deploy greeting`. If a name is ambiguous (exists in multiple types), nd reports the conflict and asks you to qualify with the type prefix.
+
+### Filtering by Type
+
+```bash
+nd deploy --type skills greeting
+```
 
 ### Multiple Assets
 
@@ -1235,7 +1264,7 @@ nd uninstall
 This removes symlinks but does **not** delete your config directory (`~/.config/nd/`). To fully uninstall, also remove that directory and the nd binary.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add docs/guide/user-guide.md
@@ -1249,7 +1278,11 @@ git commit -m "docs: add User Guide with core workflows"
 **Files:**
 - Create: `docs/guide/profiles-and-snapshots.md`
 
-- [ ] **Step 1: Create `docs/guide/profiles-and-snapshots.md`**
+- [ ] **Step 1: Ensure directory exists**
+
+Run: `mkdir -p docs/guide`
+
+- [ ] **Step 2: Create `docs/guide/profiles-and-snapshots.md`**
 
 ```markdown
 # Profiles & Snapshots
@@ -1426,7 +1459,7 @@ nd profile switch work
 Pinned assets (`skills/greeting`, `rules/no-emojis`) persist through every switch.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add docs/guide/profiles-and-snapshots.md
@@ -1440,7 +1473,11 @@ git commit -m "docs: add Profiles & Snapshots guide"
 **Files:**
 - Create: `docs/guide/configuration.md`
 
-- [ ] **Step 1: Create `docs/guide/configuration.md`**
+- [ ] **Step 1: Ensure directory exists**
+
+Run: `mkdir -p docs/guide`
+
+- [ ] **Step 2: Create `docs/guide/configuration.md`**
 
 ```markdown
 # Configuration
@@ -1485,6 +1522,10 @@ sources:
     url: https://github.com/org/shared-assets.git
     alias: community-assets
 
+# Recognized context file names (optional)
+# Defaults to ["CLAUDE.md"]
+# context_types: ["CLAUDE.md", "AGENTS.md"]
+
 # Agent configuration overrides (optional)
 # Only needed if your agent uses non-standard directories
 agents:
@@ -1507,6 +1548,7 @@ agents:
 | `sources[].path` | string | -- | Filesystem path to source |
 | `sources[].url` | string | -- | Git URL (git sources only) |
 | `sources[].alias` | string | -- | Human-readable alias (optional) |
+| `context_types` | array | `["CLAUDE.md"]` | Recognized context file names |
 | `agents` | array | (built-in) | Agent configuration overrides |
 | `agents[].name` | string | -- | Agent name |
 | `agents[].global_dir` | string | -- | Agent's global config directory |
@@ -1547,8 +1589,9 @@ Use cases:
 |----------|---------|-------------|
 | `$EDITOR` | `nd settings edit` | Preferred text editor |
 | `$VISUAL` | `nd settings edit` | Visual editor (fallback if `$EDITOR` not set) |
+| `$NO_COLOR` | All commands | Disable colored output (equivalent to `--no-color` flag) |
 
-If neither is set, `nd settings edit` falls back to `vi`.
+If neither `$EDITOR` nor `$VISUAL` is set, `nd settings edit` falls back to `vi`.
 
 ## Editing Config
 
@@ -1565,9 +1608,11 @@ nd doctor
 ```
 
 The doctor command checks config validity as its first step.
+
+If your config file contains invalid YAML, nd commands will report a parse error with the line number. Fix the syntax and retry.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add docs/guide/configuration.md
@@ -1581,7 +1626,11 @@ git commit -m "docs: add Configuration guide"
 **Files:**
 - Create: `docs/guide/creating-sources.md`
 
-- [ ] **Step 1: Create `docs/guide/creating-sources.md`**
+- [ ] **Step 1: Ensure directory exists**
+
+Run: `mkdir -p docs/guide`
+
+- [ ] **Step 2: Create `docs/guide/creating-sources.md`**
 
 ```markdown
 # Creating Asset Sources
@@ -1606,7 +1655,11 @@ my-assets/
 +-- rules/
 |   +-- no-emojis.md        # File asset
 +-- context/
-|   +-- CLAUDE.md           # File asset (special deploy rules)
+|   +-- go-project-rules/   # Folder-per-asset layout
+|   |   +-- CLAUDE.md       # Context file
+|   |   +-- _meta.yaml      # Optional metadata
+|   +-- coding-standards/
+|       +-- CLAUDE.md
 +-- plugins/
 |   +-- my-plugin/          # Directory asset (not symlink-deployed)
 +-- hooks/
@@ -1624,7 +1677,7 @@ Not every directory needs to be present. nd only discovers assets in directories
 | `commands` | File | Yes | Custom command definitions |
 | `output-styles` | File | Yes | Output formatting styles (requires manual settings.json registration) |
 | `rules` | File | Yes | Rule files for agent behavior |
-| `context` | File | Yes | Context files (special deployment rules -- see below) |
+| `context` | Folder-per-asset | Yes | Context files (special deployment rules -- see below) |
 | `plugins` | Directory | No | Plugin packages (uses export workflow, not symlinks) |
 | `hooks` | Directory | Yes | Hook definitions (requires manual settings.json registration) |
 
@@ -1651,13 +1704,17 @@ For sources that don't follow the convention-based directory structure, create a
 
 ```yaml
 # nd-source.yaml
-skills:
-  - path: custom/path/to/skills
-agents:
-  - path: my-agents
+version: 1
+paths:
+  skills:
+    - custom/path/to/skills
+  agents:
+    - my-agents
+exclude:
+  - vendor/
 ```
 
-This tells nd where to find each asset type. Convention-based directories are still discovered alongside manifest paths.
+When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. Convention-based discovery only happens if no manifest is found.
 
 ## Publishing Your Source
 
@@ -1683,7 +1740,7 @@ nd source add https://github.com/you/my-assets.git
 Git sources are cloned to `~/.config/nd/sources/` and can be synced with `nd sync --source <id>`.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add docs/guide/creating-sources.md
@@ -1747,3 +1804,25 @@ nd version
 go install github.com/armstrongl/nd@v0.1.0
 nd version
 ```
+
+- [ ] **Step 7: Release recovery (if release workflow fails)**
+
+If the release workflow fails:
+
+```bash
+# Delete the failed GitHub Release (if partially created)
+gh release delete v0.1.0 --yes
+
+# Delete and re-push the tag after fixing the issue
+git tag -d v0.1.0
+git push origin :refs/tags/v0.1.0
+
+# Fix the issue, commit, then re-tag
+git tag -a v0.1.0 -m "v0.1.0: initial release with full documentation and distribution"
+git push origin v0.1.0
+```
+
+Common failure causes:
+- `TAP_GITHUB_TOKEN` secret not set or expired
+- `armstrongl/homebrew-tap` repo doesn't exist
+- goreleaser config error (run `goreleaser check` locally first)

@@ -257,7 +257,7 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 
 4. **Data flow example** — `nd deploy skills/greeting`:
    ```
-   cmd/deploy.go → app.SourceManager().Scan() → asset.Index.Resolve()
+   cmd/deploy.go → app.SourceManager().Scan() → asset.Index.Lookup()
                  → app.DeployEngine().Deploy() → symlink created
                  → state.Save() → confirmation printed
    ```
