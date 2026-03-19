@@ -87,6 +87,8 @@ changelog:
     - title: Other
       order: 999
 
+# Note: If goreleaser check warns that 'brews' is deprecated, migrate to the
+# replacement syntax per goreleaser's migration guide at that time.
 brews:
   - repository:
       owner: armstrongl
@@ -156,7 +158,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-      - uses: golangci/golangci-lint-action@v7
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
 
@@ -217,7 +219,7 @@ Run:
 gh api repos/armstrongl/homebrew-tap/contents/README.md \
   --method PUT \
   -f message="Initial commit" \
-  -f content="$(echo '# homebrew-tap\n\nHomebrew formulae for [nd](https://github.com/armstrongl/nd).\n\n## Install\n\n```bash\nbrew install armstrongl/tap/nd\n```' | base64)"
+  -f content="$(printf '# homebrew-tap\n\nHomebrew formulae for [nd](https://github.com/armstrongl/nd).\n\n## Install\n\n```bash\nbrew install armstrongl/tap/nd\n```\n' | base64)"
 ```
 
 ---
@@ -333,22 +335,29 @@ func main() {
 }
 ```
 
-- [ ] **Step 3: Verify it compiles**
+- [ ] **Step 3: Pull cobra/doc transitive dependency**
+
+The `cobra/doc` subpackage imports `go-md2man/v2` which may not be in `go.sum` yet.
+
+Run: `go get github.com/spf13/cobra/doc && go mod tidy`
+Expected: Dependencies updated, go.sum updated.
+
+- [ ] **Step 4: Verify it compiles**
 
 Run: `go build ./cmd/gendocs/`
-Expected: Compiles without errors. If `cobra/doc` import fails, run `go get github.com/spf13/cobra/doc` first.
+Expected: Compiles without errors.
 
-- [ ] **Step 4: Generate the command reference**
+- [ ] **Step 5: Generate the command reference**
 
 Run: `go run ./cmd/gendocs/`
 Expected: `docs/reference/` is populated with markdown files (one per command).
 
 Verify: `ls docs/reference/ | head -10` — should show files like `nd.md`, `nd_deploy.md`, `nd_source_add.md`, etc.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add cmd/gendocs/ docs/reference/
+git add cmd/gendocs/ docs/reference/ go.mod go.sum
 git commit -m "docs: add command reference generator and auto-generated reference docs"
 ```
 
