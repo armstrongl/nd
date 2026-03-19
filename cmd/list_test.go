@@ -150,3 +150,91 @@ func TestListCmd_JSON(t *testing.T) {
 		t.Errorf("expected status ok, got %q", resp.Status)
 	}
 }
+
+func TestListCmd_ContextMeta(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	os.MkdirAll(filepath.Join(configDir, "state"), 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+
+	srcDir := filepath.Join(tmp, "my-source")
+	contextDir := filepath.Join(srcDir, "context", "my-rules")
+	os.MkdirAll(contextDir, 0o755)
+	os.WriteFile(filepath.Join(contextDir, "CLAUDE.md"), []byte("# Rules"), 0o644)
+	os.WriteFile(filepath.Join(contextDir, "_meta.yaml"), []byte("description: Project-specific coding rules\ntags:\n  - coding\n  - rules\n"), 0o644)
+
+	agentDir := filepath.Join(tmp, ".claude")
+	os.MkdirAll(agentDir, 0o755)
+
+	cfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: absolute\nsources:\n  - id: my-source\n    type: local\n    path: " + srcDir + "\nagents:\n  - name: claude-code\n    global_dir: " + agentDir + "\n"
+	os.WriteFile(configPath, []byte(cfg), 0o644)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Project-specific coding rules") {
+		t.Errorf("expected meta description in output, got: %s", got)
+	}
+}
+
+func TestListCmd_ContextMetaJSON(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	os.MkdirAll(filepath.Join(configDir, "state"), 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+
+	srcDir := filepath.Join(tmp, "my-source")
+	contextDir := filepath.Join(srcDir, "context", "my-rules")
+	os.MkdirAll(contextDir, 0o755)
+	os.WriteFile(filepath.Join(contextDir, "CLAUDE.md"), []byte("# Rules"), 0o644)
+	os.WriteFile(filepath.Join(contextDir, "_meta.yaml"), []byte("description: Project-specific coding rules\ntags:\n  - coding\n  - rules\n"), 0o644)
+
+	agentDir := filepath.Join(tmp, ".claude")
+	os.MkdirAll(agentDir, 0o755)
+
+	cfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: absolute\nsources:\n  - id: my-source\n    type: local\n    path: " + srcDir + "\nagents:\n  - name: claude-code\n    global_dir: " + agentDir + "\n"
+	os.WriteFile(configPath, []byte(cfg), 0o644)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--json", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+
+	// Marshal Data back to JSON and check for the description field
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("failed to re-marshal data: %v", err)
+	}
+	if !strings.Contains(string(dataBytes), "Project-specific coding rules") {
+		t.Errorf("expected meta description in JSON data, got: %s", string(dataBytes))
+	}
+}
