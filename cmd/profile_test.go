@@ -638,3 +638,22 @@ func TestProfileSwitchCmd_NonTTY_NoYes_Errors(t *testing.T) {
 		t.Errorf("expected 'confirmation required' error, got: %v", err)
 	}
 }
+
+func TestProfileDeployCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "deploy"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires a profile name") {
+		t.Errorf("expected helpful error, got: %v", err)
+	}
+}

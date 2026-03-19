@@ -256,10 +256,31 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy <name>",
 		Short: "Deploy all assets in a profile",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			name := args[0]
+
+			var name string
+			if len(args) > 0 {
+				name = args[0]
+			} else {
+				if app.JSON {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list --json' to see profiles")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list' to see profiles")
+				}
+				completions, _ := completeProfileNames(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no profiles available")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select profile to deploy:", names)
+				if err != nil {
+					return err
+				}
+				name = choice
+			}
 
 			profMgr, err := app.ProfileManager()
 			if err != nil {
