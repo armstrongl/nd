@@ -95,6 +95,21 @@ func promptChoice(r io.Reader, w io.Writer, prompt string, choices []string) (st
 	return choices[n-1], nil
 }
 
+// extractChoiceNames strips tab-separated descriptions from completion strings.
+// Input: ["skills/greeting\tglobal from src", "commands/hello\tglobal from src"]
+// Output: ["skills/greeting", "commands/hello"]
+func extractChoiceNames(completions []string) []string {
+	names := make([]string, len(completions))
+	for i, c := range completions {
+		if idx := strings.IndexByte(c, '\t'); idx >= 0 {
+			names[i] = c[:idx]
+		} else {
+			names[i] = c
+		}
+	}
+	return names
+}
+
 // isTerminal checks if stdin is a terminal.
 func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))

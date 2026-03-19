@@ -133,3 +133,35 @@ func TestCompletionInitApp_Idempotent(t *testing.T) {
 		t.Errorf("not idempotent: %s != %s", first, app.ConfigPath)
 	}
 }
+
+func TestExtractChoiceNames(t *testing.T) {
+	completions := []string{
+		"skills/greeting\tglobal from my-source",
+		"commands/hello\tglobal from my-source",
+	}
+	got := extractChoiceNames(completions)
+	want := []string{"skills/greeting", "commands/hello"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d names, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestExtractChoiceNames_NoTab(t *testing.T) {
+	completions := []string{"alpha", "beta"}
+	got := extractChoiceNames(completions)
+	if len(got) != 2 || got[0] != "alpha" || got[1] != "beta" {
+		t.Errorf("expected raw strings when no tab, got: %v", got)
+	}
+}
+
+func TestExtractChoiceNames_Empty(t *testing.T) {
+	got := extractChoiceNames(nil)
+	if len(got) != 0 {
+		t.Errorf("expected empty, got: %v", got)
+	}
+}
