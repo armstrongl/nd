@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+builds:
+  - main: .
+    binary: nd
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/armstrongl/nd/internal/version.Version={{.Version}}
+      - -X github.com/armstrongl/nd/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/armstrongl/nd/internal/version.Date={{.Date}}
+
+archives:
+  - formats: [tar.gz]
+    files: [README.md, LICENSE]
+
+checksum:
+  algorithm: sha256
+
+changelog:
+  use: git
+  groups:
+    - title: Features
+      regexp: '^feat'
+    - title: Bug Fixes
+      regexp: '^fix'
+    - title: Other
+      order: 999
+
+homebrew_casks:
+  - name: nd
+    binaries:
+      - nd
+    repository:
+      owner: armstrongl
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/armstrongl/nd
+    description: Coding agent asset management CLI tool
