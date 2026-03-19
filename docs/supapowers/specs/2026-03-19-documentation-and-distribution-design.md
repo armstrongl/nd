@@ -4,6 +4,30 @@
 **Status:** Draft
 **Audience:** Open-source community (developers managing Claude Code assets)
 
+## Audit Remediations Applied
+
+This spec was audited by three parallel agents (technical accuracy, completeness, risks). The following issues were found and fixed:
+
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| `cmd.NewRootCmd()` called with no args; actual signature requires `*App` | Critical | Fixed gendocs to pass `&cmd.App{}` |
+| `brews:` deprecated in goreleaser v2 | Critical | Kept `brews:` (still valid in v2; `homebrew_casks` is for casks not formulas); added `token` field |
+| Default GITHUB_TOKEN cannot push to cross-repo Homebrew tap | Critical | Added `TAP_GITHUB_TOKEN` PAT requirement in goreleaser config and release workflow |
+| `archives.format` (singular) deprecated in goreleaser v2 | Significant | Changed to `formats: [tar.gz]` |
+| `settings edit`, `profile add-asset`, `profile delete` undocumented | Significant | Added to user guide and profiles guide |
+| TUI not documented | Significant | Added as explicit non-goal (TUI still evolving) |
+| Shell completions only mentioned for zsh | Significant | Expanded to cover all 3 shells (bash/zsh/fish) in guide |
+| CONTRIBUTING missing "run specific test" and "add new command" | Significant | Added both sections |
+| Directory example shows only 4 of 8 asset types | Minor | Expanded to all 8 |
+| Makefile in non-goals but `make docs` target defined | Minor | Removed Makefile target; use `go run` directly |
+| No goreleaser config validation in CI | Minor | Added `goreleaser check` step to ci.yml |
+| Dependency order implies CONTRIBUTING/ARCHITECTURE must wait for release | Minor | Restructured into parallel tracks |
+| Interactive pickers not explained as general concept | Minor | Added "Interactive mode" section to user guide |
+| `--yes` flag undocumented in guides | Minor | Added "Global flags for scripting" section to user guide |
+| README.md already exists (stub) | Minor | Noted in dependency order |
+
+---
+
 ## Goal
 
 Ship comprehensive user-facing documentation, contributor guides, and a working distribution pipeline (goreleaser + GitHub Actions + Homebrew tap) for the nd CLI tool.
@@ -82,7 +106,7 @@ builds:
       - -X github.com/armstrongl/nd/internal/version.Date={{.Date}}
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     files: [README.md, LICENSE]
 
 checksum:
@@ -102,6 +126,7 @@ brews:
   - repository:
       owner: armstrongl
       name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/armstrongl/nd
     description: Coding agent asset management CLI tool
     license: MIT
@@ -121,12 +146,13 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 3. golangci-lint v2 (uses `golangci/golangci-lint-action`)
 4. `go test ./... -race -coverprofile=coverage.out`
 5. `go build -o /dev/null .` (verify compilation)
+6. `goreleaser check` (validate goreleaser config syntax)
 
 **release.yml** (triggers: push tag `v*`):
 1. Checkout with `fetch-depth: 0` (goreleaser needs full history for changelog)
 2. Setup Go 1.25.x
 3. `goreleaser release --clean` (uses `goreleaser/goreleaser-action`)
-4. Requires `GITHUB_TOKEN` (default) and repo write access for Homebrew tap
+4. Requires `TAP_GITHUB_TOKEN` secret (PAT with `repo` scope) for cross-repo Homebrew tap push; set via `env: TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}`
 
 ### Homebrew tap
 
@@ -162,28 +188,37 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 
 4. **Testing**
    - Unit tests: `go test ./...`
+   - Run a specific test: `go test ./internal/deploy/ -run TestDeploySymlink -v`
    - Race detection: `go test -race ./...`
+   - Integration tests: `go test ./tests/integration/ -v`
    - Coverage: `go test -coverprofile=coverage.out ./...`
    - Coverage expectations: 80%+ for business logic packages
 
-5. **Code style**
+5. **Adding a new CLI command**
+   - Create `cmd/foo.go` with `func newFooCmd(app *App) *cobra.Command`
+   - Create `cmd/foo_test.go` with tests (write tests first — TDD)
+   - Register in `cmd/root.go` via `rootCmd.AddCommand(newFooCmd(app))`
+   - Follow existing command patterns (see `cmd/deploy.go` as reference)
+   - Add shell completion if the command takes arguments
+
+6. **Code style**
    - Formatter: gofumpt (superset of gofmt)
    - Linter: golangci-lint v2
    - Conventional Commits required
    - Scopes: `cli`, `deploy`, `profile`, `source`, `agent`, `config`, `tui`, `docs`, `ci`
 
-6. **Commit messages**
+7. **Commit messages**
    - Format: `type(scope): description`
    - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `style`, `ci`, `chore`
    - Examples: `feat(cli): add interactive picker to deploy`, `fix(deploy): handle broken symlinks on sync`
 
-7. **Pull requests**
+8. **Pull requests**
    - One feature/fix per PR
    - Tests required for all changes
    - CI must pass (lint + test + build)
    - Reference issue number if applicable
 
-8. **Project structure** — Pointer to ARCHITECTURE.md
+9. **Project structure** — Pointer to ARCHITECTURE.md
 
 ---
 
@@ -217,7 +252,7 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
    - `internal/deploy` — Engine: deploy, remove, health, repair, bulk ops
    - `internal/profile` — Profile/Snapshot CRUD, Manager (switch, deploy, restore)
    - `internal/agent` — AgentRegistry: detect, lookup, default
-   - `internal/state` — Deployment state persistence
+   - `internal/state` — Deployment state persistence (lives at core layer as a storage mechanism, used by service layer)
    - `cmd/` — Cobra commands, App struct (lazy service init), helpers
 
 4. **Data flow example** — `nd deploy skills/greeting`:
@@ -262,7 +297,9 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 4. Browse available assets: `nd list`
 5. Deploy an asset: `nd deploy skills/greeting`
 6. Verify: `nd status`
-7. Shell completions: `nd completion zsh --install`
+7. Optional setup:
+   - Shell completions: `nd completion bash|zsh|fish --install` (covers all three shells with manual and auto-install)
+   - Open config: `nd settings edit`
 8. Next steps: profiles, snapshots, TUI (`nd` with no args)
 
 ### docs/guide/user-guide.md
@@ -270,37 +307,52 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 **Goal:** Cover all core workflows.
 
 **Sections:**
-1. **Managing sources**
+1. **Interactive mode** (brief intro)
+   - Many commands support running without arguments to get an interactive picker
+   - Works in deploy, remove, profile delete/switch/deploy, snapshot delete/restore
+   - Disabled in non-TTY and `--json` mode (returns helpful error instead)
+2. **Global flags for scripting**
+   - `--json` — structured output for piping/parsing
+   - `--yes` / `-y` — skip confirmation prompts (essential for scripts)
+   - `--dry-run` — preview without making changes
+   - `--quiet` / `--verbose` — control output verbosity
+3. **Managing sources**
    - Adding local directories
    - Adding git repositories (HTTPS, SSH, GitHub shorthand)
    - Listing sources: `nd source list`
    - Syncing git sources: `nd sync --source <id>`
    - Removing sources: `nd source remove <id>`
-2. **Deploying assets**
+4. **Deploying assets**
    - Single asset: `nd deploy skills/greeting`
    - Multiple assets: `nd deploy skills/greeting commands/hello`
    - By type: `nd deploy --type skills greeting`
    - Scopes: `--scope global` vs `--scope project`
    - Symlink strategy: `--relative` vs `--absolute`
    - Interactive picker: run `nd deploy` with no args
-3. **Removing assets**
+5. **Removing assets**
    - Single/multiple removal
    - Pinned asset warnings
    - Interactive picker
-4. **Listing and status**
+6. **Listing and status**
    - `nd list` with filters (--type, --source, --pattern)
    - `nd status` — health indicators, origins, scopes
    - JSON output for scripting: `--json`
-5. **Syncing and repair**
+7. **Settings**
+   - `nd settings edit` — open config in `$EDITOR` / `$VISUAL` / vi
+8. **Syncing and repair**
    - `nd sync` — fix broken symlinks
    - `nd sync --source <id>` — git pull + repair
    - Dry run: `nd sync --dry-run`
-6. **Health checks**
+9. **Health checks**
    - `nd doctor` — config, sources, deployments, agents, git
    - Interpreting output
-7. **Uninstalling**
-   - `nd uninstall` — removes all managed symlinks
-   - Does not delete config directory
+10. **Shell completions**
+    - `nd completion bash|zsh|fish` — print completion script
+    - `nd completion bash|zsh|fish --install` — auto-install to standard location
+    - Per-shell setup instructions (fpath for zsh, etc.)
+11. **Uninstalling**
+    - `nd uninstall` — removes all managed symlinks
+    - Does not delete config directory
 
 ### docs/guide/profiles-and-snapshots.md
 
@@ -311,20 +363,26 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 2. **Creating profiles**
    - From asset list: `nd profile create work --assets skills/a,skills/b,agents/c`
    - From current state: `nd profile create work --from-current`
-3. **Deploying a profile:** `nd profile deploy work`
-4. **Switching profiles**
+3. **Building profiles incrementally**
+   - `nd profile add-asset work skills/new-skill` — add assets to existing profile
+4. **Deploying a profile:** `nd profile deploy work`
+5. **Switching profiles**
    - `nd profile switch personal` — shows diff preview, confirms, switches
    - Auto-snapshot before switch (safety net)
    - What gets removed vs kept (origin tracking)
-5. **Pinning assets**
+6. **Deleting profiles**
+   - `nd profile delete work` — removes the profile definition (not deployed assets)
+   - Interactive picker if no name provided
+   - Requires confirmation
+7. **Pinning assets**
    - `nd pin skills/greeting` — survives profile switches
    - `nd unpin skills/greeting` — returns to manual origin
-6. **Snapshots**
+8. **Snapshots**
    - Save current state: `nd snapshot save before-experiment`
    - List snapshots: `nd snapshot list`
    - Restore: `nd snapshot restore before-experiment`
    - Auto-snapshots: created automatically before destructive ops
-7. **Workflow example**
+9. **Workflow example**
    - Create "work" and "personal" profiles
    - Pin shared assets
    - Switch between them
@@ -372,13 +430,21 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
    ```
    my-assets/
    ├── skills/
-   │   └── greeting/       (directory asset)
+   │   └── greeting/           (directory asset)
    ├── agents/
-   │   └── researcher.md   (file asset)
+   │   └── researcher.md       (file asset)
    ├── commands/
-   │   └── deploy-all.md   (file asset)
-   └── rules/
-       └── no-emojis.md    (file asset)
+   │   └── deploy-all.md       (file asset)
+   ├── output-styles/
+   │   └── concise.md          (file asset)
+   ├── rules/
+   │   └── no-emojis.md        (file asset)
+   ├── context/
+   │   └── CLAUDE.md           (file asset, special deploy rules)
+   ├── plugins/
+   │   └── my-plugin/          (directory asset, not symlink-deployed)
+   └── hooks/
+       └── pre-commit/         (directory asset)
    ```
 2. **Asset types** — Which are file vs directory, what each type does
 3. **Context files** — Special deployment rules, `_meta.yaml` format
@@ -396,21 +462,24 @@ Add `cmd/gendocs/main.go`:
 package main
 
 import (
+    "log"
+
     "github.com/armstrongl/nd/cmd"
     "github.com/spf13/cobra/doc"
 )
 
 func main() {
-    rootCmd := cmd.NewRootCmd()
-    doc.GenMarkdownTree(rootCmd, "docs/reference/")
+    rootCmd := cmd.NewRootCmd(&cmd.App{})
+    if err := doc.GenMarkdownTree(rootCmd, "docs/reference/"); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
-### Makefile target
+### Running
 
-```makefile
-docs:
-    go run cmd/gendocs/main.go
+```sh
+go run cmd/gendocs/main.go
 ```
 
 ### Output
@@ -433,7 +502,8 @@ One markdown file per command in `docs/reference/`, committed to the repo.
 - mdBook or docs site (can upgrade later)
 - GoDoc comments (separate effort)
 - Issue templates / PR templates (separate effort)
-- Makefile (separate effort — use `go` commands directly for now)
+- TUI user guide (the TUI is functional but still evolving; document after stabilization)
+- golangci-lint config file (use defaults for now; add custom rules as needed)
 - Windows support documentation (darwin + linux only)
 
 ---
@@ -441,14 +511,23 @@ One markdown file per command in `docs/reference/`, committed to the repo.
 ## 8. Dependency Order
 
 ```
-1. goreleaser config + version ldflags    (no external deps)
-2. GitHub Actions CI workflow             (no external deps)
-3. Create homebrew-tap repo               (requires GitHub)
-4. GitHub Actions release workflow        (depends on 1, 3)
-5. Tag v0.1.0 + release                  (depends on 1-4, validates pipeline)
-6. README.md                             (depends on 5 — real install instructions)
-7. CONTRIBUTING.md                       (no deps on release)
-8. ARCHITECTURE.md                       (no deps on release)
-9. docs/guide/ pages                     (depends on 6 — links to README install)
-10. docs/reference/ auto-generation      (depends on gendocs utility)
+Track A — Distribution pipeline (sequential):
+  1. goreleaser config + version ldflags    (no external deps)
+  2. GitHub Actions CI workflow             (no external deps, but validates 1)
+  3. Create homebrew-tap repo               (requires GitHub)
+  4. GitHub Actions release workflow        (depends on 1, 3)
+  5. Tag v0.1.0 + release                  (depends on 1-4, validates pipeline)
+
+Track B — Contributor docs (parallel with Track A):
+  6. CONTRIBUTING.md                       (no deps on release)
+  7. ARCHITECTURE.md                       (no deps on release)
+
+Track C — User docs (after Track A completes):
+  8. README.md                             (depends on 5 — real install instructions)
+  9. docs/guide/ pages                     (depends on 8 — links to README install)
+
+Track D — Reference docs (parallel with everything):
+  10. docs/reference/ auto-generation      (no external deps — only needs existing cmd/ code)
+
+Note: README.md already exists as a stub and will be replaced with the full version.
 ```
