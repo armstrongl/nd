@@ -102,6 +102,7 @@ type DeployRequest struct {
 	Scope       nd.Scope
 	ProjectRoot string
 	Origin      nd.DeployOrigin
+	Strategy    nd.SymlinkStrategy
 }
 
 // DeployResult describes the outcome of a single deployment.
@@ -170,7 +171,6 @@ func (e *Engine) Deploy(req DeployRequest) (*DeployResult, error) {
 
 		return e.store.Save(st)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,15 @@ func (e *Engine) deployOne(req DeployRequest, st *state.DeploymentState) (*Deplo
 		return nil, fmt.Errorf("permission denied: cannot write to %s: %w", parentDir, err)
 	}
 
-	if err := e.symlink(req.Asset.SourcePath, linkPath); err != nil {
+	target := req.Asset.SourcePath
+	if req.Strategy == nd.SymlinkRelative {
+		rel, err := filepath.Rel(filepath.Dir(linkPath), req.Asset.SourcePath)
+		if err != nil {
+			return nil, fmt.Errorf("compute relative path from %s to %s: %w", linkPath, req.Asset.SourcePath, err)
+		}
+		target = rel
+	}
+	if err := e.symlink(target, linkPath); err != nil {
 		return nil, fmt.Errorf("create symlink at %s: %w", linkPath, err)
 	}
 
@@ -235,6 +243,7 @@ func (e *Engine) deployOne(req DeployRequest, st *state.DeploymentState) (*Deplo
 		Scope:       req.Scope,
 		ProjectPath: req.ProjectRoot,
 		Origin:      req.Origin,
+		Strategy:    req.Strategy,
 		DeployedAt:  e.now(),
 	}
 	st.Deployments = append(st.Deployments, dep)
@@ -399,7 +408,6 @@ func (e *Engine) DeployBulk(reqs []DeployRequest) (*BulkDeployResult, error) {
 
 		return e.store.Save(st)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +455,6 @@ func (e *Engine) RemoveBulk(reqs []RemoveRequest) (*BulkRemoveResult, error) {
 
 		return e.store.Save(st)
 	})
-
 	if err != nil {
 		return nil, err
 	}

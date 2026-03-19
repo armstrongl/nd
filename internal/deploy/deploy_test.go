@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -77,12 +78,12 @@ type fakeFileInfo struct {
 	mode os.FileMode
 }
 
-func (f fakeFileInfo) Name() string        { return "fake" }
-func (f fakeFileInfo) Size() int64         { return 0 }
-func (f fakeFileInfo) Mode() os.FileMode   { return f.mode }
-func (f fakeFileInfo) ModTime() time.Time  { return time.Time{} }
-func (f fakeFileInfo) IsDir() bool         { return f.mode.IsDir() }
-func (f fakeFileInfo) Sys() any            { return nil }
+func (f fakeFileInfo) Name() string       { return "fake" }
+func (f fakeFileInfo) Size() int64        { return 0 }
+func (f fakeFileInfo) Mode() os.FileMode  { return f.mode }
+func (f fakeFileInfo) ModTime() time.Time { return time.Time{} }
+func (f fakeFileInfo) IsDir() bool        { return f.mode.IsDir() }
+func (f fakeFileInfo) Sys() any           { return nil }
 
 func TestNewEngine(t *testing.T) {
 	store := newMockStore()
@@ -281,9 +282,11 @@ func TestDeployBulkPartialFailure(t *testing.T) {
 func TestRemoveAsset(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
 			SourcePath: "/s/skills/review", LinkPath: "/home/user/.claude/skills/review",
-			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
 	}
 
 	removed := false
@@ -308,8 +311,10 @@ func TestRemoveAsset(t *testing.T) {
 func TestRemoveAlreadyGone(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
-			LinkPath: "/home/user/.claude/skills/review", Scope: nd.ScopeGlobal},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/home/user/.claude/skills/review", Scope: nd.ScopeGlobal,
+		},
 	}
 
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -327,10 +332,14 @@ func TestRemoveAlreadyGone(t *testing.T) {
 func TestRemoveBulk(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a",
-			LinkPath: "/home/user/.claude/skills/a", Scope: nd.ScopeGlobal},
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "b",
-			LinkPath: "/home/user/.claude/skills/b", Scope: nd.ScopeGlobal},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a",
+			LinkPath: "/home/user/.claude/skills/a", Scope: nd.ScopeGlobal,
+		},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "b",
+			LinkPath: "/home/user/.claude/skills/b", Scope: nd.ScopeGlobal,
+		},
 	}
 
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -481,10 +490,12 @@ func TestDeployForeignSymlinkNonContext(t *testing.T) {
 func TestDeployManagedSymlinkSameAsset(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review",
+		{
+			SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review",
 			SourcePath: "/sources/skills/review",
 			LinkPath:   "/home/user/.claude/skills/review",
-			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			Scope:      nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
 	}
 
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -518,10 +529,12 @@ func TestDeployManagedSymlinkSameAsset(t *testing.T) {
 func TestDeployManagedSymlinkDifferentAsset(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "old", AssetType: nd.AssetSkill, AssetName: "old-review",
+		{
+			SourceID: "old", AssetType: nd.AssetSkill, AssetName: "old-review",
 			SourcePath: "/old/skills/old-review",
 			LinkPath:   "/home/user/.claude/skills/review",
-			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			Scope:      nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
 	}
 
 	removedPath := ""
@@ -664,8 +677,10 @@ func TestRemoveLoadError(t *testing.T) {
 func TestRemoveBulkPartialFailure(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a",
-			LinkPath: "/home/user/.claude/skills/a", Scope: nd.ScopeGlobal},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a",
+			LinkPath: "/home/user/.claude/skills/a", Scope: nd.ScopeGlobal,
+		},
 	}
 
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -711,9 +726,11 @@ func TestDeployLoadError(t *testing.T) {
 func TestRemoveSymlinkError(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
 			SourcePath: "/s/skills/review", LinkPath: "/home/user/.claude/skills/review",
-			Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
 	}
 
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -793,6 +810,88 @@ func TestPruneBackups(t *testing.T) {
 	}
 }
 
+func TestDeploy_RelativeSymlink(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	engine := deploy.New(store, ag, t.TempDir())
+
+	var captured []symCall
+	engine.SetSymlink(func(oldname, newname string) error {
+		captured = append(captured, symCall{oldname, newname})
+		return nil
+	})
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/home/user/.claude/skills/review-source",
+			IsDir:      true,
+		},
+		Scope:    nd.ScopeGlobal,
+		Origin:   nd.OriginManual,
+		Strategy: nd.SymlinkRelative,
+	}
+
+	result, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	if len(captured) != 1 {
+		t.Fatalf("expected 1 symlink call, got %d", len(captured))
+	}
+	// The target passed to symlink must not be an absolute path
+	if filepath.IsAbs(captured[0].oldname) {
+		t.Errorf("expected relative symlink target, got absolute: %q", captured[0].oldname)
+	}
+	// Strategy must be recorded on the deployment
+	if result.Deployment.Strategy != nd.SymlinkRelative {
+		t.Errorf("expected Strategy=%q in deployment, got %q", nd.SymlinkRelative, result.Deployment.Strategy)
+	}
+}
+
+func TestDeploy_AbsoluteSymlink(t *testing.T) {
+	store := newMockStore()
+	ag := testAgent()
+	engine := deploy.New(store, ag, t.TempDir())
+
+	var captured []symCall
+	engine.SetSymlink(func(oldname, newname string) error {
+		captured = append(captured, symCall{oldname, newname})
+		return nil
+	})
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+			IsDir:      true,
+		},
+		Scope:    nd.ScopeGlobal,
+		Origin:   nd.OriginManual,
+		Strategy: nd.SymlinkAbsolute,
+	}
+
+	result, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	if len(captured) != 1 {
+		t.Fatalf("expected 1 symlink call, got %d", len(captured))
+	}
+	// The target passed to symlink must be the original absolute source path
+	if captured[0].oldname != "/sources/skills/review" {
+		t.Errorf("expected absolute source path as symlink target, got %q", captured[0].oldname)
+	}
+	// Strategy must be recorded on the deployment
+	if result.Deployment.Strategy != nd.SymlinkAbsolute {
+		t.Errorf("expected Strategy=%q in deployment, got %q", nd.SymlinkAbsolute, result.Deployment.Strategy)
+	}
+}
+
 // --- SnapshotSaver tests ---
 
 type mockSnapshotSaver struct {
@@ -817,9 +916,11 @@ func TestDeployBulkTriggersAutoSnapshot(t *testing.T) {
 
 	// Seed an existing deployment so the snapshot captures it
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "existing",
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "existing",
 			SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
-			Origin: nd.OriginManual},
+			Origin: nd.OriginManual,
+		},
 	}
 
 	eng.SetSymlink(func(_, _ string) error { return nil })
@@ -827,8 +928,10 @@ func TestDeployBulkTriggersAutoSnapshot(t *testing.T) {
 	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
 
 	reqs := []deploy.DeployRequest{
-		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "new"},
-			SourcePath: "/src/skills/new"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		{Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "new"},
+			SourcePath: "/src/skills/new",
+		}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
 	}
 	_, err := eng.DeployBulk(reqs)
 	if err != nil {
@@ -852,16 +955,20 @@ func TestRemoveBulkTriggersAutoSnapshot(t *testing.T) {
 	eng.SetSnapshotSaver(saver)
 
 	store.state.Deployments = []state.Deployment{
-		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "target",
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "target",
 			SourcePath: "/a", LinkPath: "/b", Scope: nd.ScopeGlobal,
-			Origin: nd.OriginManual},
+			Origin: nd.OriginManual,
+		},
 	}
 
 	eng.SetRemove(func(_ string) error { return nil })
 
 	reqs := []deploy.RemoveRequest{
-		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "target"},
-			Scope: nd.ScopeGlobal},
+		{
+			Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "target"},
+			Scope:    nd.ScopeGlobal,
+		},
 	}
 	_, err := eng.RemoveBulk(reqs)
 	if err != nil {
@@ -884,8 +991,10 @@ func TestBulkWorksWithoutSnapshotSaver(t *testing.T) {
 	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
 
 	reqs := []deploy.DeployRequest{
-		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
-			SourcePath: "/src/skills/x"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		{Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
+			SourcePath: "/src/skills/x",
+		}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
 	}
 	_, err := eng.DeployBulk(reqs)
 	if err != nil {
@@ -906,8 +1015,10 @@ func TestAutoSnapshotFailureDoesNotBlockBulk(t *testing.T) {
 	eng.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
 
 	reqs := []deploy.DeployRequest{
-		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
-			SourcePath: "/src/skills/x"}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		{Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "x"},
+			SourcePath: "/src/skills/x",
+		}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
 	}
 	result, err := eng.DeployBulk(reqs)
 	if err != nil {
