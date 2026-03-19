@@ -304,3 +304,69 @@ func TestSnapshotRestoreCmd_Completions(t *testing.T) {
 
 	// Completions may be empty if no snapshots exist; the key test is no panic/error
 }
+
+func TestSnapshotDeleteCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "delete"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires") {
+		t.Errorf("expected helpful error, got: %v", err)
+	}
+}
+
+func TestSnapshotDeleteCmd_NonTTY_NoYes_Errors(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Save a snapshot first
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "save", "confirm-test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Try to delete without --yes in non-TTY — confirm reads EOF → error
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "snapshot", "delete", "confirm-test"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when confirm reads EOF")
+	}
+}
+
+func TestSnapshotRestoreCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "restore"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires") {
+		t.Errorf("expected helpful error, got: %v", err)
+	}
+}

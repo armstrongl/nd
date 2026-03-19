@@ -75,10 +75,32 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore <name>",
 		Short: "Restore deployments from a snapshot",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			name := args[0]
+
+			var name string
+			if len(args) > 0 {
+				name = args[0]
+			} else {
+				if app.JSON {
+					return fmt.Errorf("requires a snapshot name argument; run 'nd snapshot list --json' to see snapshots")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires a snapshot name argument; run 'nd snapshot list' to see snapshots")
+				}
+				completionInitApp(app)
+				completions, _ := completeSnapshotNames(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no snapshots to restore")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select snapshot to restore:", names)
+				if err != nil {
+					return err
+				}
+				name = choice
+			}
 
 			pstore, err := app.ProfileStore()
 			if err != nil {
@@ -210,14 +232,48 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a snapshot",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			name := args[0]
+
+			var name string
+			if len(args) > 0 {
+				name = args[0]
+			} else {
+				if app.JSON {
+					return fmt.Errorf("requires a snapshot name argument; run 'nd snapshot list --json' to see snapshots")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires a snapshot name argument; run 'nd snapshot list' to see snapshots")
+				}
+				completionInitApp(app)
+				completions, _ := completeSnapshotNames(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no snapshots to delete")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select snapshot to delete:", names)
+				if err != nil {
+					return err
+				}
+				name = choice
+			}
 
 			pstore, err := app.ProfileStore()
 			if err != nil {
 				return err
+			}
+
+			if !app.Quiet {
+				printHuman(w, "Will delete snapshot %q.\n", name)
+			}
+			ok, err := confirm(cmd.InOrStdin(), w, "Proceed?", app.Yes)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				printHuman(w, "Cancelled.\n")
+				return nil
 			}
 
 			// Try user snapshot first, then auto
