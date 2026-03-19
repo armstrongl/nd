@@ -1,0 +1,130 @@
+# Configuration
+
+nd uses YAML configuration files with a layered merging system.
+
+## Config File Locations
+
+| Location | Path | Purpose |
+|----------|------|---------|
+| Global | `~/.config/nd/config.yaml` | User-wide settings and sources |
+| Project | `.nd/config.yaml` | Project-specific overrides |
+| CLI flag | `--config <path>` | One-time override |
+
+The global config is created by `nd init`. Project-level config is optional.
+
+## Full Annotated Example
+
+```yaml
+# Schema version (always 1)
+version: 1
+
+# Default deployment scope: "global" or "project"
+# Global deploys to ~/.claude/, project deploys to .claude/
+default_scope: global
+
+# Default coding agent to target
+default_agent: claude-code
+
+# Symlink strategy: "absolute" or "relative"
+# Relative symlinks are more portable across machines
+symlink_strategy: absolute
+
+# Registered asset sources
+sources:
+  - id: my-assets
+    type: local
+    path: ~/coding-assets
+
+  - id: community
+    type: git
+    url: https://github.com/org/shared-assets.git
+    alias: community-assets
+
+# Recognized context file names (optional)
+# Defaults to ["CLAUDE.md"]
+# context_types: ["CLAUDE.md", "AGENTS.md"]
+
+# Agent configuration overrides (optional)
+# Only needed if your agent uses non-standard directories
+agents:
+  - name: claude-code
+    global_dir: ~/.claude
+    project_dir: .claude
+```
+
+## Config Key Reference
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `version` | integer | `1` | Config schema version |
+| `default_scope` | string | `global` | Default deployment scope |
+| `default_agent` | string | `claude-code` | Default agent to target |
+| `symlink_strategy` | string | `absolute` | Symlink type: `absolute` or `relative` |
+| `sources` | array | `[]` | Registered asset sources |
+| `sources[].id` | string | (generated) | Unique source identifier |
+| `sources[].type` | string | -- | Source type: `local` or `git` |
+| `sources[].path` | string | -- | Filesystem path to source |
+| `sources[].url` | string | -- | Git URL (git sources only) |
+| `sources[].alias` | string | -- | Human-readable alias (optional) |
+| `context_types` | array | `["CLAUDE.md"]` | Recognized context file names |
+| `agents` | array | (built-in) | Agent configuration overrides |
+| `agents[].name` | string | -- | Agent name |
+| `agents[].global_dir` | string | -- | Agent's global config directory |
+| `agents[].project_dir` | string | -- | Agent's project config directory |
+
+## Config Merging
+
+nd merges configuration from multiple sources in this order (later overrides earlier):
+
+1. **Built-in defaults** -- Sensible defaults for all settings
+2. **Global config** -- `~/.config/nd/config.yaml`
+3. **Project config** -- `.nd/config.yaml` (if present)
+4. **CLI flags** -- `--scope`, `--config`, etc.
+
+For sources, global sources appear first (higher priority), followed by project sources. This means if the same asset exists in both a global and project source, the global source wins.
+
+## Project-Level Config
+
+Create `.nd/config.yaml` in your project root to override settings per-project:
+
+```yaml
+version: 1
+default_scope: project
+sources:
+  - id: project-assets
+    type: local
+    path: ./assets
+```
+
+Use cases:
+- Force project scope for a repository
+- Add project-specific asset sources
+- Override symlink strategy for a team
+
+## Environment Variables
+
+| Variable | Used By | Description |
+|----------|---------|-------------|
+| `$EDITOR` | `nd settings edit` | Preferred text editor |
+| `$VISUAL` | `nd settings edit` | Visual editor (fallback if `$EDITOR` not set) |
+| `$NO_COLOR` | All commands | Disable colored output (equivalent to `--no-color` flag) |
+
+If neither `$EDITOR` nor `$VISUAL` is set, `nd settings edit` falls back to `vi`.
+
+## Editing Config
+
+Open your config in your default editor:
+
+```bash
+nd settings edit
+```
+
+After editing, validate your config:
+
+```bash
+nd doctor
+```
+
+The doctor command checks config validity as its first step.
+
+If your config file contains invalid YAML, nd commands will report a parse error with the line number. Fix the syntax and retry.
