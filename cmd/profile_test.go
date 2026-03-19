@@ -517,3 +517,124 @@ func TestProfileDeleteCmd_NonTTY_NoYes_Errors(t *testing.T) {
 		t.Errorf("expected 'confirmation required' error, got: %v", err)
 	}
 }
+
+func TestProfileSwitchCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "switch"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	// Will error with either "requires a profile name" or "no active profile"
+}
+
+func TestProfileSwitchCmd_Confirm_WithYes(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Create two profiles
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "prof-a", "--assets", "skills/greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create prof-a failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "prof-b", "--assets", "commands/hello"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("create prof-b failed: %v", err)
+	}
+
+	// Deploy prof-a (sets it as active)
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	out.Reset()
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "profile", "deploy", "prof-a"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("deploy prof-a failed: %v", err)
+	}
+
+	// Switch to prof-b with --yes
+	app4 := &App{}
+	rootCmd4 := NewRootCmd(app4)
+	out.Reset()
+	rootCmd4.SetOut(&out)
+	rootCmd4.SetErr(&out)
+	rootCmd4.SetArgs([]string{"--config", configPath, "--yes", "profile", "switch", "prof-b"})
+	if err := rootCmd4.Execute(); err != nil {
+		t.Fatalf("switch with --yes failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Switched") {
+		t.Errorf("expected 'Switched' in output, got: %s", got)
+	}
+}
+
+func TestProfileSwitchCmd_NonTTY_NoYes_Errors(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Create two profiles
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "sw-a", "--assets", "skills/greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create sw-a failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "sw-b", "--assets", "commands/hello"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("create sw-b failed: %v", err)
+	}
+
+	// Deploy sw-a (sets it as active)
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	out.Reset()
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "profile", "deploy", "sw-a"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("deploy sw-a failed: %v", err)
+	}
+
+	// Switch to sw-b WITHOUT --yes in non-TTY
+	app4 := &App{}
+	rootCmd4 := NewRootCmd(app4)
+	out.Reset()
+	rootCmd4.SetOut(&out)
+	rootCmd4.SetErr(&out)
+	rootCmd4.SetArgs([]string{"--config", configPath, "profile", "switch", "sw-b"})
+
+	err := rootCmd4.Execute()
+	if err == nil {
+		t.Fatal("expected error: confirmation required in non-TTY")
+	}
+	if !strings.Contains(err.Error(), "confirmation required") {
+		t.Errorf("expected 'confirmation required' error, got: %v", err)
+	}
+}

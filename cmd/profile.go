@@ -330,11 +330,11 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "switch <name>",
 		Short: "Switch from current profile to another",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			targetName := args[0]
 
+			// Check active profile FIRST (before picker, so user isn't prompted then rejected)
 			profMgr, err := app.ProfileManager()
 			if err != nil {
 				return err
@@ -348,31 +348,46 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 				return fmt.Errorf("no active profile; use 'nd profile deploy <name>' instead")
 			}
 
-			summary, err := app.ScanIndex()
-			if err != nil {
-				return fmt.Errorf("scan sources: %w", err)
+			// Interactive picker when no args provided
+			var targetName string
+			if len(args) > 0 {
+				targetName = args[0]
+			} else {
+				if app.JSON {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list --json' to see profiles")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list' to see profiles")
+				}
+				completions, _ := completeProfileNames(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no profiles available")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select profile to switch to:", names)
+				if err != nil {
+					return err
+				}
+				targetName = choice
 			}
 
-			eng, err := app.DeployEngine()
+			// Compute diff for preview
+			pstore, err := app.ProfileStore()
 			if err != nil {
 				return err
 			}
+			current, err := pstore.GetProfile(currentName)
+			if err != nil {
+				return err
+			}
+			target, err := pstore.GetProfile(targetName)
+			if err != nil {
+				return err
+			}
+			diff := profile.ComputeSwitchDiff(current, target)
 
+			// Dry-run: show diff and return (no confirmation needed)
 			if app.DryRun {
-				pstore, err := app.ProfileStore()
-				if err != nil {
-					return err
-				}
-				current, err := pstore.GetProfile(currentName)
-				if err != nil {
-					return err
-				}
-				target, err := pstore.GetProfile(targetName)
-				if err != nil {
-					return err
-				}
-				diff := profile.ComputeSwitchDiff(current, target)
-
 				if app.JSON {
 					return printJSON(w, diff, true)
 				}
@@ -384,6 +399,49 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 				}
 				printHuman(w, "[dry-run] would switch from %q to %q\n", currentName, targetName)
 				return nil
+			}
+
+			// Show diff preview and confirm
+			if !app.Quiet && !app.JSON {
+				if len(diff.Remove) > 0 {
+					printHuman(w, "Will remove:\n")
+					for _, a := range diff.Remove {
+						printHuman(w, "  - %s/%s\n", a.AssetType, a.AssetName)
+					}
+				}
+				if len(diff.Deploy) > 0 {
+					printHuman(w, "Will deploy:\n")
+					for _, a := range diff.Deploy {
+						printHuman(w, "  + %s/%s\n", a.AssetType, a.AssetName)
+					}
+				}
+				if len(diff.Keep) > 0 {
+					printHuman(w, "Unchanged: %d assets\n", len(diff.Keep))
+				}
+			}
+
+			ok, err := confirm(cmd.InOrStdin(), w,
+				fmt.Sprintf("Switch from %q to %q?", currentName, targetName),
+				app.Yes,
+			)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				if !app.Quiet {
+					printHuman(w, "Switch cancelled.\n")
+				}
+				return nil
+			}
+
+			summary, err := app.ScanIndex()
+			if err != nil {
+				return fmt.Errorf("scan sources: %w", err)
+			}
+
+			eng, err := app.DeployEngine()
+			if err != nil {
+				return err
 			}
 
 			result, err := profMgr.Switch(currentName, targetName, eng, summary.Index, app.ProjectRoot)
