@@ -94,6 +94,12 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 		Short: "Remove a registered source",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Wire hidden --force into --yes with deprecation warning
+			if force {
+				fmt.Fprintln(cmd.ErrOrStderr(), "Warning: --force is deprecated, use --yes instead")
+				app.Yes = true
+			}
+
 			sourceID := args[0]
 			sm, err := app.SourceManager()
 			if err != nil {
@@ -127,9 +133,9 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 				}
 			}
 
-			if deployedCount > 0 && !force {
+			if deployedCount > 0 && !app.Yes {
 				if app.JSON {
-					return fmt.Errorf("source %q has %d deployed assets; use --force to remove", sourceID, deployedCount)
+					return fmt.Errorf("source %q has %d deployed assets; use --yes to remove", sourceID, deployedCount)
 				}
 				choices := []string{
 					"Remove source and all deployed assets",
@@ -158,9 +164,24 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 					}
 					return nil
 				}
-			} else if deployedCount > 0 && force {
+			} else if deployedCount > 0 && app.Yes {
 				if err := removeSourceDeployments(eng, sourceID); err != nil {
 					return fmt.Errorf("remove deployed assets: %w", err)
+				}
+			} else {
+				// No deployed assets — still confirm
+				ok, err := confirm(cmd.InOrStdin(), w,
+					fmt.Sprintf("Remove source %q?", sourceID),
+					app.Yes,
+				)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					if !app.Quiet {
+						printHuman(w, "Cancelled.\n")
+					}
+					return nil
 				}
 			}
 
@@ -179,7 +200,8 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&force, "force", false, "skip confirmation and remove deployed assets")
+	cmd.Flags().BoolVar(&force, "force", false, "skip confirmation and remove deployed assets (deprecated: use --yes)")
+	cmd.Flags().MarkHidden("force")
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return completeSourceIDs(app, toComplete)
 	}

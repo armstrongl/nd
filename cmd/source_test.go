@@ -263,7 +263,7 @@ func TestSourceRemove_Force(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "source", "remove", "--force", "my-skills"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "source", "remove", "my-skills"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove failed: %v", err)
@@ -298,7 +298,7 @@ func TestSourceRemove_NotFound(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "source", "remove", "--force", "nonexistent"})
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "source", "remove", "nonexistent"})
 
 	err := rootCmd.Execute()
 	if err == nil {
@@ -328,7 +328,7 @@ func TestSourceRemove_JSON(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "--json", "source", "remove", "--force", "my-skills"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--json", "--yes", "source", "remove", "my-skills"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove --json failed: %v", err)
@@ -359,5 +359,103 @@ func TestSourceRemoveCmd_Completions(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "my-source") {
 		t.Errorf("expected 'my-source' in source remove completions, got:\n%s", got)
+	}
+}
+
+func TestSourceRemove_WithYes(t *testing.T) {
+	tmp, configPath := setupTestConfig(t)
+
+	srcDir := filepath.Join(tmp, "my-skills")
+	os.MkdirAll(srcDir, 0o755)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "source", "add", srcDir})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+
+	// Remove with --yes (new flag, replaces --force)
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "source", "remove", "my-skills"})
+
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("remove with --yes failed: %v", err)
+	}
+
+	got2 := out.String()
+	if !strings.Contains(got2, "Removed") {
+		t.Errorf("expected 'Removed' in output, got: %s", got2)
+	}
+}
+
+func TestSourceRemove_NonTTY_NoYes_Errors(t *testing.T) {
+	tmp, configPath := setupTestConfig(t)
+
+	srcDir := filepath.Join(tmp, "my-skills")
+	os.MkdirAll(srcDir, 0o755)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "source", "add", srcDir})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+
+	// Remove without --yes in non-TTY — confirm reads EOF → error
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "remove", "my-skills"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when confirm reads EOF in non-TTY")
+	}
+}
+
+func TestSourceRemove_ForceAlias(t *testing.T) {
+	tmp, configPath := setupTestConfig(t)
+
+	srcDir := filepath.Join(tmp, "my-skills")
+	os.MkdirAll(srcDir, 0o755)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "source", "add", srcDir})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+
+	// Remove with hidden --force alias (backwards compat)
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "remove", "--force", "my-skills"})
+
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("remove with --force alias failed: %v", err)
+	}
+
+	got2 := out.String()
+	if !strings.Contains(got2, "Removed") {
+		t.Errorf("expected 'Removed' in output, got: %s", got2)
 	}
 }
