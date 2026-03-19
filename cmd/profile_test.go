@@ -19,8 +19,10 @@ func TestProfileCreateCmd(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "test-profile",
-		"--assets", "skills/greeting", "--description", "A test profile"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "test-profile",
+		"--assets", "skills/greeting", "--description", "A test profile",
+	})
 
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -73,8 +75,10 @@ func TestProfileCreateCmd_JSON(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "--json", "profile", "create", "json-profile",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "--json", "profile", "create", "json-profile",
+		"--assets", "skills/greeting",
+	})
 
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -241,8 +245,10 @@ func TestProfileDeployCmd(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "deploy-test",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "deploy-test",
+		"--assets", "skills/greeting",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
@@ -273,8 +279,10 @@ func TestProfileDeployCmd_DryRun(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "dryrun-test",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "dryrun-test",
+		"--assets", "skills/greeting",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
@@ -305,8 +313,10 @@ func TestProfileAddAssetCmd(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "add-asset-test",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "add-asset-test",
+		"--assets", "skills/greeting",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
@@ -337,8 +347,10 @@ func TestProfileAddAssetCmd_Duplicate(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "dup-asset-test",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "dup-asset-test",
+		"--assets", "skills/greeting",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
@@ -364,8 +376,10 @@ func TestProfileAddAssetCmd_DryRun(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "dryrun-add-test",
-		"--assets", "skills/greeting"})
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "dryrun-add-test",
+		"--assets", "skills/greeting",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
