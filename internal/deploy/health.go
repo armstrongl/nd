@@ -106,13 +106,13 @@ func (e *Engine) Sync() (*SyncResult, error) {
 
 			case state.HealthBroken, state.HealthOrphaned:
 				// Source gone: remove symlink and state entry
-				e.remove(dep.LinkPath)
+				_ = e.remove(dep.LinkPath)
 				result.Removed = append(result.Removed, dep)
 
 			case state.HealthMissing:
 				// Symlink deleted externally: re-create if source exists
 				if _, err := e.stat(dep.SourcePath); err == nil {
-					e.mkdirAll(filepath.Dir(dep.LinkPath), 0o755)
+					_ = e.mkdirAll(filepath.Dir(dep.LinkPath), 0o755)
 					if err := e.symlink(dep.SourcePath, dep.LinkPath); err == nil {
 						result.Repaired = append(result.Repaired, dep)
 						keep = append(keep, dep)
@@ -128,7 +128,7 @@ func (e *Engine) Sync() (*SyncResult, error) {
 
 			case state.HealthDrifted:
 				// Re-create symlink to correct target
-				e.remove(dep.LinkPath)
+				_ = e.remove(dep.LinkPath)
 				if err := e.symlink(dep.SourcePath, dep.LinkPath); err == nil {
 					result.Repaired = append(result.Repaired, dep)
 					keep = append(keep, dep)

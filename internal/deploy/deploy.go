@@ -287,7 +287,7 @@ func (e *Engine) handleConflict(linkPath string, req DeployRequest, st *state.De
 					return "", nil, true, nil
 				}
 				// Different nd-managed asset: remove old symlink and state entry
-				e.remove(linkPath)
+				_ = e.remove(linkPath)
 				st.Deployments = append(st.Deployments[:i], st.Deployments[i+1:]...)
 				return "", nil, false, nil
 			}
@@ -374,7 +374,7 @@ func (e *Engine) pruneBackups(baseName string, maxKeep int) {
 	// ReadDir returns entries sorted by name. Timestamps in filenames sort chronologically.
 	if len(matching) > maxKeep {
 		for _, name := range matching[:len(matching)-maxKeep] {
-			e.remove(filepath.Join(e.backupDir, name))
+			_ = e.remove(filepath.Join(e.backupDir, name))
 		}
 	}
 }

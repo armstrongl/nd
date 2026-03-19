@@ -1,0 +1,24 @@
+version: "2"
+
+linters:
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: tests/
+        linters:
+          - errcheck
+      - path: internal/tui/
+        linters:
+          - staticcheck
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*github.com/spf13/cobra.Command).RegisterFlagCompletionFunc
+        - (*github.com/spf13/pflag.FlagSet).MarkHidden
+        - syscall.Flock
+        - os.Rename

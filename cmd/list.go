@@ -137,13 +137,3 @@ func newListCmd(app *App) *cobra.Command {
 	return cmd
 }
 
-// parseAssetType validates an asset type string. Used by commands with --type flag.
-func parseAssetType(s string) (nd.AssetType, error) {
-	t := nd.AssetType(s)
-	for _, valid := range nd.AllAssetTypes() {
-		if t == valid {
-			return t, nil
-		}
-	}
-	return "", fmt.Errorf("invalid asset type %q", s)
-}
