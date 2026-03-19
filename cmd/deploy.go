@@ -12,7 +12,11 @@ import (
 )
 
 func newDeployCmd(app *App) *cobra.Command {
-	var assetType string
+	var (
+		assetType string
+		relative  bool
+		absolute  bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "deploy <asset> [assets...]",
@@ -78,6 +82,20 @@ Asset references can be:
 				return nil
 			}
 
+			// Resolve symlink strategy: flag > config > default (absolute)
+			strategy := nd.SymlinkAbsolute
+			if sm, smErr := app.SourceManager(); smErr == nil {
+				cfg := sm.Config()
+				if cfg.SymlinkStrategy != "" {
+					strategy = cfg.SymlinkStrategy
+				}
+			}
+			if relative {
+				strategy = nd.SymlinkRelative
+			} else if absolute {
+				strategy = nd.SymlinkAbsolute
+			}
+
 			// Build deploy requests
 			reqs := make([]deploy.DeployRequest, len(assets))
 			for i, a := range assets {
@@ -86,6 +104,7 @@ Asset references can be:
 					Scope:       app.Scope,
 					ProjectRoot: app.ProjectRoot,
 					Origin:      nd.OriginManual,
+					Strategy:    strategy,
 				}
 			}
 
@@ -162,6 +181,9 @@ Asset references can be:
 		}
 		return types, cobra.ShellCompDirectiveNoFileComp
 	})
+	cmd.Flags().BoolVar(&relative, "relative", false, "use relative symlinks (overrides config)")
+	cmd.Flags().BoolVar(&absolute, "absolute", false, "use absolute symlinks (overrides config)")
+	cmd.MarkFlagsMutuallyExclusive("relative", "absolute")
 	return cmd
 }
 

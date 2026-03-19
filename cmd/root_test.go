@@ -77,6 +77,24 @@ func TestScopeFlagCompletion(t *testing.T) {
 	}
 }
 
+func TestRootCmd_VersionFlag(t *testing.T) {
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	rootCmd.SetArgs([]string{"--version"})
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "nd version") {
+		t.Errorf("expected version info in output, got: %s", got)
+	}
+}
+
 func TestWithExitCode(t *testing.T) {
 	err := withExitCode(2, &exitError{code: 1, err: nil})
 	code, ok := exitCodeFromError(err)
