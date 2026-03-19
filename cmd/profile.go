@@ -122,14 +122,50 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a profile",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			name := args[0]
+
+			var name string
+			if len(args) > 0 {
+				name = args[0]
+			} else {
+				if app.JSON {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list --json' to see profiles")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires a profile name argument; run 'nd profile list' to see profiles")
+				}
+				completions, _ := completeProfileNames(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no profiles to delete")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select profile to delete:", names)
+				if err != nil {
+					return err
+				}
+				name = choice
+			}
 
 			profMgr, err := app.ProfileManager()
 			if err != nil {
 				return err
+			}
+
+			// Confirm deletion
+			ok, err := confirm(cmd.InOrStdin(), w,
+				fmt.Sprintf("Delete profile %q? This cannot be undone.", name),
+				app.Yes,
+			)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				if !app.Quiet {
+					printHuman(w, "Delete cancelled.\n")
+				}
+				return nil
 			}
 
 			if err := profMgr.DeleteProfile(name); err != nil {
