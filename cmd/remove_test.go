@@ -29,7 +29,7 @@ func TestRemoveCmd(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "remove", "greeting"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "remove", "greeting"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove failed: %v", err)
@@ -77,7 +77,7 @@ func TestRemoveCmd_DryRun(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "--dry-run", "remove", "greeting"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "--dry-run", "remove", "greeting"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove --dry-run failed: %v", err)
@@ -109,7 +109,7 @@ func TestRemoveCmd_JSON(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "--json", "remove", "greeting"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "--json", "remove", "greeting"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove --json failed: %v", err)
@@ -144,10 +144,73 @@ func TestRemoveCmd_TypeQualified(t *testing.T) {
 	rootCmd2 := NewRootCmd(app2)
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "remove", "skills/greeting"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "remove", "skills/greeting"})
 
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("remove failed: %v", err)
+	}
+}
+
+func TestRemoveCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy first
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	// Remove with no args in non-TTY
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "remove"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires at least one asset") {
+		t.Errorf("expected helpful error, got: %v", err)
+	}
+}
+
+func TestRemoveCmd_WithYes_SkipsConfirm(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy first
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	// Remove with --yes (skips confirmation)
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "remove", "greeting"})
+
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("remove with --yes failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Removed") {
+		t.Errorf("expected 'Removed' in output, got: %s", got)
 	}
 }
 
