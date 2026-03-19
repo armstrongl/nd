@@ -7,7 +7,6 @@ import (
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
-	"github.com/armstrongl/nd/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -262,8 +261,3 @@ func printSettingsReminder(w interface{ Write([]byte) (int, error) }, t nd.Asset
 	fmt.Fprintf(w, "Note: %s require manual registration in settings.json\n", t)
 }
 
-// printJSONErrors prints errors as JSON and returns the appropriate error.
-func printJSONErrors(w interface{ Write([]byte) (int, error) }, errs []output.JSONError) error {
-	printJSONError(w, errs)
-	return fmt.Errorf("%d errors", len(errs))
-}

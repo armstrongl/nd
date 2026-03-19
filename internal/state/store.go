@@ -89,6 +89,6 @@ func (s *Store) WithLock(fn func() error) error {
 	if err := lock.Acquire(5 * time.Second); err != nil {
 		return err
 	}
-	defer lock.Release()
+	defer func() { _ = lock.Release() }()
 	return fn()
 }
