@@ -11,7 +11,7 @@ This spec was audited by three parallel agents (technical accuracy, completeness
 | Issue | Severity | Fix |
 |-------|----------|-----|
 | `cmd.NewRootCmd()` called with no args; actual signature requires `*App` | Critical | Fixed gendocs to pass `&cmd.App{}` |
-| `brews:` deprecated in goreleaser v2 | Critical | Kept `brews:` (still valid in v2; `homebrew_casks` is for casks not formulas); added `token` field |
+| `brews:` deprecated in goreleaser v2.10 | Critical | Migrated to `homebrew_casks:` (correct for pre-compiled binaries); added `token` field |
 | Default GITHUB_TOKEN cannot push to cross-repo Homebrew tap | Critical | Added `TAP_GITHUB_TOKEN` PAT requirement in goreleaser config and release workflow |
 | `archives.format` (singular) deprecated in goreleaser v2 | Significant | Changed to `formats: [tar.gz]` |
 | `settings edit`, `profile add-asset`, `profile delete` undocumented | Significant | Added to user guide and profiles guide |
@@ -122,16 +122,16 @@ changelog:
     - title: Other
       order: 999
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: nd
+    binaries:
+      - nd
+    repository:
       owner: armstrongl
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/armstrongl/nd
     description: Coding agent asset management CLI tool
-    license: MIT
-    install: bin.install "nd"
-    test: system "#{bin}/nd", "version"
 ```
 
 ### ldflags integration
@@ -158,7 +158,7 @@ The `internal/version` package must expose `Version`, `Commit`, and `Date` as `v
 
 - Create `armstrongl/homebrew-tap` repo on GitHub (public, with README)
 - goreleaser auto-pushes formula on release
-- Users install with: `brew install armstrongl/tap/nd`
+- Users install with: `brew install --cask armstrongl/tap/nd`
 
 ---
 

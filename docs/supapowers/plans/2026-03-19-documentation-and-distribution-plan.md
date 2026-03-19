@@ -95,7 +95,7 @@ checksum:
   algorithm: sha256
 
 changelog:
-  use: github
+  use: git
   groups:
     - title: Features
       regexp: '^feat'
@@ -104,18 +104,16 @@ changelog:
     - title: Other
       order: 999
 
-# Note: If goreleaser check warns that 'brews' is deprecated, migrate to the
-# replacement syntax per goreleaser's migration guide at that time.
-brews:
-  - repository:
+homebrew_casks:
+  - name: nd
+    binaries:
+      - nd
+    repository:
       owner: armstrongl
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/armstrongl/nd
     description: Coding agent asset management CLI tool
-    license: MIT
-    install: bin.install "nd"
-    test: system "#{bin}/nd", "version"
 ```
 
 - [ ] **Step 2: Validate goreleaser config**
@@ -226,7 +224,7 @@ goreleaser needs a target repo to push the Homebrew formula. This must exist bef
 
 - [ ] **Step 1: Create the tap repo on GitHub**
 
-Run: `gh repo create armstrongl/homebrew-tap --public --description "Homebrew tap for nd CLI" --clone=false`
+Run: `gh repo create armstrongl/homebrew-tap --public --description "Homebrew tap for nd CLI"`
 Expected: Repository created at `github.com/armstrongl/homebrew-tap`
 
 - [ ] **Step 2: Initialize the tap repo with a README**
@@ -236,7 +234,7 @@ Run:
 gh api repos/armstrongl/homebrew-tap/contents/README.md \
   --method PUT \
   -f message="Initial commit" \
-  -f content="$(printf '# homebrew-tap\n\nHomebrew formulae for [nd](https://github.com/armstrongl/nd).\n\n## Install\n\n```bash\nbrew install armstrongl/tap/nd\n```\n' | base64)"
+  -f content="$(printf '# homebrew-tap\n\nHomebrew cask for [nd](https://github.com/armstrongl/nd).\n\n## Install\n\n```bash\nbrew install --cask armstrongl/tap/nd\n```\n' | base64)"
 ```
 
 ---
@@ -708,7 +706,7 @@ Manage coding agent assets (skills, agents, commands, rules, and more) across to
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install armstrongl/tap/nd
+brew install --cask armstrongl/tap/nd
 ```
 
 ### Go Install
@@ -849,7 +847,7 @@ Choose your preferred method:
 
 ```bash
 # Homebrew (macOS/Linux)
-brew install armstrongl/tap/nd
+brew install --cask armstrongl/tap/nd
 
 # Go install
 go install github.com/armstrongl/nd@latest
@@ -1789,15 +1787,15 @@ Verify:
 # Check GitHub Release exists
 gh release view v0.1.0
 
-# Check Homebrew formula was pushed
-gh api repos/armstrongl/homebrew-tap/contents/Formula/nd.rb --jq .name
+# Check Homebrew cask was pushed
+gh api repos/armstrongl/homebrew-tap/contents/Casks/nd.rb --jq .name
 ```
 
 - [ ] **Step 6: Verify install methods**
 
 ```bash
 # Test Homebrew (if on macOS)
-brew install armstrongl/tap/nd
+brew install --cask armstrongl/tap/nd
 nd version
 
 # Test go install
