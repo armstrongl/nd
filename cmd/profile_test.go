@@ -431,3 +431,89 @@ func TestProfileSwitchCmd_Completions(t *testing.T) {
 		t.Errorf("expected 'test-profile' in profile switch completions, got:\n%s", got)
 	}
 }
+
+func TestProfileDeleteCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "victim", "--from-current"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "delete"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires a profile name") {
+		t.Errorf("expected helpful error, got: %v", err)
+	}
+}
+
+func TestProfileDeleteCmd_Confirm_WithYes(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "yes-delete", "--from-current"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "profile", "delete", "yes-delete"})
+
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("delete with --yes failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "Deleted") {
+		t.Errorf("expected 'Deleted' in output, got: %s", out.String())
+	}
+}
+
+func TestProfileDeleteCmd_NonTTY_NoYes_Errors(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "confirm-test", "--from-current"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "delete", "confirm-test"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error: confirmation required in non-TTY")
+	}
+	if !strings.Contains(err.Error(), "confirmation required") {
+		t.Errorf("expected 'confirmation required' error, got: %v", err)
+	}
+}
