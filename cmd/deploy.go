@@ -22,9 +22,36 @@ func newDeployCmd(app *App) *cobra.Command {
 Asset references can be:
   name           Search all types for matching name
   type/name      Search specific type (e.g., skills/greeting)`,
-		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
+
+			// Interactive picker when no args provided
+			if len(args) == 0 {
+				if app.JSON {
+					return fmt.Errorf("requires at least one asset argument; run 'nd list --json' to see available assets")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires at least one asset argument; run 'nd list' to see available assets")
+				}
+				completionInitApp(app)
+				scanResult, err := app.ScanIndex()
+				if err != nil {
+					return fmt.Errorf("scan sources: %w", err)
+				}
+				var completions []string
+				for _, a := range scanResult.Index.All() {
+					completions = append(completions, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))
+				}
+				if len(completions) == 0 {
+					return fmt.Errorf("no assets available; add a source with 'nd source add <path>'")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select asset to deploy:", names)
+				if err != nil {
+					return err
+				}
+				args = []string{choice}
+			}
 
 			summary, err := app.ScanIndex()
 			if err != nil {

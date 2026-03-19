@@ -162,6 +162,26 @@ func TestDeployCmd_Multiple(t *testing.T) {
 	}
 }
 
+func TestDeployCmd_NoArgs_NonTTY(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no args and non-TTY")
+	}
+	if !strings.Contains(err.Error(), "requires at least one asset") {
+		t.Errorf("expected 'requires at least one asset' in error, got: %v", err)
+	}
+}
+
 func TestDeployCmd_Completions(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
