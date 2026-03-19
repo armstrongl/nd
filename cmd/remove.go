@@ -14,9 +14,30 @@ func newRemoveCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <asset> [assets...]",
 		Short: "Remove deployed assets",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
+
+			// Interactive picker when no args provided
+			if len(args) == 0 {
+				if app.JSON {
+					return fmt.Errorf("requires at least one asset argument; run 'nd status --json' to see deployed assets")
+				}
+				if !isTerminal() {
+					return fmt.Errorf("requires at least one asset argument; run 'nd status' to see deployed assets")
+				}
+				completionInitApp(app)
+				completions, _ := completeDeployedAssets(app, "")
+				if len(completions) == 0 {
+					return fmt.Errorf("no deployed assets to remove")
+				}
+				names := extractChoiceNames(completions)
+				choice, err := promptChoice(cmd.InOrStdin(), w, "Select asset to remove:", names)
+				if err != nil {
+					return err
+				}
+				args = []string{choice}
+			}
 
 			eng, err := app.DeployEngine()
 			if err != nil {
@@ -50,6 +71,23 @@ func newRemoveCmd(app *App) *cobra.Command {
 					if !ok {
 						if !app.Quiet {
 							printHuman(w, "Skipped pinned asset %s/%s\n", d.AssetType, d.AssetName)
+						}
+						continue
+					}
+				}
+
+				// Confirm non-pinned removal (skip if --yes or --dry-run)
+				if d.Origin != nd.OriginPinned && !app.DryRun {
+					ok, err := confirm(cmd.InOrStdin(), w,
+						fmt.Sprintf("Remove %s/%s?", d.AssetType, d.AssetName),
+						app.Yes,
+					)
+					if err != nil {
+						return err
+					}
+					if !ok {
+						if !app.Quiet {
+							printHuman(w, "Skipped %s/%s\n", d.AssetType, d.AssetName)
 						}
 						continue
 					}
