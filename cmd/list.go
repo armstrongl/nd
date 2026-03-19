@@ -54,11 +54,13 @@ func newListCmd(app *App) *cobra.Command {
 
 			// Apply filters
 			type listEntry struct {
-				Type   string `json:"type"`
-				Name   string `json:"name"`
-				Source string `json:"source"`
-				Status string `json:"status"`
-				IsDir  bool   `json:"is_dir"`
+				Type        string   `json:"type"`
+				Name        string   `json:"name"`
+				Source      string   `json:"source"`
+				Status      string   `json:"status"`
+				IsDir       bool     `json:"is_dir"`
+				Description string   `json:"description,omitempty"`
+				Tags        []string `json:"tags,omitempty"`
 			}
 
 			var entries []listEntry
@@ -81,13 +83,18 @@ func newListCmd(app *App) *cobra.Command {
 					}
 				}
 
-				entries = append(entries, listEntry{
+				entry := listEntry{
 					Type:   string(a.Type),
 					Name:   a.Name,
 					Source: a.SourceID,
 					Status: status,
 					IsDir:  a.IsDir,
-				})
+				}
+				if a.Meta != nil {
+					entry.Description = a.Meta.Description
+					entry.Tags = a.Meta.Tags
+				}
+				entries = append(entries, entry)
 			}
 
 			if app.JSON {
@@ -104,7 +111,11 @@ func newListCmd(app *App) *cobra.Command {
 				if e.Status == "deployed" {
 					marker = "*"
 				}
-				printHuman(w, "%s %-15s  %-30s  %-15s\n", marker, e.Type, e.Name, e.Source)
+				if e.Description != "" {
+					printHuman(w, "%s %-15s  %-30s  %-15s  %s\n", marker, e.Type, e.Name, e.Source, e.Description)
+				} else {
+					printHuman(w, "%s %-15s  %-30s  %-15s\n", marker, e.Type, e.Name, e.Source)
+				}
 			}
 
 			return nil
