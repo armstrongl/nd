@@ -182,6 +182,68 @@ func TestDeployCmd_NoArgs_NonTTY(t *testing.T) {
 	}
 }
 
+func TestDeployCmd_RelativeFlag(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "--relative", "greeting"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Resolve the agent global_dir from the config to find the deployed symlink
+	// configPath = <tmp>/.config/nd/config.yaml → three Dir() calls to reach tmp
+	tmp := filepath.Dir(filepath.Dir(filepath.Dir(configPath)))
+	agentDir := filepath.Join(tmp, ".claude")
+	linkPath := filepath.Join(agentDir, "skills", "greeting")
+
+	target, readErr := os.Readlink(linkPath)
+	if readErr != nil {
+		t.Fatalf("expected symlink at %s: %v", linkPath, readErr)
+	}
+	// A relative symlink target must not be absolute
+	if filepath.IsAbs(target) {
+		t.Errorf("expected relative symlink, got absolute target: %q", target)
+	}
+}
+
+func TestDeployCmd_AbsoluteFlag(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "--absolute", "greeting"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	tmp := filepath.Dir(filepath.Dir(filepath.Dir(configPath)))
+	agentDir := filepath.Join(tmp, ".claude")
+	linkPath := filepath.Join(agentDir, "skills", "greeting")
+
+	target, readErr := os.Readlink(linkPath)
+	if readErr != nil {
+		t.Fatalf("expected symlink at %s: %v", linkPath, readErr)
+	}
+	// An absolute symlink target must be an absolute path
+	if !filepath.IsAbs(target) {
+		t.Errorf("expected absolute symlink, got relative target: %q", target)
+	}
+}
+
 func TestDeployCmd_Completions(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
