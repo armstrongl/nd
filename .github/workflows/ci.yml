@@ -30,6 +30,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
+      - name: Configure git identity
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@test"
+      - name: Create agent config dir
+        run: mkdir -p ~/.claude
       - name: Run tests
         run: go test ./... -race -coverprofile=coverage.out
       - name: Upload coverage
