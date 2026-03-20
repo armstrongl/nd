@@ -9,10 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/nd"
-	"github.com/armstrongl/nd/internal/tui"
-	tuiapp "github.com/armstrongl/nd/internal/tui/app"
 	"github.com/armstrongl/nd/internal/version"
 )
 
@@ -29,7 +26,7 @@ func NewRootCmd(app *App) *cobra.Command {
 			return persistentPreRun(cmd, app)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTUI(app)
+			return cmd.Help()
 		},
 	}
 
@@ -134,41 +131,6 @@ func defaultConfigPath() string {
 	return "~/.config/nd/config.yaml"
 }
 
-// runTUI launches the interactive TUI dashboard.
-func runTUI(app *App) error {
-	eng, err := app.DeployEngine()
-	if err != nil {
-		return fmt.Errorf("init deploy engine: %w", err)
-	}
-	prof, err := app.ProfileManager()
-	if err != nil {
-		return fmt.Errorf("init profile manager: %w", err)
-	}
-	src, err := app.SourceManager()
-	if err != nil {
-		return fmt.Errorf("init source manager: %w", err)
-	}
-	reg, err := app.AgentRegistry()
-	if err != nil {
-		return fmt.Errorf("init agent registry: %w", err)
-	}
-
-	// Build profile adapter with pre-bound deps
-	indexFn := func() *asset.Index {
-		summary, err := app.ScanIndex()
-		if err != nil || summary == nil {
-			return nil
-		}
-		return summary.Index
-	}
-	projectRoot, _ := app.ResolveProjectRoot()
-	adapter := tui.NewProfileAdapter(prof, eng, indexFn, projectRoot)
-
-	hasProjectDir := app.Scope == nd.ScopeProject
-	resolver := func() (string, error) { return app.ResolveProjectRoot() }
-
-	return tuiapp.Run(eng, adapter, src, reg, hasProjectDir, resolver)
-}
 
 // exitError wraps an error with an exit code.
 type exitError struct {
