@@ -12,9 +12,6 @@ linters:
       - path: tests/
         linters:
           - errcheck
-      - path: internal/tui/
-        linters:
-          - staticcheck
   settings:
     errcheck:
       exclude-functions:
