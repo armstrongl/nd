@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/profile"
 	"github.com/spf13/cobra"
 )
@@ -59,6 +60,13 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 			if err := pstore.SaveSnapshot(snap); err != nil {
 				return err
 			}
+
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now().Truncate(time.Second),
+				Operation: oplog.OpSnapshotSave,
+				Succeeded: len(entries),
+				Detail:    name,
+			})
 
 			if app.JSON {
 				return printJSON(w, snap, app.DryRun)
@@ -156,6 +164,21 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 			result, err := profMgr.Restore(name, eng, summary.Index)
 			if err != nil {
 				return err
+			}
+
+			{
+				succeeded, failed := 0, len(result.MissingAssets)
+				if result.Deployed != nil {
+					succeeded += len(result.Deployed.Succeeded)
+					failed += len(result.Deployed.Failed)
+				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now().Truncate(time.Second),
+					Operation: oplog.OpSnapshotRestore,
+					Succeeded: succeeded,
+					Failed:    failed,
+					Detail:    name,
+				})
 			}
 
 			if app.JSON {

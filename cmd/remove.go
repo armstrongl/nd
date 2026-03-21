@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/spf13/cobra"
 )
 
@@ -122,6 +124,13 @@ func newRemoveCmd(app *App) *cobra.Command {
 				if err := eng.Remove(reqs[0]); err != nil {
 					return err
 				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now(),
+					Operation: oplog.OpRemove,
+					Assets:    []asset.Identity{reqs[0].Identity},
+					Scope:     app.Scope,
+					Succeeded: 1,
+				})
 				if app.JSON {
 					return printJSON(w, map[string]string{
 						"removed": fmt.Sprintf("%s/%s", reqs[0].Identity.Type, reqs[0].Identity.Name),
@@ -137,6 +146,19 @@ func newRemoveCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			var logAssets []asset.Identity
+			for _, r := range reqs {
+				logAssets = append(logAssets, r.Identity)
+			}
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpRemove,
+				Assets:    logAssets,
+				Scope:     app.Scope,
+				Succeeded: len(bulkResult.Succeeded),
+				Failed:    len(bulkResult.Failed),
+			})
 
 			if app.JSON {
 				return printJSON(w, bulkResult, false)
