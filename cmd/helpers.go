@@ -96,8 +96,8 @@ func promptChoice(r io.Reader, w io.Writer, prompt string, choices []string) (st
 }
 
 // extractChoiceNames strips tab-separated descriptions from completion strings.
-// Input: ["skills/greeting\tglobal from src", "commands/hello\tglobal from src"]
-// Output: ["skills/greeting", "commands/hello"]
+// Input: ["skills/greeting\tglobal from src", "commands/hello.md\tglobal from src"]
+// Output: ["skills/greeting", "commands/hello.md"]
 func extractChoiceNames(completions []string) []string {
 	names := make([]string, len(completions))
 	for i, c := range completions {

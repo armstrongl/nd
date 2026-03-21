@@ -327,7 +327,7 @@ func TestProfileAddAssetCmd(t *testing.T) {
 	out.Reset()
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "add-asset", "add-asset-test", "commands/hello"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "add-asset", "add-asset-test", "commands/hello.md"})
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("add-asset failed: %v", err)
 	}
@@ -390,7 +390,7 @@ func TestProfileAddAssetCmd_DryRun(t *testing.T) {
 	out.Reset()
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "--dry-run", "profile", "add-asset", "dryrun-add-test", "commands/hello"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "--dry-run", "profile", "add-asset", "dryrun-add-test", "commands/hello.md"})
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("dry-run add-asset failed: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestProfileSwitchCmd_Confirm_WithYes(t *testing.T) {
 	out.Reset()
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "prof-b", "--assets", "commands/hello"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "prof-b", "--assets", "commands/hello.md"})
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("create prof-b failed: %v", err)
 	}
@@ -620,7 +620,7 @@ func TestProfileSwitchCmd_NonTTY_NoYes_Errors(t *testing.T) {
 	out.Reset()
 	rootCmd2.SetOut(&out)
 	rootCmd2.SetErr(&out)
-	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "sw-b", "--assets", "commands/hello"})
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "sw-b", "--assets", "commands/hello.md"})
 	if err := rootCmd2.Execute(); err != nil {
 		t.Fatalf("create sw-b failed: %v", err)
 	}
