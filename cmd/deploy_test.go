@@ -23,8 +23,8 @@ func setupDeployEnv(t *testing.T) (configPath string, srcDir string) {
 	srcDir = filepath.Join(tmp, "my-source")
 	os.MkdirAll(filepath.Join(srcDir, "skills", "greeting"), 0o755)
 	os.WriteFile(filepath.Join(srcDir, "skills", "greeting", "SKILL.md"), []byte("# Greeting"), 0o644)
-	os.MkdirAll(filepath.Join(srcDir, "commands", "hello"), 0o755)
-	os.WriteFile(filepath.Join(srcDir, "commands", "hello", "command.md"), []byte("# Hello"), 0o644)
+	os.MkdirAll(filepath.Join(srcDir, "commands"), 0o755)
+	os.WriteFile(filepath.Join(srcDir, "commands", "hello.md"), []byte("# Hello"), 0o644)
 
 	// Create agent deploy target dir
 	agentDir := filepath.Join(tmp, ".claude")
@@ -149,7 +149,7 @@ func TestDeployCmd_Multiple(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting", "hello"})
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting", "hello.md"})
 
 	err := rootCmd.Execute()
 	if err != nil {

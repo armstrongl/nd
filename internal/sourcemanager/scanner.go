@@ -77,29 +77,10 @@ func ScanSource(sourceID string, rootPath string) source.ScanResult {
 }
 
 // scanAssetDir scans a single asset type directory for entries.
+// Validates each entry against the expected structure for its asset type.
+// Non-matching directories are scanned one level deeper to support grouping folders.
 func scanAssetDir(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string) {
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		result.Errors = append(result.Errors, err)
-		return
-	}
-
-	for _, entry := range entries {
-		name := entry.Name()
-		if excludedDirs[name] || strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		result.Assets = append(result.Assets, asset.Asset{
-			Identity: asset.Identity{
-				SourceID: sourceID,
-				Type:     assetType,
-				Name:     name,
-			},
-			SourcePath: filepath.Join(dirPath, name),
-			IsDir:      entry.IsDir(),
-		})
-	}
+	scanAssetDirImpl(result, sourceID, assetType, dirPath, nil, 1)
 }
 
 // scanContextDir scans the context/ directory for context assets.
@@ -232,6 +213,13 @@ func scanWithManifest(result *source.ScanResult, sourceID string, rootPath strin
 
 // scanAssetDirExcluding is like scanAssetDir but skips entries matching the exclude set.
 func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool) {
+	scanAssetDirImpl(result, sourceID, assetType, dirPath, excludeSet, 1)
+}
+
+// scanAssetDirImpl is the shared implementation for scanning an asset type directory.
+// It validates entries against the expected structure and recurses into non-matching
+// directories up to remainingDepth levels to support grouping folders.
+func scanAssetDirImpl(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool, remainingDepth int) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		result.Errors = append(result.Errors, err)
@@ -240,19 +228,68 @@ func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if excludedDirs[name] || strings.HasPrefix(name, ".") || excludeSet[name] {
+		if excludedDirs[name] || strings.HasPrefix(name, ".") {
+			continue
+		}
+		if excludeSet != nil && excludeSet[name] {
 			continue
 		}
 
-		result.Assets = append(result.Assets, asset.Asset{
-			Identity: asset.Identity{
-				SourceID: sourceID,
-				Type:     assetType,
-				Name:     name,
-			},
-			SourcePath: filepath.Join(dirPath, name),
-			IsDir:      entry.IsDir(),
-		})
+		entryPath := filepath.Join(dirPath, name)
+
+		if isValidAssetEntry(assetType, entryPath, entry.IsDir()) {
+			result.Assets = append(result.Assets, asset.Asset{
+				Identity: asset.Identity{
+					SourceID: sourceID,
+					Type:     assetType,
+					Name:     name,
+				},
+				SourcePath: entryPath,
+				IsDir:      entry.IsDir(),
+			})
+		} else if entry.IsDir() && remainingDepth > 0 {
+			// Recurse into potential grouping directory
+			scanAssetDirImpl(result, sourceID, assetType, entryPath, excludeSet, remainingDepth-1)
+		}
+	}
+}
+
+// isValidAssetEntry checks whether a directory entry matches the expected
+// structure for the given asset type.
+func isValidAssetEntry(assetType nd.AssetType, entryPath string, isDir bool) bool {
+	switch assetType {
+	case nd.AssetSkill:
+		if !isDir {
+			return false
+		}
+		_, err := os.Stat(filepath.Join(entryPath, "SKILL.md"))
+		return err == nil
+
+	case nd.AssetAgent, nd.AssetCommand, nd.AssetOutputStyle:
+		return !isDir && strings.HasSuffix(entryPath, ".md")
+
+	case nd.AssetRule:
+		if isDir {
+			return true
+		}
+		return strings.HasSuffix(entryPath, ".md")
+
+	case nd.AssetPlugin:
+		if !isDir {
+			return false
+		}
+		info, err := os.Stat(filepath.Join(entryPath, ".claude-plugin"))
+		return err == nil && info.IsDir()
+
+	case nd.AssetHook:
+		if !isDir {
+			return false
+		}
+		_, err := os.Stat(filepath.Join(entryPath, "hooks.json"))
+		return err == nil
+
+	default:
+		return true
 	}
 }
 

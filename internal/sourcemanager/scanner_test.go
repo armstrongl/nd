@@ -36,10 +36,12 @@ func makeSourceTree(t *testing.T, assets map[string][]string) string {
 func TestScanConventionBasic(t *testing.T) {
 	root := makeSourceTree(t, map[string][]string{
 		"skills":   {"review/", "deploy/"},
-		"agents":   {"go-dev/"},
 		"rules":    {"no-emojis.md"},
 		"commands": {"build-project.md"},
 	})
+	// Agents are .md files, not directories
+	os.MkdirAll(filepath.Join(root, "agents"), 0o755)
+	os.WriteFile(filepath.Join(root, "agents", "go-dev.md"), []byte("# agent"), 0o644)
 
 	result := sourcemanager.ScanSource("test-source", root)
 	if len(result.Errors) > 0 {
@@ -191,15 +193,14 @@ func TestScanWithManifest(t *testing.T) {
 	root := t.TempDir()
 
 	// Non-conventional layout with manifest
-	os.MkdirAll(filepath.Join(root, "go-skills", "skills"), 0o755)
 	os.MkdirAll(filepath.Join(root, "go-skills", "skills", "review"), 0o755)
 	os.WriteFile(filepath.Join(root, "go-skills", "skills", "review", "SKILL.md"), []byte("# review"), 0o644)
 	os.MkdirAll(filepath.Join(root, "custom-agents"), 0o755)
-	os.MkdirAll(filepath.Join(root, "custom-agents", "builder"), 0o755)
+	os.WriteFile(filepath.Join(root, "custom-agents", "builder.md"), []byte("# builder"), 0o644)
 
 	// Also has conventional skills/ that should be IGNORED when manifest exists
-	os.MkdirAll(filepath.Join(root, "skills"), 0o755)
 	os.MkdirAll(filepath.Join(root, "skills", "ignored"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "ignored", "SKILL.md"), []byte("# ignored"), 0o644)
 
 	manifest := `version: 1
 paths:
@@ -232,9 +233,11 @@ paths:
 func TestScanManifestExclude(t *testing.T) {
 	root := t.TempDir()
 
-	// Create skills
+	// Create skills with SKILL.md (valid structure)
 	os.MkdirAll(filepath.Join(root, "skills", "keep"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "keep", "SKILL.md"), []byte("# skill"), 0o644)
 	os.MkdirAll(filepath.Join(root, "skills", "experimental"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "experimental", "SKILL.md"), []byte("# skill"), 0o644)
 
 	manifest := `version: 1
 paths:
@@ -284,5 +287,281 @@ func TestScanContextLocalOnly(t *testing.T) {
 	}
 	if result.Assets[0].ContextFile.FileName != "CLAUDE.local.md" {
 		t.Errorf("file: got %q", result.Assets[0].ContextFile.FileName)
+	}
+}
+
+func TestScanValidatesSkillStructure(t *testing.T) {
+	root := t.TempDir()
+
+	// Valid skill: directory with SKILL.md
+	os.MkdirAll(filepath.Join(root, "skills", "valid-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "valid-skill", "SKILL.md"), []byte("# skill"), 0o644)
+
+	// Invalid: directory without SKILL.md
+	os.MkdirAll(filepath.Join(root, "skills", "empty-dir"), 0o755)
+
+	// Invalid: plain file (not a directory)
+	os.WriteFile(filepath.Join(root, "skills", "CLAUDE.md"), []byte("# readme"), 0o644)
+
+	// Invalid: directory with wrong marker file
+	os.MkdirAll(filepath.Join(root, "skills", "wrong-marker"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "wrong-marker", "README.md"), []byte("# readme"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 valid skill, got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s (dir=%v)", a.Type, a.Name, a.IsDir)
+		}
+	}
+	if len(result.Assets) > 0 && result.Assets[0].Name != "valid-skill" {
+		t.Errorf("expected valid-skill, got %q", result.Assets[0].Name)
+	}
+}
+
+func TestScanValidatesAgentStructure(t *testing.T) {
+	root := t.TempDir()
+
+	os.MkdirAll(filepath.Join(root, "agents"), 0o755)
+	// Valid: .md file
+	os.WriteFile(filepath.Join(root, "agents", "go-dev.md"), []byte("# agent"), 0o644)
+	// Invalid: directory (agents are files)
+	os.MkdirAll(filepath.Join(root, "agents", "not-an-agent"), 0o755)
+	// Invalid: non-.md file
+	os.WriteFile(filepath.Join(root, "agents", "notes.txt"), []byte("notes"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 valid agent, got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s (dir=%v)", a.Type, a.Name, a.IsDir)
+		}
+	}
+	if len(result.Assets) > 0 && result.Assets[0].Name != "go-dev.md" {
+		t.Errorf("expected go-dev.md, got %q", result.Assets[0].Name)
+	}
+}
+
+func TestScanValidatesCommandStructure(t *testing.T) {
+	root := t.TempDir()
+
+	os.MkdirAll(filepath.Join(root, "commands"), 0o755)
+	// Valid: .md file
+	os.WriteFile(filepath.Join(root, "commands", "build.md"), []byte("# cmd"), 0o644)
+	// Invalid: directory
+	os.MkdirAll(filepath.Join(root, "commands", "subdir"), 0o755)
+	// Invalid: non-.md file
+	os.WriteFile(filepath.Join(root, "commands", "script.sh"), []byte("#!/bin/bash"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	cmdAssets := 0
+	for _, a := range result.Assets {
+		if a.Type == nd.AssetCommand {
+			cmdAssets++
+			if a.Name != "build.md" {
+				t.Errorf("expected build.md, got %q", a.Name)
+			}
+		}
+	}
+	if cmdAssets != 1 {
+		t.Errorf("expected 1 valid command, got %d", cmdAssets)
+	}
+}
+
+func TestScanValidatesHookStructure(t *testing.T) {
+	root := t.TempDir()
+
+	// Valid: directory with hooks.json
+	os.MkdirAll(filepath.Join(root, "hooks", "pre-commit"), 0o755)
+	os.WriteFile(filepath.Join(root, "hooks", "pre-commit", "hooks.json"), []byte("{}"), 0o644)
+
+	// Invalid: directory without hooks.json
+	os.MkdirAll(filepath.Join(root, "hooks", "empty-hook"), 0o755)
+
+	// Invalid: file (hooks are directories)
+	os.WriteFile(filepath.Join(root, "hooks", "not-a-hook.md"), []byte("# nope"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	hookAssets := 0
+	for _, a := range result.Assets {
+		if a.Type == nd.AssetHook {
+			hookAssets++
+			if a.Name != "pre-commit" {
+				t.Errorf("expected pre-commit, got %q", a.Name)
+			}
+		}
+	}
+	if hookAssets != 1 {
+		t.Errorf("expected 1 valid hook, got %d", hookAssets)
+	}
+}
+
+func TestScanValidatesPluginStructure(t *testing.T) {
+	root := t.TempDir()
+
+	// Valid: directory with .claude-plugin/ subdirectory
+	os.MkdirAll(filepath.Join(root, "plugins", "my-plugin", ".claude-plugin"), 0o755)
+
+	// Invalid: directory without .claude-plugin/
+	os.MkdirAll(filepath.Join(root, "plugins", "not-a-plugin"), 0o755)
+
+	result := sourcemanager.ScanSource("test", root)
+	pluginAssets := 0
+	for _, a := range result.Assets {
+		if a.Type == nd.AssetPlugin {
+			pluginAssets++
+			if a.Name != "my-plugin" {
+				t.Errorf("expected my-plugin, got %q", a.Name)
+			}
+		}
+	}
+	if pluginAssets != 1 {
+		t.Errorf("expected 1 valid plugin, got %d", pluginAssets)
+	}
+}
+
+func TestScanGroupingFolderNesting(t *testing.T) {
+	root := t.TempDir()
+
+	// Skills organized in grouping folders (like ai-toolbox)
+	os.MkdirAll(filepath.Join(root, "skills", "claude", "better-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "claude", "better-skill", "SKILL.md"), []byte("# skill"), 0o644)
+	os.MkdirAll(filepath.Join(root, "skills", "claude", "cc-assets"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "claude", "cc-assets", "SKILL.md"), []byte("# skill"), 0o644)
+	os.MkdirAll(filepath.Join(root, "skills", "codex", "code-review"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "codex", "code-review", "SKILL.md"), []byte("# skill"), 0o644)
+
+	// Agents organized in grouping folders
+	os.MkdirAll(filepath.Join(root, "agents", "claude"), 0o755)
+	os.WriteFile(filepath.Join(root, "agents", "claude", "go-dev.md"), []byte("# agent"), 0o644)
+	os.WriteFile(filepath.Join(root, "agents", "claude", "research.md"), []byte("# agent"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	typeCount := make(map[nd.AssetType]int)
+	names := make(map[string]bool)
+	for _, a := range result.Assets {
+		typeCount[a.Type]++
+		names[a.Name] = true
+	}
+
+	if typeCount[nd.AssetSkill] != 3 {
+		t.Errorf("skills: got %d, want 3", typeCount[nd.AssetSkill])
+	}
+	if typeCount[nd.AssetAgent] != 2 {
+		t.Errorf("agents: got %d, want 2", typeCount[nd.AssetAgent])
+	}
+
+	// Grouping folders should NOT appear as assets
+	if names["claude"] {
+		t.Error("grouping folder 'claude' should not appear as an asset")
+	}
+	if names["codex"] {
+		t.Error("grouping folder 'codex' should not appear as an asset")
+	}
+
+	// Actual assets should be found
+	for _, expected := range []string{"better-skill", "cc-assets", "code-review", "go-dev.md", "research.md"} {
+		if !names[expected] {
+			t.Errorf("expected asset %q not found", expected)
+		}
+	}
+}
+
+func TestScanNestingDepthLimit(t *testing.T) {
+	root := t.TempDir()
+
+	// Two levels deep — only one level of nesting should be scanned
+	os.MkdirAll(filepath.Join(root, "skills", "group1", "group2", "deep-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "group1", "group2", "deep-skill", "SKILL.md"), []byte("# skill"), 0o644)
+
+	// One level deep — should be found
+	os.MkdirAll(filepath.Join(root, "skills", "group1", "shallow-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "group1", "shallow-skill", "SKILL.md"), []byte("# skill"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 asset (only shallow-skill), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	if len(result.Assets) > 0 && result.Assets[0].Name != "shallow-skill" {
+		t.Errorf("expected shallow-skill, got %q", result.Assets[0].Name)
+	}
+}
+
+func TestScanNestingWithManifest(t *testing.T) {
+	root := t.TempDir()
+
+	// Manifest-based scan should also support nesting
+	os.MkdirAll(filepath.Join(root, "my-skills", "claude", "review"), 0o755)
+	os.WriteFile(filepath.Join(root, "my-skills", "claude", "review", "SKILL.md"), []byte("# skill"), 0o644)
+
+	manifest := `version: 1
+paths:
+  skills:
+    - my-skills
+`
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), []byte(manifest), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("errors: %v", result.Errors)
+	}
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 skill via nesting in manifest, got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	if len(result.Assets) > 0 {
+		if result.Assets[0].Name != "review" {
+			t.Errorf("expected review, got %q", result.Assets[0].Name)
+		}
+	}
+}
+
+func TestScanMixedValidAndGrouping(t *testing.T) {
+	root := t.TempDir()
+
+	// Mix of direct valid skills and grouped skills
+	os.MkdirAll(filepath.Join(root, "skills", "direct-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "direct-skill", "SKILL.md"), []byte("# skill"), 0o644)
+
+	os.MkdirAll(filepath.Join(root, "skills", "claude", "grouped-skill"), 0o755)
+	os.WriteFile(filepath.Join(root, "skills", "claude", "grouped-skill", "SKILL.md"), []byte("# skill"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 2 {
+		t.Errorf("expected 2 skills (1 direct + 1 grouped), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+
+	names := make(map[string]bool)
+	for _, a := range result.Assets {
+		names[a.Name] = true
+	}
+	if !names["direct-skill"] {
+		t.Error("direct-skill not found")
+	}
+	if !names["grouped-skill"] {
+		t.Error("grouped-skill not found")
 	}
 }

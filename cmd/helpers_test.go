@@ -137,10 +137,10 @@ func TestCompletionInitApp_Idempotent(t *testing.T) {
 func TestExtractChoiceNames(t *testing.T) {
 	completions := []string{
 		"skills/greeting\tglobal from my-source",
-		"commands/hello\tglobal from my-source",
+		"commands/hello.md\tglobal from my-source",
 	}
 	got := extractChoiceNames(completions)
-	want := []string{"skills/greeting", "commands/hello"}
+	want := []string{"skills/greeting", "commands/hello.md"}
 	if len(got) != len(want) {
 		t.Fatalf("got %d names, want %d", len(got), len(want))
 	}
