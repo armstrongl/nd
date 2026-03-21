@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/term"
 
@@ -113,6 +114,27 @@ func extractChoiceNames(completions []string) []string {
 // isTerminal checks if stdin is a terminal.
 func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+// latestAutoSnapshot returns the name of the most recent auto-snapshot, or "".
+func latestAutoSnapshot(app *App) string {
+	pstore, err := app.ProfileStore()
+	if err != nil {
+		return ""
+	}
+	snapshots, err := pstore.ListSnapshots()
+	if err != nil {
+		return ""
+	}
+	var latest string
+	var latestTime time.Time
+	for _, s := range snapshots {
+		if s.Auto && s.CreatedAt.After(latestTime) {
+			latest = s.Name
+			latestTime = s.CreatedAt
+		}
+	}
+	return latest
 }
 
 // completionInitApp does lightweight App initialization for completion contexts.

@@ -3,10 +3,14 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/armstrongl/nd/internal/output"
+	"github.com/armstrongl/nd/internal/profile"
 )
 
 func TestPrintJSON(t *testing.T) {
@@ -163,5 +167,89 @@ func TestExtractChoiceNames_Empty(t *testing.T) {
 	got := extractChoiceNames(nil)
 	if len(got) != 0 {
 		t.Errorf("expected empty, got: %v", got)
+	}
+}
+
+func TestLatestAutoSnapshot(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+	os.WriteFile(configPath, []byte("version: 1\n"), 0o644)
+
+	app := &App{ConfigPath: configPath}
+	pstore, err := app.ProfileStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create two auto-snapshots with different timestamps
+	snap1 := profile.Snapshot{
+		Version:   1,
+		Name:      "auto-20260321T100000-000000000",
+		CreatedAt: time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC),
+		Auto:      true,
+	}
+	snap2 := profile.Snapshot{
+		Version:   1,
+		Name:      "auto-20260321T110000-000000000",
+		CreatedAt: time.Date(2026, 3, 21, 11, 0, 0, 0, time.UTC),
+		Auto:      true,
+	}
+	if err := pstore.SaveSnapshot(snap1); err != nil {
+		t.Fatal(err)
+	}
+	if err := pstore.SaveSnapshot(snap2); err != nil {
+		t.Fatal(err)
+	}
+
+	got := latestAutoSnapshot(app)
+	if got != snap2.Name {
+		t.Errorf("latestAutoSnapshot() = %q, want %q", got, snap2.Name)
+	}
+}
+
+func TestLatestAutoSnapshot_None(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+	os.WriteFile(configPath, []byte("version: 1\n"), 0o644)
+
+	app := &App{ConfigPath: configPath}
+
+	got := latestAutoSnapshot(app)
+	if got != "" {
+		t.Errorf("latestAutoSnapshot() = %q, want empty string", got)
+	}
+}
+
+func TestLatestAutoSnapshot_IgnoresUserSnapshots(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+	os.WriteFile(configPath, []byte("version: 1\n"), 0o644)
+
+	app := &App{ConfigPath: configPath}
+	pstore, err := app.ProfileStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a user snapshot (not auto)
+	userSnap := profile.Snapshot{
+		Version:   1,
+		Name:      "my-backup",
+		CreatedAt: time.Now(),
+		Auto:      false,
+	}
+	if err := pstore.SaveSnapshot(userSnap); err != nil {
+		t.Fatal(err)
+	}
+
+	got := latestAutoSnapshot(app)
+	if got != "" {
+		t.Errorf("latestAutoSnapshot() = %q, want empty (should ignore user snapshots)", got)
 	}
 }

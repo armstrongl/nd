@@ -178,6 +178,11 @@ Asset references can be:
 			}
 
 			if len(bulkResult.Failed) > 0 {
+				if !app.Quiet {
+					if name := latestAutoSnapshot(app); name != "" {
+						printHuman(w, "Auto-snapshot saved. Restore with: nd snapshot restore %s\n", name)
+					}
+				}
 				return withExitCode(nd.ExitPartialFailure,
 					fmt.Errorf("%d of %d deployments failed", len(bulkResult.Failed), len(reqs)))
 			}
