@@ -17,7 +17,7 @@ func TestProfileCreateDeploySwitch(t *testing.T) {
 
 	// Create profile B with hello command
 	result = runND(t, "--config", configPath, "profile", "create", "profile-b",
-		"--assets", "commands/hello")
+		"--assets", "commands/hello.md")
 	if result.ExitCode != 0 {
 		t.Fatalf("create B exit code %d, stderr: %s", result.ExitCode, result.Stderr)
 	}
