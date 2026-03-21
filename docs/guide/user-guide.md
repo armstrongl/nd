@@ -224,6 +224,44 @@ This validates:
 4. Agent detection
 5. Git availability
 
+## Operation Log
+
+nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/operations.log`. Each line is a JSON object with the timestamp, operation type, affected assets, scope, and success/failure counts.
+
+### Viewing the Log
+
+```bash
+# Last 10 operations
+tail -10 ~/.config/nd/logs/operations.log
+
+# Pretty-print with jq
+tail -5 ~/.config/nd/logs/operations.log | jq .
+
+# Filter by operation type
+cat ~/.config/nd/logs/operations.log | jq 'select(.operation == "deploy")'
+
+# Count operations by type
+cat ~/.config/nd/logs/operations.log | jq -r '.operation' | sort | uniq -c | sort -rn
+```
+
+### Log Entry Fields
+
+| Field | Description |
+|-------|-------------|
+| `timestamp` | ISO 8601 timestamp |
+| `operation` | Operation type: `deploy`, `remove`, `sync`, `profile-switch`, `snapshot-save`, `snapshot-restore`, `source-add`, `source-remove`, `source-sync`, `uninstall` |
+| `assets` | Array of affected asset identities (source, type, name) |
+| `scope` | Deployment scope (`global` or `project`) |
+| `succeeded` | Number of successful operations |
+| `failed` | Number of failed operations |
+| `detail` | Additional context (profile name, source ID, etc.) |
+
+### Log Rotation
+
+The log file rotates automatically when it exceeds 1 MB. The previous log is preserved as `operations.log.1`. Only one rotated backup is kept.
+
+Dry-run operations (`--dry-run`) do not write log entries.
+
 ## Shell Completions
 
 Generate and install shell completions:

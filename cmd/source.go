@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/spf13/cobra"
 )
@@ -52,6 +54,12 @@ func newSourceAddCmd(app *App) *cobra.Command {
 				if err != nil {
 					return err
 				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now(),
+					Operation: oplog.OpSourceAdd,
+					Succeeded: 1,
+					Detail:    fmt.Sprintf("git %s", src.ID),
+				})
 				if app.JSON {
 					return printJSON(w, src, app.DryRun)
 				}
@@ -69,6 +77,12 @@ func newSourceAddCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpSourceAdd,
+				Succeeded: 1,
+				Detail:    fmt.Sprintf("local %s", src.ID),
+			})
 			if app.JSON {
 				return printJSON(w, src, app.DryRun)
 			}
@@ -188,6 +202,13 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 			if err := sm.Remove(sourceID); err != nil {
 				return err
 			}
+
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpSourceRemove,
+				Succeeded: 1,
+				Detail:    sourceID,
+			})
 
 			if app.JSON {
 				return printJSON(w, map[string]string{

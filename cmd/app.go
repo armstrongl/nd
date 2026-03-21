@@ -8,6 +8,7 @@ import (
 	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/profile"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/armstrongl/nd/internal/state"
@@ -34,6 +35,7 @@ type App struct {
 	profMgr *profile.Manager
 	pstore  *profile.Store
 	sstore  *state.Store
+	ol      *oplog.Writer
 }
 
 // SourceManager returns the source manager, creating it on first call.
@@ -145,6 +147,21 @@ func (a *App) ResolveProjectRoot() (string, error) {
 	}
 	a.ProjectRoot = root
 	return root, nil
+}
+
+// OpLog returns the operation log writer, creating it on first call.
+func (a *App) OpLog() *oplog.Writer {
+	if a.ol != nil {
+		return a.ol
+	}
+	configDir := filepath.Dir(a.ConfigPath)
+	a.ol = oplog.NewWriter(filepath.Join(configDir, "logs"))
+	return a.ol
+}
+
+// LogOp logs an operation entry best-effort (errors are silently ignored).
+func (a *App) LogOp(entry oplog.LogEntry) {
+	_ = a.OpLog().Log(entry)
 }
 
 // ScanIndex scans all sources and returns the scan summary.

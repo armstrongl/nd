@@ -12,6 +12,20 @@ nd uses YAML configuration files with a layered merging system.
 
 The global config is created by `nd init`. Project-level config is optional.
 
+## Data Directories
+
+nd stores all data under `~/.config/nd/`:
+
+| Directory | Purpose |
+|-----------|---------|
+| `config.yaml` | Main configuration file |
+| `sources/` | Cloned git sources |
+| `profiles/` | Named profile definitions |
+| `snapshots/` | User and auto snapshots |
+| `state/` | Deployment state (`deployments.yaml`) |
+| `backups/` | Context file conflict backups |
+| `logs/` | Operation log (`operations.log`) |
+
 ## Full Annotated Example
 
 ```yaml

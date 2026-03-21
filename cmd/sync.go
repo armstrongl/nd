@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +33,12 @@ func newSyncCmd(app *App) *cobra.Command {
 					if err := sm.SyncSource(sourceID); err != nil {
 						return fmt.Errorf("sync source %q: %w", sourceID, err)
 					}
+					app.LogOp(oplog.LogEntry{
+						Timestamp: time.Now(),
+						Operation: oplog.OpSourceSync,
+						Succeeded: 1,
+						Detail:    sourceID,
+					})
 					if !app.Quiet {
 						printHuman(w, "Source %q updated.\n", sourceID)
 					}
@@ -66,6 +74,14 @@ func newSyncCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("sync deployments: %w", err)
 			}
+
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpSync,
+				Succeeded: len(result.Repaired),
+				Failed:    len(result.Removed),
+				Detail:    fmt.Sprintf("%d repaired, %d removed", len(result.Repaired), len(result.Removed)),
+			})
 
 			if app.JSON {
 				return printJSON(w, result, false)

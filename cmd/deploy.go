@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/spf13/cobra"
 )
 
@@ -139,6 +141,13 @@ Asset references can be:
 				if err != nil {
 					return err
 				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now(),
+					Operation: oplog.OpDeploy,
+					Assets:    []asset.Identity{reqs[0].Asset.Identity},
+					Scope:     app.Scope,
+					Succeeded: 1,
+				})
 				if app.JSON {
 					return printJSON(w, result, false)
 				}
@@ -153,6 +162,19 @@ Asset references can be:
 			if err != nil {
 				return err
 			}
+
+			var logAssets []asset.Identity
+			for _, r := range reqs {
+				logAssets = append(logAssets, r.Asset.Identity)
+			}
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpDeploy,
+				Assets:    logAssets,
+				Scope:     app.Scope,
+				Succeeded: len(bulkResult.Succeeded),
+				Failed:    len(bulkResult.Failed),
+			})
 
 			if app.JSON {
 				return printJSON(w, bulkResult, false)
@@ -265,4 +287,3 @@ func printSettingsReminder(w interface{ Write([]byte) (int, error) }, t nd.Asset
 	}
 	fmt.Fprintf(w, "Note: %s require manual registration in settings.json\n", t)
 }
-

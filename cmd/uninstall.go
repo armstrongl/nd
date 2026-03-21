@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/spf13/cobra"
 )
 
@@ -76,6 +78,13 @@ func newUninstallCmd(app *App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("remove deployments: %w", err)
 			}
+
+			app.LogOp(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpUninstall,
+				Succeeded: len(result.Succeeded),
+				Failed:    len(result.Failed),
+			})
 
 			if app.JSON {
 				return printJSON(w, result, false)

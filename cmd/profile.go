@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/profile"
 	"github.com/spf13/cobra"
 )
@@ -323,6 +324,22 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 				return err
 			}
 
+			{
+				succeeded, failed := 0, len(result.MissingAssets)
+				if result.Deployed != nil {
+					succeeded = len(result.Deployed.Succeeded)
+					failed += len(result.Deployed.Failed)
+				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now().Truncate(time.Second),
+					Operation: oplog.OpDeploy,
+					Scope:     app.Scope,
+					Succeeded: succeeded,
+					Failed:    failed,
+					Detail:    fmt.Sprintf("profile:%s", name),
+				})
+			}
+
 			if app.JSON {
 				return printJSON(w, result, false)
 			}
@@ -468,6 +485,26 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 			result, err := profMgr.Switch(currentName, targetName, eng, summary.Index, app.ProjectRoot)
 			if err != nil {
 				return err
+			}
+
+			{
+				succeeded, failed := 0, len(result.MissingAssets)
+				if result.Deployed != nil {
+					succeeded += len(result.Deployed.Succeeded)
+					failed += len(result.Deployed.Failed)
+				}
+				if result.Removed != nil {
+					succeeded += len(result.Removed.Succeeded)
+					failed += len(result.Removed.Failed)
+				}
+				app.LogOp(oplog.LogEntry{
+					Timestamp: time.Now().Truncate(time.Second),
+					Operation: oplog.OpProfileSwitch,
+					Scope:     app.Scope,
+					Succeeded: succeeded,
+					Failed:    failed,
+					Detail:    fmt.Sprintf("%s -> %s", currentName, targetName),
+				})
 			}
 
 			if app.JSON {
