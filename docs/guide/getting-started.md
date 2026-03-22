@@ -136,4 +136,4 @@ nd settings edit
 - **[Profiles & Snapshots](profiles-and-snapshots.md)** -- Group assets into profiles and switch between them
 - **[Configuration](configuration.md)** -- Customize nd behavior
 - **[Creating Sources](creating-sources.md)** -- Build and share your own asset libraries
-- **TUI Dashboard** -- Run `nd` with no arguments to launch the interactive dashboard
+- **TUI Dashboard** -- Coming soon (under redesign)

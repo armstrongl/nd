@@ -4,9 +4,9 @@
 | -------------------- | ---------- |
 | **Date** | 2026-03-13 |
 | **Author** | Larah |
-| **Status** | Draft |
-| **Version** | 0.6 |
-| **Last reviewed** | 2026-03-14 |
+| **Status** | Implemented (TUI deferred) |
+| **Version** | 0.7 |
+| **Last reviewed** | 2026-03-22 |
 | **Last reviewed by** | Larah |
 
 ## Section index
@@ -430,7 +430,7 @@ The complete command tree, derived from the functional requirements. Every opera
 
 | Command | Description | FR |
 | --- | --- | --- |
-| `nd` | No args: launch TUI | FR-001 |
+| `nd` | No args: show help (TUI deferred) | FR-001 |
 | `nd init` | First-run setup wizard | FR-025 |
 | `nd deploy <asset>` | Deploy one or more assets | FR-009, FR-010 |
 | `nd remove <asset>` | Remove deployed asset(s) | FR-012 |
@@ -685,6 +685,7 @@ Question IDs are stable and not reused across revisions.
 
 | Version | Date | Author | Changes |
 | ------- | ---------- | ------ | ------------------------------------------------------------ |
+| 0.7 | 2026-03-22 | Larah | Status update: all non-TUI FRs implemented (43/55). Marked TUI FRs as deferred pending redesign. Updated command reference (`nd` without args shows help). Bumped status from Draft to Implemented (TUI deferred). |
 | 0.6 | 2026-03-14 | Larah | Audit remediation: promoted FR-022 and FR-024 to Must-Have for Goal 3 coverage; promoted FR-036 (--dry-run) and FR-033 (custom deploy locations) to Should-Have; demoted FR-016c and FR-009a to Should-Have; added new FRs for source removal, asset listing, nd version, nd doctor, source list; added CLI command reference, deployment state schema, profile scope semantics, and error behavior subsections to Technical Design; added NFRs for atomic writes, file locking, path validation, safe YAML loading, schema versioning, debug logging, exit codes, and source scanning exclusions; added security items to Boundaries; resolved Q8 (case normalization) and Q13 (settings.json reminders); added AGENTS.md to global deployment table; fixed heading capitalization; added user stories for context file management and source management; restructured success criteria into core and extended tiers; added concept ladder to Goals; updated non-goal to carve out git clone/pull as source management internals. |
 | 0.5 | 2026-03-14 | Larah | Profile format: closed Q4 — profiles store asset references `(source_id, asset_type, asset_name)` as primary with absolute path cached as fallback hint. |
 | 0.4 | 2026-03-14 | Larah | Orphan removal: updated FR-014 to specify that orphaned symlinks (source asset renamed or deleted) are automatically removed along with their deployment state entry; closed Q5 as resolved. |
