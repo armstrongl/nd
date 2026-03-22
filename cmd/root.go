@@ -68,6 +68,7 @@ func NewRootCmd(app *App) *cobra.Command {
 		newSettingsCmd(app),
 		newUninstallCmd(app),
 		newCompletionCmd(app),
+		newExportCmd(app),
 	)
 
 	return rootCmd

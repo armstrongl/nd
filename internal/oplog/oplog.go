@@ -31,5 +31,7 @@ const (
 	OpSourceAdd       OperationType = "source-add"
 	OpSourceRemove    OperationType = "source-remove"
 	OpSourceSync      OperationType = "source-sync"
-	OpUninstall       OperationType = "uninstall"
+	OpUninstall          OperationType = "uninstall"
+	OpExport             OperationType = "export"
+	OpExportMarketplace  OperationType = "export-marketplace"
 )

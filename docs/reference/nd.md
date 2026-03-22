@@ -28,6 +28,7 @@ nd [flags]
 
 * [nd deploy](nd_deploy.md)	 - Deploy assets by creating symlinks
 * [nd doctor](nd_doctor.md)	 - Check nd configuration and deployment health
+* [nd export](nd_export.md)	 - Export assets as a Claude Code plugin
 * [nd init](nd_init.md)	 - Initialize nd configuration
 * [nd list](nd_list.md)	 - List available assets from all sources
 * [nd pin](nd_pin.md)	 - Pin an asset to prevent profile switches from removing it
