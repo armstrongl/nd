@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/tui"
 	"github.com/armstrongl/nd/internal/version"
 )
 
@@ -26,6 +27,10 @@ func NewRootCmd(app *App) *cobra.Command {
 			return persistentPreRun(cmd, app)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Launch TUI when running interactively with no flags that conflict.
+			if isTerminal() && !app.Verbose && !app.Quiet && !app.JSON {
+				return tui.Run(app)
+			}
 			return cmd.Help()
 		},
 	}

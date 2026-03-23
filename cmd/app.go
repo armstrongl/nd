@@ -164,6 +164,32 @@ func (a *App) LogOp(entry oplog.LogEntry) {
 	_ = a.OpLog().Log(entry)
 }
 
+// GetScope returns the current deployment scope.
+// Named GetScope (not Scope) to avoid collision with the Scope field.
+func (a *App) GetScope() nd.Scope { return a.Scope }
+
+// IsDryRun returns whether dry-run mode is active.
+// Named IsDryRun (not DryRun) to avoid collision with the DryRun field.
+func (a *App) IsDryRun() bool { return a.DryRun }
+
+// GetConfigPath returns the path to the config file.
+// Named GetConfigPath (not ConfigPath) to avoid collision with the ConfigPath field.
+func (a *App) GetConfigPath() string { return a.ConfigPath }
+
+// ResetForScope nils all cached services so they reinitialize for a new scope.
+// Used by the TUI when switching between global and project scope mid-session.
+func (a *App) ResetForScope(scope nd.Scope, projectRoot string) {
+	a.Scope = scope
+	a.ProjectRoot = projectRoot
+	a.sm = nil
+	a.reg = nil
+	a.eng = nil
+	a.profMgr = nil
+	a.pstore = nil
+	a.sstore = nil
+	a.ol = nil
+}
+
 // ScanIndex scans all sources and returns the scan summary.
 func (a *App) ScanIndex() (*sourcemanager.ScanSummary, error) {
 	sm, err := a.SourceManager()
