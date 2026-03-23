@@ -14,7 +14,7 @@ func newTestModel() Model {
 		svc:     newMockServices(),
 		styles:  styles,
 		isDark:  true,
-		screens: []Screen{newMainMenuScreen(styles, true)},
+		screens: []Screen{newMainMenuScreen(newMockServices(), styles, true)},
 		width:   80,
 		height:  24,
 	}

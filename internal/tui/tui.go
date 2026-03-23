@@ -26,7 +26,7 @@ func Run(svc Services) error {
 	isDark := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
 	styles := NewStyles(isDark)
 
-	initial := Screen(newMainMenuScreen(styles, isDark))
+	initial := Screen(newMainMenuScreen(svc, styles, isDark))
 
 	m := Model{
 		svc:     svc,

@@ -6,14 +6,16 @@ import (
 )
 
 type mainMenuScreen struct {
+	svc    Services
 	form   *huh.Form
 	choice string
 	styles Styles
 	isDark bool
 }
 
-func newMainMenuScreen(styles Styles, isDark bool) *mainMenuScreen {
+func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen {
 	m := &mainMenuScreen{
+		svc:    svc,
 		styles: styles,
 		isDark: isDark,
 	}
@@ -79,13 +81,20 @@ func (m *mainMenuScreen) View() tea.View {
 	return tea.NewView(m.form.View())
 }
 
-// handleSelection maps the selected menu choice to a tea.Cmd.
+// handleSelection maps the selected menu choice to a navigation command.
 func (m *mainMenuScreen) handleSelection() tea.Cmd {
+	var screen Screen
 	switch m.choice {
+	case "deploy":
+		screen = newDeployScreen(m.svc, m.styles, m.isDark)
+	case "remove":
+		screen = newRemoveScreen(m.svc, m.styles, m.isDark)
+	case "status":
+		screen = newStatusScreen(m.svc, m.styles)
 	case "quit":
 		return tea.Quit
 	default:
-		// Other selections will be wired to real screens in later phases.
 		return nil
 	}
+	return func() tea.Msg { return NavigateMsg{Screen: screen} }
 }
