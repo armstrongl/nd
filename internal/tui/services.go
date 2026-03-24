@@ -36,6 +36,7 @@ type Services interface {
 	// Display state — named to avoid collision with App field names
 	GetScope() nd.Scope
 	GetConfigPath() string
+	GetProjectRoot() string
 	IsDryRun() bool
 
 	// Mid-session reset (scope/agent switching).

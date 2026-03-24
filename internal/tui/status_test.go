@@ -16,7 +16,7 @@ var _ HelpProvider = (*statusScreen)(nil)
 
 func TestStatusScreen_Title(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 	if got := s.Title(); got != "Status" {
 		t.Fatalf("Title() = %q, want %q", got, "Status")
 	}
@@ -24,7 +24,7 @@ func TestStatusScreen_Title(t *testing.T) {
 
 func TestStatusScreen_InputActive(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 	if s.InputActive() {
 		t.Fatal("InputActive() = true, want false")
 	}
@@ -32,7 +32,7 @@ func TestStatusScreen_InputActive(t *testing.T) {
 
 func TestStatusScreen_HelpItems(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 	items := s.HelpItems()
 	if len(items) == 0 {
 		t.Fatal("HelpItems() returned empty slice")
@@ -52,7 +52,7 @@ func TestStatusScreen_HelpItems(t *testing.T) {
 
 func TestStatusScreen_ViewBeforeLoading(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	v := s.View()
 	if !strings.Contains(v.Content, "Loading") {
@@ -63,7 +63,7 @@ func TestStatusScreen_ViewBeforeLoading(t *testing.T) {
 func TestStatusScreen_ViewWithEntries(t *testing.T) {
 	svc := newMockServices()
 	styles := NewStyles(true)
-	s := newStatusScreen(svc, styles)
+	s := newStatusScreen(svc, styles, true)
 
 	entries := []deploy.StatusEntry{
 		{
@@ -133,7 +133,7 @@ func TestStatusScreen_ViewWithEntries(t *testing.T) {
 
 func TestStatusScreen_ViewWithEmptyEntries(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	// Simulate receiving empty results.
 	s.Update(statusLoadedMsg{entries: nil})
@@ -147,7 +147,7 @@ func TestStatusScreen_ViewWithEmptyEntries(t *testing.T) {
 
 func TestStatusScreen_ViewWithError(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	testErr := fmt.Errorf("state file corrupted")
 	s.Update(statusLoadedMsg{err: testErr})
@@ -163,7 +163,7 @@ func TestStatusScreen_ViewWithError(t *testing.T) {
 
 func TestStatusScreen_IssueCountingOnlyCountsNonOK(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	entries := []deploy.StatusEntry{
 		{
@@ -203,7 +203,7 @@ func TestStatusScreen_IssueCountingOnlyCountsNonOK(t *testing.T) {
 
 func TestStatusScreen_AllHealthyNoIssuesSuffix(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	entries := []deploy.StatusEntry{
 		{
@@ -256,7 +256,7 @@ func TestStatusScreen_HealthGlyphDefault(t *testing.T) {
 
 func TestStatusScreen_InitReturnsCmd(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	cmd := s.Init()
 	if cmd == nil {
@@ -266,15 +266,10 @@ func TestStatusScreen_InitReturnsCmd(t *testing.T) {
 
 func TestStatusScreen_LoadStatusReturnsMsg(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
 
 	// Default mockServices.DeployEngine() returns (nil, nil), which should
 	// produce an error in loadStatus since engine is nil.
-	msg := s.loadStatus()
-	loaded, ok := msg.(statusLoadedMsg)
-	if !ok {
-		t.Fatalf("loadStatus() returned %T, want statusLoadedMsg", msg)
-	}
+	loaded := loadStatus(svc)
 	if loaded.err == nil {
 		t.Fatal("loadStatus() with nil engine should return an error")
 	}
@@ -283,7 +278,7 @@ func TestStatusScreen_LoadStatusReturnsMsg(t *testing.T) {
 func TestStatusScreen_GroupingByType(t *testing.T) {
 	svc := newMockServices()
 	styles := NewStyles(true)
-	s := newStatusScreen(svc, styles)
+	s := newStatusScreen(svc, styles, true)
 
 	entries := []deploy.StatusEntry{
 		{
@@ -324,7 +319,7 @@ func TestStatusScreen_GroupingByType(t *testing.T) {
 
 func TestStatusScreen_TypeCountInHeader(t *testing.T) {
 	svc := newMockServices()
-	s := newStatusScreen(svc, NewStyles(true))
+	s := newStatusScreen(svc, NewStyles(true), true)
 
 	entries := []deploy.StatusEntry{
 		{

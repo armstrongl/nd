@@ -24,12 +24,48 @@ func TestRemove_Title(t *testing.T) {
 	}
 }
 
-func TestRemove_InputActive(t *testing.T) {
+// H5: InputActive returns true during form steps
+func TestRemove_InputActive_SelectAssets(t *testing.T) {
 	svc := newMockServices()
 	s := NewStyles(true)
 	m := newRemoveScreen(svc, s, true)
+	m.step = removeSelectAssets
+
+	if !m.InputActive() {
+		t.Fatal("InputActive() at selectAssets step should be true")
+	}
+}
+
+func TestRemove_InputActive_Confirm(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeConfirm
+
+	if !m.InputActive() {
+		t.Fatal("InputActive() at confirm step should be true")
+	}
+}
+
+func TestRemove_InputActive_Running(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeRunning
+
 	if m.InputActive() {
-		t.Fatal("InputActive() = true, want false")
+		t.Fatal("InputActive() at running step should be false")
+	}
+}
+
+func TestRemove_InputActive_Result(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeResult
+
+	if m.InputActive() {
+		t.Fatal("InputActive() at result step should be false")
 	}
 }
 
@@ -252,12 +288,11 @@ func TestRemove_ErrorView(t *testing.T) {
 	}
 }
 
-func TestRemoveCmd_AllSucceed(t *testing.T) {
-	removeCalls := 0
-	mockEng := &mockRemoveEngine{
-		removeFn: func(_ deploy.RemoveRequest) error {
-			removeCalls++
-			return nil
+// M3: Tests for removeBulkCmd
+func TestRemoveBulkCmd_AllSucceed(t *testing.T) {
+	mockEng := &mockBulkRemoveEngine{
+		removeBulkFn: func(reqs []deploy.RemoveRequest) (*deploy.BulkRemoveResult, error) {
+			return &deploy.BulkRemoveResult{Succeeded: reqs}, nil
 		},
 	}
 
@@ -266,7 +301,7 @@ func TestRemoveCmd_AllSucceed(t *testing.T) {
 		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, Scope: nd.ScopeGlobal},
 	}
 
-	cmd := removeCmd(mockEng, reqs)
+	cmd := removeBulkCmd(mockEng, reqs)
 	msg := cmd()
 
 	done, ok := msg.(removeDoneMsg)
@@ -279,18 +314,23 @@ func TestRemoveCmd_AllSucceed(t *testing.T) {
 	if len(done.failed) != 0 {
 		t.Fatalf("failed = %d, want 0", len(done.failed))
 	}
-	if removeCalls != 2 {
-		t.Fatalf("remove called %d times, want 2", removeCalls)
-	}
 }
 
-func TestRemoveCmd_PartialFailure(t *testing.T) {
-	mockEng := &mockRemoveEngine{
-		removeFn: func(req deploy.RemoveRequest) error {
-			if req.Identity.Name == "broken" {
-				return errors.New("cannot remove")
+func TestRemoveBulkCmd_PartialFailure(t *testing.T) {
+	mockEng := &mockBulkRemoveEngine{
+		removeBulkFn: func(reqs []deploy.RemoveRequest) (*deploy.BulkRemoveResult, error) {
+			var result deploy.BulkRemoveResult
+			for _, req := range reqs {
+				if req.Identity.Name == "broken" {
+					result.Failed = append(result.Failed, deploy.RemoveError{
+						Identity: req.Identity,
+						Err:      errors.New("cannot remove"),
+					})
+				} else {
+					result.Succeeded = append(result.Succeeded, req)
+				}
 			}
-			return nil
+			return &result, nil
 		},
 	}
 
@@ -299,7 +339,7 @@ func TestRemoveCmd_PartialFailure(t *testing.T) {
 		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "broken"}, Scope: nd.ScopeGlobal},
 	}
 
-	cmd := removeCmd(mockEng, reqs)
+	cmd := removeBulkCmd(mockEng, reqs)
 	msg := cmd()
 
 	done, ok := msg.(removeDoneMsg)
@@ -317,10 +357,10 @@ func TestRemoveCmd_PartialFailure(t *testing.T) {
 	}
 }
 
-func TestRemoveCmd_AllFail(t *testing.T) {
-	mockEng := &mockRemoveEngine{
-		removeFn: func(_ deploy.RemoveRequest) error {
-			return errors.New("disk full")
+func TestRemoveBulkCmd_TotalFailure(t *testing.T) {
+	mockEng := &mockBulkRemoveEngine{
+		removeBulkFn: func(reqs []deploy.RemoveRequest) (*deploy.BulkRemoveResult, error) {
+			return nil, errors.New("lock error")
 		},
 	}
 
@@ -329,7 +369,7 @@ func TestRemoveCmd_AllFail(t *testing.T) {
 		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, Scope: nd.ScopeGlobal},
 	}
 
-	cmd := removeCmd(mockEng, reqs)
+	cmd := removeBulkCmd(mockEng, reqs)
 	msg := cmd()
 
 	done := msg.(removeDoneMsg)
@@ -353,16 +393,16 @@ func TestRemove_RunningView(t *testing.T) {
 	}
 }
 
-// mockRemoveEngine is a test double for the remove engine interface.
-type mockRemoveEngine struct {
-	removeFn func(deploy.RemoveRequest) error
+// mockBulkRemoveEngine is a test double for the bulkRemover interface.
+type mockBulkRemoveEngine struct {
+	removeBulkFn func([]deploy.RemoveRequest) (*deploy.BulkRemoveResult, error)
 }
 
-func (m *mockRemoveEngine) Remove(req deploy.RemoveRequest) error {
-	if m.removeFn != nil {
-		return m.removeFn(req)
+func (m *mockBulkRemoveEngine) RemoveBulk(reqs []deploy.RemoveRequest) (*deploy.BulkRemoveResult, error) {
+	if m.removeBulkFn != nil {
+		return m.removeBulkFn(reqs)
 	}
-	return nil
+	return &deploy.BulkRemoveResult{Succeeded: reqs}, nil
 }
 
 func TestRemove_DeploymentLabel(t *testing.T) {
@@ -390,5 +430,56 @@ func TestRemove_DeploymentLabel_Context(t *testing.T) {
 	want := "CLAUDE.md (my-source)"
 	if got != want {
 		t.Fatalf("deploymentLabel() = %q, want %q", got, want)
+	}
+}
+
+// H3: buildRemoveRequests uses deployment's recorded scope, not current scope
+func TestRemove_BuildRemoveRequests_UsesDeploymentScope(t *testing.T) {
+	svc := newMockServices()
+	// Mock returns global scope, but deployments are project-scoped
+	svc.getScopeFn = func() nd.Scope { return nd.ScopeGlobal }
+
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.deployments = []state.Deployment{
+		{
+			SourceID:    "src",
+			AssetType:   nd.AssetSkill,
+			AssetName:   "greeting",
+			Scope:       nd.ScopeProject,
+			ProjectPath: "/my/project",
+		},
+	}
+	m.selected = []string{m.deployments[0].Identity().String()}
+
+	reqs := m.buildRemoveRequests()
+	if len(reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(reqs))
+	}
+	if reqs[0].Scope != nd.ScopeProject {
+		t.Errorf("expected scope %q, got %q", nd.ScopeProject, reqs[0].Scope)
+	}
+	if reqs[0].ProjectRoot != "/my/project" {
+		t.Errorf("expected project root %q, got %q", "/my/project", reqs[0].ProjectRoot)
+	}
+}
+
+// H2: dry-run mode shows preview
+func TestRemove_DryRunView(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeResult
+	m.dryRun = true
+	m.dryReqs = []deploy.RemoveRequest{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "greeting"}, Scope: nd.ScopeGlobal},
+	}
+
+	v := m.View()
+	if !strings.Contains(v.Content, "DRY RUN") {
+		t.Errorf("dry-run view should contain 'DRY RUN'; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "greeting") {
+		t.Errorf("dry-run view should list assets; got:\n%s", v.Content)
 	}
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -10,6 +11,7 @@ import (
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/state"
 )
 
@@ -53,11 +55,13 @@ type deployScreen struct {
 	// pickType step
 	typeForm   *huh.Form
 	typeChoice string
+	scanning   bool // H1: guards against double-fire after type form completion
 
 	// selectAssets step
 	assetForm *huh.Form
 	selected  []string       // "sourceID:type/name" keys
 	assets    []*asset.Asset // available (undeployed) assets
+	deploying bool           // H1: guards against double-fire after asset form completion
 
 	// running step
 	progress progressBar
@@ -65,8 +69,11 @@ type deployScreen struct {
 	// result step
 	succeeded []deploy.DeployResult
 	failed    []deploy.DeployError
+	dryRun    bool                 // true when result is a dry-run preview
+	dryReqs   []deploy.DeployRequest // populated for dry-run display
 
-	err error
+	err  error
+	info string // non-error informational message (e.g. "all deployed")
 }
 
 // deployDoneMsg signals that the background deploy goroutine completed.
@@ -126,11 +133,27 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		ds.step = deployResult
 		ds.succeeded = msg.succeeded
 		ds.failed = msg.failed
+		// M5: Log operation to oplog
+		if ol := ds.svc.OpLog(); ol != nil {
+			var identities []asset.Identity
+			for _, r := range msg.succeeded {
+				identities = append(identities, r.Deployment.Identity())
+			}
+			_ = ol.Log(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpDeploy,
+				Assets:    identities,
+				Scope:     ds.svc.GetScope(),
+				Succeeded: len(msg.succeeded),
+				Failed:    len(msg.failed),
+			})
+		}
 		return ds, func() tea.Msg { return RefreshHeaderMsg{} }
 
 	case scanDoneMsg:
 		if msg.err != nil {
 			ds.err = msg.err
+			ds.step = deployResult // M6: avoid dead-end re-triggering
 			return ds, nil
 		}
 		if len(msg.assets) == 0 {
@@ -138,7 +161,8 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ds.typeChoice != "" {
 				typeName = ds.typeChoice
 			}
-			ds.err = fmt.Errorf("%s", AllDeployed(typeName))
+			ds.info = AllDeployed(typeName) // L7: not an error
+			ds.step = deployResult          // M6: avoid dead-end re-triggering
 			return ds, nil
 		}
 		ds.assets = msg.assets
@@ -162,9 +186,15 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the current step.
 func (ds *deployScreen) View() tea.View {
 	if ds.err != nil {
-		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
+		return tea.NewView(fmt.Sprintf("  %s\n\n  %s\n\n  %s",
 			ds.styles.Danger.Render("Error"),
-			ds.err.Error()))
+			ds.err.Error(),
+			ds.styles.Subtle.Render("Press esc to go back.")))
+	}
+	if ds.info != "" {
+		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
+			ds.info,
+			ds.styles.Subtle.Render("Press esc to go back.")))
 	}
 
 	switch ds.step {
@@ -178,9 +208,8 @@ func (ds *deployScreen) View() tea.View {
 		return tea.NewView("  Loading assets...")
 
 	case deployRunning:
-		return tea.NewView(fmt.Sprintf("  %s\n\n%s",
-			ds.styles.Primary.Render("Deploying..."),
-			ds.progress.View(ds.styles)))
+		return tea.NewView(fmt.Sprintf("  %s",
+			ds.styles.Primary.Render("Deploying...")))
 
 	case deployResult:
 		return tea.NewView(ds.viewResult())
@@ -191,8 +220,9 @@ func (ds *deployScreen) View() tea.View {
 
 // updatePickType delegates to the type picker form and transitions on completion.
 func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if ds.typeForm.State == huh.StateCompleted {
-		return ds, ds.startScan()
+	// H1: guard against double-fire after form completion
+	if ds.scanning {
+		return ds, nil
 	}
 
 	model, cmd := ds.typeForm.Update(msg)
@@ -201,6 +231,7 @@ func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if ds.typeForm.State == huh.StateCompleted {
+		ds.scanning = true
 		return ds, ds.startScan()
 	}
 
@@ -274,8 +305,9 @@ func (ds *deployScreen) buildAssetForm() {
 
 // updateSelectAssets delegates to the asset selection form and starts deployment.
 func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if ds.assetForm.State == huh.StateCompleted {
-		return ds, ds.startDeploy()
+	// H1: guard against double-fire after form completion
+	if ds.deploying {
+		return ds, nil
 	}
 
 	model, cmd := ds.assetForm.Update(msg)
@@ -284,6 +316,7 @@ func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if ds.assetForm.State == huh.StateCompleted {
+		ds.deploying = true
 		return ds, ds.startDeploy()
 	}
 
@@ -303,19 +336,38 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		selectedSet[key] = true
 	}
 
-	// Build deploy requests
+	// M4: Read symlink strategy from config (flag > config > default)
+	strategy := nd.SymlinkAbsolute
+	if sm, err := ds.svc.SourceManager(); err == nil && sm != nil {
+		cfg := sm.Config()
+		if cfg.SymlinkStrategy != "" {
+			strategy = cfg.SymlinkStrategy
+		}
+	}
+
+	// Build deploy requests (C1: include ProjectRoot)
 	scope := ds.svc.GetScope()
+	projectRoot := ds.svc.GetProjectRoot()
 	var reqs []deploy.DeployRequest
 	for _, a := range ds.assets {
 		if !selectedSet[assetKey(a)] {
 			continue
 		}
 		reqs = append(reqs, deploy.DeployRequest{
-			Asset:    *a,
-			Scope:    scope,
-			Origin:   nd.OriginManual,
-			Strategy: nd.SymlinkAbsolute,
+			Asset:       *a,
+			Scope:       scope,
+			ProjectRoot: projectRoot,
+			Origin:      nd.OriginManual,
+			Strategy:    strategy,
 		})
+	}
+
+	// H2: Dry-run mode — show preview without executing
+	if ds.svc.IsDryRun() {
+		ds.step = deployResult
+		ds.dryRun = true
+		ds.dryReqs = reqs
+		return func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
 	ds.step = deployRunning
@@ -327,38 +379,41 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		return nil
 	}
 
-	return deployAllCmd(eng.Deploy, reqs)
+	// M3: Use bulk API for single lock cycle + auto-snapshot
+	return deployBulkCmd(eng.DeployBulk, reqs)
 }
 
-// deployAllCmd creates a tea.Cmd that deploys all requests sequentially in a goroutine.
-// The deployer function is abstracted for testability.
-func deployAllCmd(deployer func(deploy.DeployRequest) (*deploy.DeployResult, error), reqs []deploy.DeployRequest) tea.Cmd {
+// deployBulkCmd creates a tea.Cmd that deploys all requests via the bulk API.
+func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResult, error), reqs []deploy.DeployRequest) tea.Cmd {
 	return func() tea.Msg {
-		var succeeded []deploy.DeployResult
-		var failed []deploy.DeployError
-		for _, req := range reqs {
-			result, err := deployer(req)
-			if err != nil {
+		result, err := deployer(reqs)
+		if err != nil {
+			// Total failure — report all as failed
+			var failed []deploy.DeployError
+			for _, req := range reqs {
 				failed = append(failed, deploy.DeployError{
 					AssetName:  req.Asset.Name,
 					AssetType:  req.Asset.Type,
 					SourcePath: req.Asset.SourcePath,
 					Err:        err,
 				})
-			} else {
-				succeeded = append(succeeded, *result)
 			}
+			return deployDoneMsg{failed: failed}
 		}
-		return deployDoneMsg{succeeded: succeeded, failed: failed}
+		return deployDoneMsg{succeeded: result.Succeeded, failed: result.Failed}
 	}
 }
 
-// updateResult handles key presses at the result step (enter/esc to go back).
+// updateResult handles key presses at the result step.
+// H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case "enter", "esc", "q":
-			return ds, func() tea.Msg { return BackMsg{} }
+		if keyMsg.String() == "enter" {
+			// M7: PopToRootMsg (matching remove screen behavior)
+			return ds, tea.Batch(
+				func() tea.Msg { return PopToRootMsg{} },
+				func() tea.Msg { return RefreshHeaderMsg{} },
+			)
 		}
 	}
 	return ds, nil
@@ -368,9 +423,21 @@ func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (ds *deployScreen) viewResult() string {
 	var b strings.Builder
 
-	// Summary line
+	// H2: Dry-run preview
+	if ds.dryRun {
+		b.WriteString(fmt.Sprintf("  %s Would deploy %d asset(s):\n\n",
+			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs)))
+		for _, req := range ds.dryReqs {
+			b.WriteString(fmt.Sprintf("    %s %s/%s from %s\n",
+				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID))
+		}
+		b.WriteString(fmt.Sprintf("\n  %s", ds.styles.Subtle.Render("Press enter to return.")))
+		return b.String()
+	}
+
+	// M12: Summary shows succeeded count, not total/total
 	total := len(ds.succeeded) + len(ds.failed)
-	b.WriteString(fmt.Sprintf("  Deployment complete: %d of %d assets\n\n", total, total))
+	b.WriteString(fmt.Sprintf("  Deployment complete: %d of %d succeeded\n\n", len(ds.succeeded), total))
 
 	if len(ds.succeeded) > 0 {
 		b.WriteString(fmt.Sprintf("  %s\n", ds.styles.Success.Render(
@@ -396,7 +463,7 @@ func (ds *deployScreen) viewResult() string {
 		b.WriteString("  No assets were deployed.\n\n")
 	}
 
-	b.WriteString("  Press enter or esc to go back.")
+	b.WriteString(fmt.Sprintf("  %s", ds.styles.Subtle.Render("Press enter to return.")))
 
 	return b.String()
 }

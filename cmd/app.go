@@ -176,6 +176,10 @@ func (a *App) IsDryRun() bool { return a.DryRun }
 // Named GetConfigPath (not ConfigPath) to avoid collision with the ConfigPath field.
 func (a *App) GetConfigPath() string { return a.ConfigPath }
 
+// GetProjectRoot returns the resolved project root path.
+// Named GetProjectRoot (not ProjectRoot) to avoid collision with the ProjectRoot field.
+func (a *App) GetProjectRoot() string { return a.ProjectRoot }
+
 // ResetForScope nils all cached services so they reinitialize for a new scope.
 // Used by the TUI when switching between global and project scope mid-session.
 func (a *App) ResetForScope(scope nd.Scope, projectRoot string) {

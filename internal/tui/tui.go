@@ -1,8 +1,7 @@
+// Package tui provides an interactive terminal UI for managing nd assets.
 package tui
 
 import (
-	"os"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -23,7 +22,8 @@ type Model struct {
 // Run launches the TUI. It detects the terminal color scheme, determines the
 // initial screen (first-run init or main menu), and starts the Bubble Tea program.
 func Run(svc Services) error {
-	isDark := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+	// Default to dark; updated by tea.BackgroundColorMsg when the terminal responds.
+	isDark := true
 	styles := NewStyles(isDark)
 
 	initial := Screen(newMainMenuScreen(svc, styles, isDark))
@@ -61,6 +61,14 @@ func (m Model) Init() tea.Cmd {
 // everything else to the current screen.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.BackgroundColorMsg:
+		isDark := msg.IsDark()
+		if isDark != m.isDark {
+			m.isDark = isDark
+			m.styles = NewStyles(isDark)
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -74,10 +82,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.screens) <= 1 {
 			return m, tea.Quit
 		}
-		m.screens = m.screens[:len(m.screens)-1]
+		n := len(m.screens)
+		m.screens[n-1] = nil // release for GC
+		m.screens = m.screens[:n-1]
 		return m, nil
 
 	case PopToRootMsg:
+		for i := 1; i < len(m.screens); i++ {
+			m.screens[i] = nil // release for GC
+		}
 		m.screens = m.screens[:1]
 		return m, nil
 
@@ -103,7 +116,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(m.screens) <= 1 {
 					return m, tea.Quit
 				}
-				m.screens = m.screens[:len(m.screens)-1]
+				n := len(m.screens)
+				m.screens[n-1] = nil // release for GC
+				m.screens = m.screens[:n-1]
 				return m, nil
 			}
 		}
@@ -113,7 +128,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if len(m.screens) > 0 {
 		idx := len(m.screens) - 1
 		updated, cmd := m.screens[idx].Update(msg)
-		m.screens[idx] = updated.(Screen)
+		if scr, ok := updated.(Screen); ok {
+			m.screens[idx] = scr
+		}
 		return m, cmd
 	}
 	return m, nil

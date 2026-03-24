@@ -16,6 +16,7 @@ import (
 type statusScreen struct {
 	svc     Services
 	styles  Styles
+	isDark  bool
 	entries []deploy.StatusEntry
 	issues  int
 	err     error
@@ -28,8 +29,8 @@ type statusLoadedMsg struct {
 	err     error
 }
 
-func newStatusScreen(svc Services, styles Styles) *statusScreen {
-	return &statusScreen{svc: svc, styles: styles}
+func newStatusScreen(svc Services, styles Styles, isDark bool) *statusScreen {
+	return &statusScreen{svc: svc, styles: styles, isDark: isDark}
 }
 
 func (s *statusScreen) Title() string     { return "Status" }
@@ -44,11 +45,15 @@ func (s *statusScreen) HelpItems() []HelpItem {
 }
 
 func (s *statusScreen) Init() tea.Cmd {
-	return s.loadStatus
+	// M10: capture svc in local to avoid capturing mutable receiver in goroutine
+	svc := s.svc
+	return func() tea.Msg {
+		return loadStatus(svc)
+	}
 }
 
-func (s *statusScreen) loadStatus() tea.Msg {
-	eng, err := s.svc.DeployEngine()
+func loadStatus(svc Services) statusLoadedMsg {
+	eng, err := svc.DeployEngine()
 	if err != nil {
 		return statusLoadedMsg{err: err}
 	}
@@ -72,6 +77,17 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return s, nil
+
+	// M11: Handle shortcut keys shown in help bar
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "d":
+			screen := newDeployScreen(s.svc, s.styles, s.isDark)
+			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
+		case "r":
+			screen := newRemoveScreen(s.svc, s.styles, s.isDark)
+			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
+		}
 	}
 	return s, nil
 }

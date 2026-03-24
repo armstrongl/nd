@@ -6,11 +6,12 @@ import (
 )
 
 type mainMenuScreen struct {
-	svc    Services
-	form   *huh.Form
-	choice string
-	styles Styles
-	isDark bool
+	svc       Services
+	form      *huh.Form
+	choice    string
+	styles    Styles
+	isDark    bool
+	navigated bool // guards against double-fire after form completion
 }
 
 func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen {
@@ -56,20 +57,17 @@ func (m *mainMenuScreen) Init() tea.Cmd {
 
 // Update delegates to the huh form and checks for completion.
 func (m *mainMenuScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Check if form completed before this update.
-	if m.form.State == huh.StateCompleted {
-		return m, m.handleSelection()
+	if m.navigated {
+		return m, nil
 	}
 
-	// Delegate to the huh form. Form.Update returns (huh.Model, tea.Cmd)
-	// where huh.Model is the compat.Model interface, not tea.Model.
 	model, cmd := m.form.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		m.form = f
 	}
 
-	// Check again after update.
 	if m.form.State == huh.StateCompleted {
+		m.navigated = true
 		return m, m.handleSelection()
 	}
 
@@ -90,7 +88,7 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 	case "remove":
 		screen = newRemoveScreen(m.svc, m.styles, m.isDark)
 	case "status":
-		screen = newStatusScreen(m.svc, m.styles)
+		screen = newStatusScreen(m.svc, m.styles, m.isDark)
 	case "quit":
 		return tea.Quit
 	default:

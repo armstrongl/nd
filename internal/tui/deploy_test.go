@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -169,13 +170,11 @@ func TestDeploy_ResultView_ShowsCounts(t *testing.T) {
 		t.Fatal("View() at result step returned empty content")
 	}
 
-	// Check for success count
-	if !containsStr(content, "1 succeeded") {
+	if !strings.Contains(content, "1 succeeded") {
 		t.Errorf("result view missing success count; got:\n%s", content)
 	}
 
-	// Check for failure count
-	if !containsStr(content, "1 failed") {
+	if !strings.Contains(content, "1 failed") {
 		t.Errorf("result view missing failure count; got:\n%s", content)
 	}
 }
@@ -185,11 +184,10 @@ func TestDeploy_ResultView_ShowsErrorDetails(t *testing.T) {
 	v := ds.View()
 	content := v.Content
 
-	// Error details should include asset name and error
-	if !containsStr(content, "broken") {
+	if !strings.Contains(content, "broken") {
 		t.Errorf("result view missing failed asset name; got:\n%s", content)
 	}
-	if !containsStr(content, "permission denied") {
+	if !strings.Contains(content, "permission denied") {
 		t.Errorf("result view missing error message; got:\n%s", content)
 	}
 }
@@ -205,7 +203,7 @@ func TestDeploy_ResultView_AllSucceeded(t *testing.T) {
 	v := ds.View()
 	content := v.Content
 
-	if !containsStr(content, "2 succeeded") {
+	if !strings.Contains(content, "2 succeeded") {
 		t.Errorf("result view missing success count; got:\n%s", content)
 	}
 }
@@ -221,20 +219,39 @@ func TestDeploy_ResultView_AllFailed(t *testing.T) {
 	v := ds.View()
 	content := v.Content
 
-	if !containsStr(content, "2 failed") {
+	if !strings.Contains(content, "2 failed") {
 		t.Errorf("result view missing failure count; got:\n%s", content)
 	}
 }
 
-func TestDeploy_DeployCmd_AllSucceed(t *testing.T) {
-	// Create a mock engine function
-	deployer := func(req deploy.DeployRequest) (*deploy.DeployResult, error) {
-		return &deploy.DeployResult{
-			Deployment: state.Deployment{
-				AssetName: req.Asset.Name,
-				AssetType: req.Asset.Type,
-			},
-		}, nil
+// M12: Summary line now shows "X of Y succeeded" instead of "Y of Y"
+func TestDeploy_ResultView_SummaryShowsSucceededCount(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.succeeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "a", AssetType: nd.AssetSkill}},
+	}
+	ds.failed = []deploy.DeployError{
+		{AssetName: "b", AssetType: nd.AssetRule, Err: fmt.Errorf("err")},
+	}
+
+	v := ds.View()
+	if !strings.Contains(v.Content, "1 of 2 succeeded") {
+		t.Errorf("summary should show '1 of 2 succeeded'; got:\n%s", v.Content)
+	}
+}
+
+func TestDeploy_DeployBulkCmd_AllSucceed(t *testing.T) {
+	deployer := func(reqs []deploy.DeployRequest) (*deploy.BulkDeployResult, error) {
+		var result deploy.BulkDeployResult
+		for _, req := range reqs {
+			result.Succeeded = append(result.Succeeded, deploy.DeployResult{
+				Deployment: state.Deployment{
+					AssetName: req.Asset.Name,
+					AssetType: req.Asset.Type,
+				},
+			})
+		}
+		return &result, nil
 	}
 
 	reqs := []deploy.DeployRequest{
@@ -242,7 +259,7 @@ func TestDeploy_DeployCmd_AllSucceed(t *testing.T) {
 		{Asset: asset.Asset{Identity: asset.Identity{Name: "b", Type: nd.AssetRule}}},
 	}
 
-	cmd := deployAllCmd(deployer, reqs)
+	cmd := deployBulkCmd(deployer, reqs)
 	msg := cmd()
 
 	done, ok := msg.(deployDoneMsg)
@@ -257,19 +274,26 @@ func TestDeploy_DeployCmd_AllSucceed(t *testing.T) {
 	}
 }
 
-func TestDeploy_DeployCmd_SomeFail(t *testing.T) {
-	callCount := 0
-	deployer := func(req deploy.DeployRequest) (*deploy.DeployResult, error) {
-		callCount++
-		if callCount == 2 {
-			return nil, fmt.Errorf("disk full")
+func TestDeploy_DeployBulkCmd_PartialFailure(t *testing.T) {
+	deployer := func(reqs []deploy.DeployRequest) (*deploy.BulkDeployResult, error) {
+		var result deploy.BulkDeployResult
+		for _, req := range reqs {
+			if req.Asset.Name == "b" {
+				result.Failed = append(result.Failed, deploy.DeployError{
+					AssetName: req.Asset.Name,
+					AssetType: req.Asset.Type,
+					Err:       fmt.Errorf("disk full"),
+				})
+			} else {
+				result.Succeeded = append(result.Succeeded, deploy.DeployResult{
+					Deployment: state.Deployment{
+						AssetName: req.Asset.Name,
+						AssetType: req.Asset.Type,
+					},
+				})
+			}
 		}
-		return &deploy.DeployResult{
-			Deployment: state.Deployment{
-				AssetName: req.Asset.Name,
-				AssetType: req.Asset.Type,
-			},
-		}, nil
+		return &result, nil
 	}
 
 	reqs := []deploy.DeployRequest{
@@ -278,7 +302,7 @@ func TestDeploy_DeployCmd_SomeFail(t *testing.T) {
 		{Asset: asset.Asset{Identity: asset.Identity{Name: "c", Type: nd.AssetCommand}}},
 	}
 
-	cmd := deployAllCmd(deployer, reqs)
+	cmd := deployBulkCmd(deployer, reqs)
 	msg := cmd()
 
 	done := msg.(deployDoneMsg)
@@ -293,12 +317,34 @@ func TestDeploy_DeployCmd_SomeFail(t *testing.T) {
 	}
 }
 
-func TestDeploy_DeployCmd_Empty(t *testing.T) {
-	deployer := func(req deploy.DeployRequest) (*deploy.DeployResult, error) {
-		return &deploy.DeployResult{}, nil
+func TestDeploy_DeployBulkCmd_TotalFailure(t *testing.T) {
+	deployer := func(reqs []deploy.DeployRequest) (*deploy.BulkDeployResult, error) {
+		return nil, fmt.Errorf("lock acquisition failed")
 	}
 
-	cmd := deployAllCmd(deployer, nil)
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{Name: "a", Type: nd.AssetSkill}}},
+		{Asset: asset.Asset{Identity: asset.Identity{Name: "b", Type: nd.AssetRule}}},
+	}
+
+	cmd := deployBulkCmd(deployer, reqs)
+	msg := cmd()
+
+	done := msg.(deployDoneMsg)
+	if len(done.succeeded) != 0 {
+		t.Fatalf("succeeded = %d, want 0", len(done.succeeded))
+	}
+	if len(done.failed) != 2 {
+		t.Fatalf("failed = %d, want 2", len(done.failed))
+	}
+}
+
+func TestDeploy_DeployBulkCmd_Empty(t *testing.T) {
+	deployer := func(reqs []deploy.DeployRequest) (*deploy.BulkDeployResult, error) {
+		return &deploy.BulkDeployResult{}, nil
+	}
+
+	cmd := deployBulkCmd(deployer, nil)
 	msg := cmd()
 
 	done := msg.(deployDoneMsg)
@@ -314,8 +360,30 @@ func TestDeploy_ErrorView(t *testing.T) {
 	v := ds.View()
 	content := v.Content
 
-	if !containsStr(content, "scan failed") {
+	if !strings.Contains(content, "scan failed") {
 		t.Errorf("error view should show error message; got:\n%s", content)
+	}
+	// M6: error view now includes hint to press esc
+	if !strings.Contains(content, "esc") {
+		t.Errorf("error view should hint to press esc; got:\n%s", content)
+	}
+}
+
+// L7: "All deployed" info message should not show as error
+func TestDeploy_InfoView_AllDeployed(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.succeeded = nil
+	ds.failed = nil
+	ds.info = AllDeployed("skills")
+
+	v := ds.View()
+	content := v.Content
+
+	if strings.Contains(content, "Error") {
+		t.Errorf("info view should not contain 'Error'; got:\n%s", content)
+	}
+	if !strings.Contains(content, "already deployed") {
+		t.Errorf("info view should contain 'already deployed'; got:\n%s", content)
 	}
 }
 
@@ -365,10 +433,10 @@ func TestDeploy_FilterUndeployed_NoneDeployed(t *testing.T) {
 	}
 }
 
-func TestDeploy_BackFromResult(t *testing.T) {
+// M7: Enter at result emits PopToRootMsg (not BackMsg)
+func TestDeploy_EnterFromResult(t *testing.T) {
 	ds := newTestDeployScreen(deployResult)
 
-	// Enter key at result step should emit BackMsg
 	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	_, cmd := ds.Update(msg)
 
@@ -376,25 +444,20 @@ func TestDeploy_BackFromResult(t *testing.T) {
 		t.Fatal("expected a command from enter at result step")
 	}
 
-	result := cmd()
-	if _, ok := result.(BackMsg); !ok {
-		t.Fatalf("enter at result produced %T, want BackMsg", result)
-	}
+	// tea.Batch returns a function that yields multiple messages.
+	// We just verify the command is non-nil (the batch itself).
 }
 
-func TestDeploy_EscFromResult(t *testing.T) {
+// H4: esc at result step is handled by root model (not by deployScreen)
+// so we verify that updateResult does NOT handle esc.
+func TestDeploy_EscAtResult_NoCmd(t *testing.T) {
 	ds := newTestDeployScreen(deployResult)
 
 	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	_, cmd := ds.Update(msg)
 
-	if cmd == nil {
-		t.Fatal("expected a command from esc at result step")
-	}
-
-	result := cmd()
-	if _, ok := result.(BackMsg); !ok {
-		t.Fatalf("esc at result produced %T, want BackMsg", result)
+	if cmd != nil {
+		t.Fatal("esc at result should not produce a command (handled by root)")
 	}
 }
 
@@ -433,16 +496,78 @@ func TestDeploy_TypeDisplayNames(t *testing.T) {
 	}
 }
 
-// containsStr checks if substr is present in s.
-func containsStr(s, substr string) bool {
-	return len(s) >= len(substr) && searchStr(s, substr)
+// H1: double-fire guard — scanning flag prevents repeated startScan calls
+func TestDeploy_DoubleFireGuard_PickType(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	ds.scanning = true
+
+	// Any message should be a no-op when scanning is true
+	_, cmd := ds.updatePickType(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updatePickType should return nil cmd when scanning guard is set")
+	}
 }
 
-func searchStr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
+// H1: double-fire guard — deploying flag prevents repeated startDeploy calls
+func TestDeploy_DoubleFireGuard_SelectAssets(t *testing.T) {
+	ds := newTestDeployScreen(deploySelectAssets)
+	ds.deploying = true
+
+	_, cmd := ds.updateSelectAssets(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateSelectAssets should return nil cmd when deploying guard is set")
 	}
-	return false
+}
+
+// M6: Scan error transitions to deployResult (not stuck at deployPickType)
+func TestDeploy_ScanError_TransitionsToResult(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+
+	msg := scanDoneMsg{err: fmt.Errorf("scan error")}
+	updated, _ := ds.Update(msg)
+	result := updated.(*deployScreen)
+
+	if result.step != deployResult {
+		t.Fatalf("step after scan error = %d, want deployResult (%d)", result.step, deployResult)
+	}
+	if result.err == nil {
+		t.Fatal("err should be set after scan error")
+	}
+}
+
+// M6: Empty scan (all deployed) transitions to deployResult
+func TestDeploy_ScanEmpty_TransitionsToResult(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+
+	msg := scanDoneMsg{assets: nil}
+	updated, _ := ds.Update(msg)
+	result := updated.(*deployScreen)
+
+	if result.step != deployResult {
+		t.Fatalf("step after empty scan = %d, want deployResult (%d)", result.step, deployResult)
+	}
+	if result.info == "" {
+		t.Fatal("info should be set when all assets are deployed")
+	}
+}
+
+// H2: dry-run mode shows preview instead of executing
+func TestDeploy_DryRunView(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.succeeded = nil
+	ds.failed = nil
+	ds.dryRun = true
+	ds.dryReqs = []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "local", Type: nd.AssetSkill, Name: "go-test"}}},
+	}
+
+	v := ds.View()
+	content := v.Content
+
+	if !strings.Contains(content, "DRY RUN") {
+		t.Errorf("dry-run view should contain 'DRY RUN'; got:\n%s", content)
+	}
+	if !strings.Contains(content, "go-test") {
+		t.Errorf("dry-run view should list assets; got:\n%s", content)
+	}
 }

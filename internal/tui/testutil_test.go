@@ -23,9 +23,10 @@ type mockServices struct {
 	profileManagerFn func() (*profile.Manager, error)
 	profileStoreFn   func() (*profile.Store, error)
 	opLogFn          func() *oplog.Writer
-	getScopeFn       func() nd.Scope
-	getConfigPathFn  func() string
-	isDryRunFn       func() bool
+	getScopeFn        func() nd.Scope
+	getConfigPathFn   func() string
+	getProjectRootFn  func() string
+	isDryRunFn        func() bool
 	resetForScopeFn  func(scope nd.Scope, projectRoot string)
 
 	// Track ResetForScope calls for assertions.
@@ -116,6 +117,13 @@ func (m *mockServices) GetConfigPath() string {
 		return m.getConfigPathFn()
 	}
 	return "/tmp/nd-test/config.yaml"
+}
+
+func (m *mockServices) GetProjectRoot() string {
+	if m.getProjectRootFn != nil {
+		return m.getProjectRootFn()
+	}
+	return ""
 }
 
 func (m *mockServices) IsDryRun() bool {
