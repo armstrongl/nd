@@ -104,7 +104,10 @@ func TestMainMenu_HandleSelectionWiredScreens(t *testing.T) {
 	m := newMainMenuScreen(newMockServices(), s, true)
 
 	// These choices are wired to real screens and should return NavigateMsg.
-	wiredChoices := []string{"deploy", "remove", "status", "browse", "doctor"}
+	wiredChoices := []string{
+		"deploy", "remove", "status", "browse", "doctor",
+		"profile", "snapshot", "pin", "source", "settings",
+	}
 	for _, choice := range wiredChoices {
 		m.choice = choice
 		cmd := m.handleSelection()
@@ -124,10 +127,7 @@ func TestMainMenu_HandleSelectionUnwiredScreens(t *testing.T) {
 	m := newMainMenuScreen(newMockServices(), s, true)
 
 	// These choices are not yet wired and should return nil.
-	unwiredChoices := []string{
-		"profile", "snapshot",
-		"pin", "source", "export", "settings",
-	}
+	unwiredChoices := []string{"export"}
 	for _, choice := range unwiredChoices {
 		m.choice = choice
 		cmd := m.handleSelection()
