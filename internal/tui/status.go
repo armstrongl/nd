@@ -41,6 +41,7 @@ func (s *statusScreen) HelpItems() []HelpItem {
 	return []HelpItem{
 		{"d", "deploy"},
 		{"r", "remove"},
+		{"f", "fix"},
 	}
 }
 
@@ -86,6 +87,9 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
 		case "r":
 			screen := newRemoveScreen(s.svc, s.styles, s.isDark)
+			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
+		case "f":
+			screen := newDoctorScreen(s.svc, s.styles, s.isDark)
 			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
 		}
 	}
@@ -158,16 +162,5 @@ func healthGlyph(h state.HealthStatus) string {
 
 // styleGlyph applies the appropriate color style to a health glyph.
 func (s *statusScreen) styleGlyph(glyph string, h state.HealthStatus) string {
-	switch h {
-	case state.HealthOK:
-		return s.styles.Success.Render(glyph)
-	case state.HealthBroken, state.HealthMissing:
-		return s.styles.Danger.Render(glyph)
-	case state.HealthDrifted:
-		return s.styles.Warning.Render(glyph)
-	case state.HealthOrphaned:
-		return s.styles.Subtle.Render(glyph)
-	default:
-		return glyph
-	}
+	return styleGlyphWith(s.styles, glyph, h)
 }

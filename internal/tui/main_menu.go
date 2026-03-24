@@ -89,6 +89,10 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 		screen = newRemoveScreen(m.svc, m.styles, m.isDark)
 	case "status":
 		screen = newStatusScreen(m.svc, m.styles, m.isDark)
+	case "browse":
+		screen = newBrowseScreen(m.svc, m.styles, m.isDark)
+	case "doctor":
+		screen = newDoctorScreen(m.svc, m.styles, m.isDark)
 	case "quit":
 		return tea.Quit
 	default:
