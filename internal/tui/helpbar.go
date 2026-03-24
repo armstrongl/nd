@@ -17,7 +17,7 @@ type HelpProvider interface {
 type HelpBar struct{}
 
 // View renders the help bar for the given screen.
-func (hb HelpBar) View(s Styles, screen Screen, width int) string {
+func (hb HelpBar) View(s Styles, screen Screen, _ int) string {
 	items := defaultHelp(screen)
 	parts := make([]string, len(items))
 	for i, item := range items {

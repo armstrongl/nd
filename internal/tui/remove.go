@@ -3,11 +3,13 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/deploy"
+	"github.com/armstrongl/nd/internal/oplog"
 	"github.com/armstrongl/nd/internal/state"
 )
 
@@ -32,10 +34,10 @@ type deploymentsLoadedMsg struct {
 	err         error
 }
 
-// remover is the interface used by removeCmd to perform removals.
+// bulkRemover is the interface used by removeBulkCmd to perform removals.
 // deploy.Engine satisfies this. Tests provide a mock.
-type remover interface {
-	Remove(req deploy.RemoveRequest) error
+type bulkRemover interface {
+	RemoveBulk([]deploy.RemoveRequest) (*deploy.BulkRemoveResult, error)
 }
 
 type removeScreen struct {
@@ -59,6 +61,8 @@ type removeScreen struct {
 	// result
 	succeeded int
 	failed    []deploy.RemoveError
+	dryRun    bool                   // true when result is a dry-run preview
+	dryReqs   []deploy.RemoveRequest // populated for dry-run display
 
 	err error
 }
@@ -73,8 +77,12 @@ func newRemoveScreen(svc Services, styles Styles, isDark bool) *removeScreen {
 }
 
 // Screen interface
-func (m *removeScreen) Title() string    { return "Remove" }
-func (m *removeScreen) InputActive() bool { return false }
+func (m *removeScreen) Title() string { return "Remove" }
+
+// H5: InputActive returns true during form steps to prevent q/esc from quitting.
+func (m *removeScreen) InputActive() bool {
+	return m.step == removeSelectAssets || m.step == removeConfirm
+}
 
 // Init starts async loading of deployed assets.
 func (m *removeScreen) Init() tea.Cmd {
@@ -102,6 +110,16 @@ func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.step = removeResult
 		m.succeeded = msg.succeeded
 		m.failed = msg.failed
+		// M5: Log operation to oplog
+		if ol := m.svc.OpLog(); ol != nil {
+			_ = ol.Log(oplog.LogEntry{
+				Timestamp: time.Now(),
+				Operation: oplog.OpRemove,
+				Scope:     m.svc.GetScope(),
+				Succeeded: msg.succeeded,
+				Failed:    len(msg.failed),
+			})
+		}
 		return m, func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -238,11 +256,19 @@ func (m *removeScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *removeScreen) transitionToRunning() (tea.Model, tea.Cmd) {
-	m.step = removeRunning
-	m.progress = newProgressBar(40)
-
 	// Build remove requests from selected keys.
 	reqs := m.buildRemoveRequests()
+
+	// H2: Dry-run mode — show preview without executing
+	if m.svc.IsDryRun() {
+		m.step = removeResult
+		m.dryRun = true
+		m.dryReqs = reqs
+		return m, func() tea.Msg { return RefreshHeaderMsg{} }
+	}
+
+	m.step = removeRunning
+	m.progress = newProgressBar(40)
 
 	eng, err := m.svc.DeployEngine()
 	if err != nil {
@@ -250,7 +276,8 @@ func (m *removeScreen) transitionToRunning() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m, removeCmd(eng, reqs)
+	// M3: Use bulk API for single lock cycle + auto-snapshot
+	return m, removeBulkCmd(eng, reqs)
 }
 
 func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
@@ -260,13 +287,12 @@ func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
 		lookup[d.Identity().String()] = d
 	}
 
-	scope := m.svc.GetScope()
 	reqs := make([]deploy.RemoveRequest, 0, len(m.selected))
 	for _, key := range m.selected {
 		if d, ok := lookup[key]; ok {
 			reqs = append(reqs, deploy.RemoveRequest{
 				Identity:    d.Identity(),
-				Scope:       scope,
+				Scope:       d.Scope,       // H3: use deployment's recorded scope
 				ProjectRoot: d.ProjectPath,
 			})
 		}
@@ -306,14 +332,24 @@ func (m *removeScreen) viewConfirm() tea.View {
 }
 
 func (m *removeScreen) viewRunning() tea.View {
-	var b strings.Builder
-	b.WriteString("  Removing assets...\n\n")
-	b.WriteString(m.progress.View(m.styles))
-	return tea.NewView(b.String())
+	return tea.NewView(fmt.Sprintf("  %s",
+		m.styles.Primary.Render("Removing...")))
 }
 
 func (m *removeScreen) viewResult() tea.View {
 	var b strings.Builder
+
+	// H2: Dry-run preview
+	if m.dryRun {
+		b.WriteString(fmt.Sprintf("  %s Would remove %d asset(s):\n\n",
+			m.styles.Warning.Render("[DRY RUN]"), len(m.dryReqs)))
+		for _, req := range m.dryReqs {
+			b.WriteString(fmt.Sprintf("    %s %s/%s\n",
+				GlyphArrow, req.Identity.Type, req.Identity.Name))
+		}
+		b.WriteString(fmt.Sprintf("\n  %s", m.styles.Subtle.Render("Press enter to return.")))
+		return tea.NewView(b.String())
+	}
 
 	if m.succeeded > 0 {
 		b.WriteString(fmt.Sprintf("  %s %d asset(s) removed successfully.\n",
@@ -346,19 +382,24 @@ func deploymentLabel(d state.Deployment) string {
 	return fmt.Sprintf("%s/%s (%s)", subdir, d.AssetName, d.SourceID)
 }
 
-// removeCmd builds a tea.Cmd that removes assets one by one and returns a removeDoneMsg.
-func removeCmd(eng remover, reqs []deploy.RemoveRequest) tea.Cmd {
+// removeBulkCmd builds a tea.Cmd that removes assets via the bulk API and returns a removeDoneMsg.
+func removeBulkCmd(eng bulkRemover, reqs []deploy.RemoveRequest) tea.Cmd {
 	return func() tea.Msg {
-		var failed []deploy.RemoveError
-		succeeded := 0
-		for _, req := range reqs {
-			err := eng.Remove(req)
-			if err != nil {
-				failed = append(failed, deploy.RemoveError{Identity: req.Identity, Err: err})
-			} else {
-				succeeded++
+		result, err := eng.RemoveBulk(reqs)
+		if err != nil {
+			// Total failure — report all as failed
+			var failed []deploy.RemoveError
+			for _, req := range reqs {
+				failed = append(failed, deploy.RemoveError{
+					Identity: req.Identity,
+					Err:      err,
+				})
 			}
+			return removeDoneMsg{failed: failed}
 		}
-		return removeDoneMsg{succeeded: succeeded, failed: failed}
+		return removeDoneMsg{
+			succeeded: len(result.Succeeded),
+			failed:    result.Failed,
+		}
 	}
 }

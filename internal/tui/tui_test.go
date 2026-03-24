@@ -9,12 +9,13 @@ import (
 
 // newTestModel creates a Model with a mock services and a main menu screen.
 func newTestModel() Model {
+	svc := newMockServices()
 	styles := NewStyles(true)
 	return Model{
-		svc:     newMockServices(),
+		svc:     svc,
 		styles:  styles,
 		isDark:  true,
-		screens: []Screen{newMainMenuScreen(newMockServices(), styles, true)},
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
 		width:   80,
 		height:  24,
 	}

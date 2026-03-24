@@ -91,6 +91,12 @@ func TestMockServices_DefaultReturnValues(t *testing.T) {
 		}
 	})
 
+	t.Run("GetProjectRoot returns empty string", func(t *testing.T) {
+		if p := m.GetProjectRoot(); p != "" {
+			t.Errorf("expected empty string, got %q", p)
+		}
+	})
+
 	t.Run("IsDryRun returns false", func(t *testing.T) {
 		if m.IsDryRun() {
 			t.Error("expected false")
