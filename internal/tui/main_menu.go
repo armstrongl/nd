@@ -93,6 +93,16 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 		screen = newBrowseScreen(m.svc, m.styles, m.isDark)
 	case "doctor":
 		screen = newDoctorScreen(m.svc, m.styles, m.isDark)
+	case "profile":
+		screen = newProfileScreen(m.svc, m.styles, m.isDark)
+	case "snapshot":
+		screen = newSnapshotScreen(m.svc, m.styles, m.isDark)
+	case "pin":
+		screen = newPinScreen(m.svc, m.styles, m.isDark)
+	case "source":
+		screen = newSourceScreen(m.svc, m.styles, m.isDark)
+	case "settings":
+		screen = newSettingsScreen(m.svc, m.styles, m.isDark)
 	case "quit":
 		return tea.Quit
 	default:
