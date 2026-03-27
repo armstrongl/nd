@@ -149,8 +149,7 @@ func TestStoreListProfiles(t *testing.T) {
 	}
 	if beta == nil {
 		t.Fatal("beta not found")
-	}
-	if beta.AssetCount != 2 {
+	} else if beta.AssetCount != 2 {
 		t.Errorf("beta asset count: got %d", beta.AssetCount)
 	}
 	if beta.Description != "Beta profile" {
