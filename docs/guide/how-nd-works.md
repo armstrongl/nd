@@ -2,11 +2,11 @@
 
 nd doesn't copy files. It creates symlinks.
 
-When you run `nd deploy skills/greeting`, nd creates a symbolic link from your agent's config directory back to the original file in your source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
+When you run `nd deploy skills/greeting`, nd creates a symbolic link from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
 
 ## The mental model
 
-nd connects two directories with a symlink:
+nd wires each deployed asset from your source into the agent's config directory:
 
 ```
   your source               nd               agent config dir
@@ -133,10 +133,10 @@ nd deploy skills/greeting --relative
 
 ## What the agent sees
 
-Once an asset is deployed, Claude Code can use it. Skills, agents, commands, and rules deployed to `~/.claude/` are available in your next Claude Code session. Project-scope assets are available when you run Claude Code from that project's directory.
+Once an asset is deployed, Claude Code can use it. Skills, agents, commands, and rules deployed to `~/.claude/` are typically available in your next Claude Code session. Project-scope assets are available when you run Claude Code from that project's directory.
 
 Two asset types need an extra step after deploying:
 
 - **Hooks** and **output-styles** require manual registration in Claude Code's `settings.json`. nd creates the symlink, but Claude Code needs to be told about them in its settings file. Check Claude Code's documentation for the specific settings entries.
 
-For everything else, deploy and go: no restart or configuration needed.
+For everything else, deploy and go: no additional nd configuration is needed.
