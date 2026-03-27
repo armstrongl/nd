@@ -9,10 +9,10 @@ Manage coding agent assets (skills, agents, commands, rules, and more) across to
 
 ## What It Does
 
-- **Register sources** -- Point nd at local directories or git repos containing agent assets
-- **Deploy assets** -- Create symlinks from agent config directories to source assets, keeping everything in sync
-- **Switch profiles** -- Group assets into named profiles and switch between them instantly
-- **Save snapshots** -- Capture and restore deployment states as point-in-time snapshots
+- **Register sources:** Point nd at local directories or git repos containing agent assets
+- **Deploy assets:** Create symlinks from agent config directories to source assets, keeping everything in sync
+- **Switch profiles:** Group assets into named profiles and switch between them instantly
+- **Save snapshots:** Capture and restore deployment states as point-in-time snapshots
 
 ## Installation
 
@@ -92,7 +92,7 @@ nd status
 
 Run any command with `--help` for detailed usage, or see the full [Command Reference](docs/reference/nd.md).
 
-Many commands support **interactive mode** -- run without arguments to get a picker. Use `--json` for scripted output and `--yes` to skip confirmations.
+Many commands support **interactive mode**: run without arguments to get a picker. Use `--json` for scripted output and `--yes` to skip confirmations.
 
 ## Configuration
 
@@ -109,12 +109,13 @@ See the full [Configuration Guide](docs/guide/configuration.md).
 
 ## Documentation
 
-- [Getting Started](docs/guide/getting-started.md) -- Install to first deploy in 5 minutes
-- [User Guide](docs/guide/user-guide.md) -- Core workflows: sources, deploying, syncing
-- [Profiles & Snapshots](docs/guide/profiles-and-snapshots.md) -- Advanced workflow management
-- [Configuration](docs/guide/configuration.md) -- Full config reference
-- [Creating Sources](docs/guide/creating-sources.md) -- Build your own asset library
-- [Command Reference](docs/reference/nd.md) -- Auto-generated from source
+- [How nd works](docs/guide/how-nd-works.md): What happens on disk when you deploy
+- [Get started](docs/guide/getting-started.md): Install to first deploy in 5 minutes
+- [User guide](docs/guide/user-guide.md): Core workflows: sources, deploying, syncing
+- [Profiles & snapshots](docs/guide/profiles-and-snapshots.md): Advanced workflow management
+- [Configuration](docs/guide/configuration.md): Full config reference
+- [Creating sources](docs/guide/creating-sources.md): Build your own asset library
+- [Command reference](docs/reference/nd.md): Auto-generated from source
 
 ## Contributing
 
