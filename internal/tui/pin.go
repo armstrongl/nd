@@ -63,7 +63,9 @@ func newPinScreen(svc Services, styles Styles, isDark bool) *pinScreen {
 }
 
 func (s *pinScreen) Title() string     { return "Pin/Unpin" }
-func (s *pinScreen) InputActive() bool { return false }
+func (s *pinScreen) InputActive() bool {
+	return s.step == pinSelect || s.step == pinConfirm
+}
 
 func (s *pinScreen) Init() tea.Cmd {
 	svc := s.svc
@@ -275,7 +277,10 @@ func (s *pinScreen) runApply() tea.Cmd {
 
 func (s *pinScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "enter" {
-		return s, func() tea.Msg { return PopToRootMsg{} }
+		return s, tea.Batch(
+			func() tea.Msg { return PopToRootMsg{} },
+			func() tea.Msg { return RefreshHeaderMsg{} },
+		)
 	}
 	return s, nil
 }

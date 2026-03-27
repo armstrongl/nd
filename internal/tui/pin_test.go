@@ -22,18 +22,16 @@ func TestPinScreen_Title(t *testing.T) {
 func TestPinScreen_InputActive_Select(t *testing.T) {
 	s := newPinScreen(newMockServices(), NewStyles(true), true)
 	s.step = pinSelect
-	// MultiSelect is not text input.
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on select step, want false")
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on select step, want true (form active)")
 	}
 }
 
 func TestPinScreen_InputActive_Confirm(t *testing.T) {
 	s := newPinScreen(newMockServices(), NewStyles(true), true)
 	s.step = pinConfirm
-	// Confirm form is not text input.
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on confirm step, want false")
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on confirm step, want true (form active)")
 	}
 }
 

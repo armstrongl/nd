@@ -99,6 +99,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		if len(m.screens) == 0 {
+			return m, nil
+		}
 		current := m.screens[len(m.screens)-1]
 
 		// When text input is active, only ctrl+c force-quits.

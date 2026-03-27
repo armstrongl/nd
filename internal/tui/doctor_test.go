@@ -133,7 +133,7 @@ func TestDoctorScreen_SyncDone_Error(t *testing.T) {
 	}
 }
 
-func TestDoctorScreen_EnterOnDone_EmitsPopToRoot(t *testing.T) {
+func TestDoctorScreen_EnterOnDone_EmitsPopToRootAndRefresh(t *testing.T) {
 	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
 	s.step = doctorDone
 	s.syncResult = &deploy.SyncResult{}
@@ -143,12 +143,30 @@ func TestDoctorScreen_EnterOnDone_EmitsPopToRoot(t *testing.T) {
 		t.Fatal("enter on done step should emit a cmd")
 	}
 
+	// tea.Batch returns a BatchMsg ([]tea.Cmd).
 	msg := cmd()
-	switch msg.(type) {
-	case PopToRootMsg:
-		// OK
-	default:
-		t.Errorf("enter on done should emit PopToRootMsg, got %T", msg)
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("enter on done should emit tea.BatchMsg, got %T", msg)
+	}
+
+	var hasPopToRoot, hasRefresh bool
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		switch c().(type) {
+		case PopToRootMsg:
+			hasPopToRoot = true
+		case RefreshHeaderMsg:
+			hasRefresh = true
+		}
+	}
+	if !hasPopToRoot {
+		t.Error("batch should contain PopToRootMsg")
+	}
+	if !hasRefresh {
+		t.Error("batch should contain RefreshHeaderMsg")
 	}
 }
 

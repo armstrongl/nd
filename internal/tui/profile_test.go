@@ -29,8 +29,9 @@ func TestProfileScreen_InputActive_Create(t *testing.T) {
 
 func TestProfileScreen_InputActive_Menu(t *testing.T) {
 	s := newProfileScreen(newMockServices(), NewStyles(true), true)
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on menu step, want false")
+	s.step = profileMenu
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on menu step, want true (form active)")
 	}
 }
 

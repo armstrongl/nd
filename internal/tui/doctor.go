@@ -185,7 +185,10 @@ func (d *doctorScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (d *doctorScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if keyMsg.String() == "enter" {
-			return d, func() tea.Msg { return PopToRootMsg{} }
+			return d, tea.Batch(
+				func() tea.Msg { return PopToRootMsg{} },
+				func() tea.Msg { return RefreshHeaderMsg{} },
+			)
 		}
 	}
 	return d, nil

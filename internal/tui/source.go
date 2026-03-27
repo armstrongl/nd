@@ -85,7 +85,7 @@ func newSourceScreen(svc Services, styles Styles, isDark bool) *sourceScreen {
 func (s *sourceScreen) Title() string { return "Sources" }
 
 func (s *sourceScreen) InputActive() bool {
-	return s.step == sourceAddLocalInput || s.step == sourceAddGitInput
+	return s.step == sourceMenu || s.step == sourceAddLocalInput || s.step == sourceAddGitInput || s.step == sourceRemoveSelect || s.step == sourceRemoveConfirm
 }
 
 func (s *sourceScreen) Init() tea.Cmd {
@@ -120,7 +120,7 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.doneMsg = fmt.Sprintf("%s Source %q added.", s.styles.Success.Render(GlyphOK), msg.src.ID)
 		}
 		s.step = sourceDone
-		return s, nil
+		return s, func() tea.Msg { return RefreshHeaderMsg{} }
 
 	case sourceRemovedMsg:
 		if msg.err != nil {
@@ -129,7 +129,7 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.doneMsg = fmt.Sprintf("%s Source %q removed.", s.styles.Success.Render(GlyphOK), msg.id)
 		}
 		s.step = sourceDone
-		return s, nil
+		return s, func() tea.Msg { return RefreshHeaderMsg{} }
 
 	case sourceSyncedMsg:
 		s.step = sourceDone
@@ -296,6 +296,9 @@ func (s *sourceScreen) runAdd(kind, input string) tea.Cmd {
 		if err != nil {
 			return sourceAddedMsg{err: err}
 		}
+		if sm == nil {
+			return sourceAddedMsg{err: fmt.Errorf("source manager not available")}
+		}
 		if kind == "git" {
 			src, err := sm.AddGit(input, "")
 			return sourceAddedMsg{src: src, err: err}
@@ -357,6 +360,9 @@ func (s *sourceScreen) updateRemove(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// sourceRemoveConfirm
+	if s.confirmForm == nil {
+		return s, nil
+	}
 	model, cmd := s.confirmForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.confirmForm = f
@@ -398,6 +404,9 @@ func (s *sourceScreen) runRemove() tea.Cmd {
 		if err != nil {
 			return sourceRemovedMsg{err: err}
 		}
+		if sm == nil {
+			return sourceRemovedMsg{err: fmt.Errorf("source manager not available")}
+		}
 		return sourceRemovedMsg{id: id, err: sm.Remove(id)}
 	}
 }
@@ -410,6 +419,9 @@ func (s *sourceScreen) startSync() (tea.Model, tea.Cmd) {
 		sm, err := svc.SourceManager()
 		if err != nil {
 			return sourceSyncedMsg{errors: []error{err}}
+		}
+		if sm == nil {
+			return sourceSyncedMsg{errors: []error{fmt.Errorf("source manager not available")}}
 		}
 		var errs []error
 		synced := 0

@@ -36,8 +36,9 @@ func TestSourceScreen_InputActive_AddGit(t *testing.T) {
 
 func TestSourceScreen_InputActive_Menu(t *testing.T) {
 	s := newSourceScreen(newMockServices(), NewStyles(true), true)
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on menu step, want false")
+	s.step = sourceMenu
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on menu step, want true (form active)")
 	}
 }
 

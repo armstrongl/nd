@@ -90,8 +90,8 @@ func TestDeploy_Title(t *testing.T) {
 
 func TestDeploy_InputActive_PickType(t *testing.T) {
 	ds := newTestDeployScreen(deployPickType)
-	if ds.InputActive() {
-		t.Fatal("InputActive() at pickType step should be false")
+	if !ds.InputActive() {
+		t.Fatal("InputActive() at pickType step should be true (form active)")
 	}
 }
 

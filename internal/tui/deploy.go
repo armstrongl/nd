@@ -118,7 +118,7 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 func (ds *deployScreen) Title() string { return "Deploy" }
 
 func (ds *deployScreen) InputActive() bool {
-	return ds.step == deploySelectAssets
+	return ds.step == deployPickType || ds.step == deploySelectAssets
 }
 
 // Init initializes the type picker form.
@@ -235,6 +235,10 @@ func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return ds, ds.startScan()
 	}
 
+	if ds.typeForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
 	return ds, cmd
 }
 
@@ -306,7 +310,7 @@ func (ds *deployScreen) buildAssetForm() {
 // updateSelectAssets delegates to the asset selection form and starts deployment.
 func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// H1: guard against double-fire after form completion
-	if ds.deploying {
+	if ds.deploying || ds.assetForm == nil {
 		return ds, nil
 	}
 
@@ -318,6 +322,10 @@ func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ds.assetForm.State == huh.StateCompleted {
 		ds.deploying = true
 		return ds, ds.startDeploy()
+	}
+
+	if ds.assetForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
 	}
 
 	return ds, cmd
@@ -376,6 +384,10 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 	eng, err := ds.svc.DeployEngine()
 	if err != nil {
 		ds.err = fmt.Errorf("deploy engine: %w", err)
+		return nil
+	}
+	if eng == nil {
+		ds.err = fmt.Errorf("deploy engine not available")
 		return nil
 	}
 

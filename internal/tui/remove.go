@@ -138,7 +138,9 @@ func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the current step.
 func (m *removeScreen) View() tea.View {
 	if m.err != nil {
-		return tea.NewView(fmt.Sprintf("  %s", m.styles.Danger.Render(m.err.Error())))
+		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
+			m.styles.Danger.Render(m.err.Error()),
+			m.styles.Subtle.Render("Press esc to go back.")))
 	}
 
 	switch m.step {
@@ -160,6 +162,7 @@ func (m *removeScreen) View() tea.View {
 func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		m.err = msg.err
+		m.step = removeResult
 		return m, nil
 	}
 
@@ -275,6 +278,10 @@ func (m *removeScreen) transitionToRunning() (tea.Model, tea.Cmd) {
 		m.err = fmt.Errorf("deploy engine: %w", err)
 		return m, nil
 	}
+	if eng == nil {
+		m.err = fmt.Errorf("deploy engine not available")
+		return m, nil
+	}
 
 	// M3: Use bulk API for single lock cycle + auto-snapshot
 	return m, removeBulkCmd(eng, reqs)
@@ -319,7 +326,7 @@ func (m *removeScreen) viewSelectAssets() tea.View {
 		return tea.NewView("  " + NothingDeployed())
 	}
 	if m.assetForm == nil {
-		return tea.NewView("")
+		return tea.NewView("  Loading deployed assets...")
 	}
 	return tea.NewView(m.assetForm.View())
 }
