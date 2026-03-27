@@ -437,36 +437,36 @@ func (ds *deployScreen) viewResult() string {
 
 	// H2: Dry-run preview
 	if ds.dryRun {
-		b.WriteString(fmt.Sprintf("  %s Would deploy %d asset(s):\n\n",
-			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs)))
+		fmt.Fprintf(&b, "  %s Would deploy %d asset(s):\n\n",
+			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs))
 		for _, req := range ds.dryReqs {
-			b.WriteString(fmt.Sprintf("    %s %s/%s from %s\n",
-				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID))
+			fmt.Fprintf(&b, "    %s %s/%s from %s\n",
+				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID)
 		}
-		b.WriteString(fmt.Sprintf("\n  %s", ds.styles.Subtle.Render("Press enter to return.")))
+		fmt.Fprintf(&b, "\n  %s", ds.styles.Subtle.Render("Press enter to return."))
 		return b.String()
 	}
 
 	// M12: Summary shows succeeded count, not total/total
 	total := len(ds.succeeded) + len(ds.failed)
-	b.WriteString(fmt.Sprintf("  Deployment complete: %d of %d succeeded\n\n", len(ds.succeeded), total))
+	fmt.Fprintf(&b, "  Deployment complete: %d of %d succeeded\n\n", len(ds.succeeded), total)
 
 	if len(ds.succeeded) > 0 {
-		b.WriteString(fmt.Sprintf("  %s\n", ds.styles.Success.Render(
-			fmt.Sprintf("%d succeeded", len(ds.succeeded)))))
+		fmt.Fprintf(&b, "  %s\n", ds.styles.Success.Render(
+			fmt.Sprintf("%d succeeded", len(ds.succeeded))))
 		for _, r := range ds.succeeded {
-			b.WriteString(fmt.Sprintf("    %s %s/%s\n",
-				GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName))
+			fmt.Fprintf(&b, "    %s %s/%s\n",
+				GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName)
 		}
 		b.WriteString("\n")
 	}
 
 	if len(ds.failed) > 0 {
-		b.WriteString(fmt.Sprintf("  %s\n", ds.styles.Danger.Render(
-			fmt.Sprintf("%d failed", len(ds.failed)))))
+		fmt.Fprintf(&b, "  %s\n", ds.styles.Danger.Render(
+			fmt.Sprintf("%d failed", len(ds.failed))))
 		for _, f := range ds.failed {
-			b.WriteString(fmt.Sprintf("    %s %s/%s: %v\n",
-				GlyphBroken, f.AssetType, f.AssetName, f.Err))
+			fmt.Fprintf(&b, "    %s %s/%s: %v\n",
+				GlyphBroken, f.AssetType, f.AssetName, f.Err)
 		}
 		b.WriteString("\n")
 	}
@@ -475,7 +475,7 @@ func (ds *deployScreen) viewResult() string {
 		b.WriteString("  No assets were deployed.\n\n")
 	}
 
-	b.WriteString(fmt.Sprintf("  %s", ds.styles.Subtle.Render("Press enter to return.")))
+	fmt.Fprintf(&b, "  %s", ds.styles.Subtle.Render("Press enter to return."))
 
 	return b.String()
 }

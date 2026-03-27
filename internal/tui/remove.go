@@ -348,31 +348,31 @@ func (m *removeScreen) viewResult() tea.View {
 
 	// H2: Dry-run preview
 	if m.dryRun {
-		b.WriteString(fmt.Sprintf("  %s Would remove %d asset(s):\n\n",
-			m.styles.Warning.Render("[DRY RUN]"), len(m.dryReqs)))
+		fmt.Fprintf(&b, "  %s Would remove %d asset(s):\n\n",
+			m.styles.Warning.Render("[DRY RUN]"), len(m.dryReqs))
 		for _, req := range m.dryReqs {
-			b.WriteString(fmt.Sprintf("    %s %s/%s\n",
-				GlyphArrow, req.Identity.Type, req.Identity.Name))
+			fmt.Fprintf(&b, "    %s %s/%s\n",
+				GlyphArrow, req.Identity.Type, req.Identity.Name)
 		}
-		b.WriteString(fmt.Sprintf("\n  %s", m.styles.Subtle.Render("Press enter to return.")))
+		fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
 		return tea.NewView(b.String())
 	}
 
 	if m.succeeded > 0 {
-		b.WriteString(fmt.Sprintf("  %s %d asset(s) removed successfully.\n",
-			m.styles.Success.Render(GlyphOK), m.succeeded))
+		fmt.Fprintf(&b, "  %s %d asset(s) removed successfully.\n",
+			m.styles.Success.Render(GlyphOK), m.succeeded)
 	}
 
 	if len(m.failed) > 0 {
-		b.WriteString(fmt.Sprintf("\n  %s %d failed:\n",
-			m.styles.Danger.Render(GlyphBroken), len(m.failed)))
+		fmt.Fprintf(&b, "\n  %s %d failed:\n",
+			m.styles.Danger.Render(GlyphBroken), len(m.failed))
 		for _, f := range m.failed {
-			b.WriteString(fmt.Sprintf("    %s  %s\n",
-				f.Identity.String(), m.styles.Subtle.Render(f.Err.Error())))
+			fmt.Fprintf(&b, "    %s  %s\n",
+				f.Identity.String(), m.styles.Subtle.Render(f.Err.Error()))
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\n  %s", m.styles.Subtle.Render("Press enter to return.")))
+	fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
 
 	return tea.NewView(b.String())
 }

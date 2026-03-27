@@ -45,8 +45,7 @@ func TestSearchByTypeAndName_Found(t *testing.T) {
 	a := idx.SearchByTypeAndName(nd.AssetSkill, "my-skill")
 	if a == nil {
 		t.Fatal("expected to find skill 'my-skill'")
-	}
-	if a.SourceID != "s1" {
+	} else if a.SourceID != "s1" {
 		t.Errorf("expected source s1, got %s", a.SourceID)
 	}
 }
@@ -72,8 +71,7 @@ func TestSearchByTypeAndName_CaseInsensitive(t *testing.T) {
 	a := idx.SearchByTypeAndName(nd.AssetRule, "my-skill")
 	if a == nil {
 		t.Fatal("expected to find rule 'My-Skill' via case-insensitive match")
-	}
-	if a.Name != "My-Skill" {
+	} else if a.Name != "My-Skill" {
 		t.Errorf("expected original case 'My-Skill', got %q", a.Name)
 	}
 }

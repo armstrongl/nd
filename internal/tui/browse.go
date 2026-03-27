@@ -141,21 +141,21 @@ func (b *browseScreen) View() tea.View {
 		if b.filtering {
 			indicator = "_"
 		}
-		buf.WriteString(fmt.Sprintf("  %s %s%s\n\n",
+		fmt.Fprintf(&buf, "  %s %s%s\n\n",
 			b.styles.Subtle.Render("/"),
 			b.filter,
-			indicator))
+			indicator)
 	}
 
 	if len(visible) == 0 {
-		buf.WriteString(fmt.Sprintf("  %s",
-			b.styles.Subtle.Render("No assets match the filter.")))
+		fmt.Fprintf(&buf, "  %s",
+			b.styles.Subtle.Render("No assets match the filter."))
 		return tea.NewView(buf.String())
 	}
 
 	for _, a := range visible {
 		marker := " "
-		if b.deployed[a.Identity.String()] {
+		if b.deployed[a.String()] {
 			marker = "*"
 		}
 
@@ -167,18 +167,18 @@ func (b *browseScreen) View() tea.View {
 			description = b.styles.Subtle.Render("  " + a.Meta.Description)
 		}
 
-		buf.WriteString(fmt.Sprintf("  %s  %-12s  %-24s  %s%s\n",
-			marker, typePart, a.Name, srcPart, description))
+		fmt.Fprintf(&buf, "  %s  %-12s  %-24s  %s%s\n",
+			marker, typePart, a.Name, srcPart, description)
 	}
 
 	total := len(b.assets)
 	shown := len(visible)
 	if b.filter != "" {
-		buf.WriteString(fmt.Sprintf("\n  %s",
-			b.styles.Subtle.Render(fmt.Sprintf("%d of %d  · / to filter", shown, total))))
+		fmt.Fprintf(&buf, "\n  %s",
+			b.styles.Subtle.Render(fmt.Sprintf("%d of %d  · / to filter", shown, total)))
 	} else {
-		buf.WriteString(fmt.Sprintf("\n  %s",
-			b.styles.Subtle.Render(fmt.Sprintf("%d assets  · / to filter", total))))
+		fmt.Fprintf(&buf, "\n  %s",
+			b.styles.Subtle.Render(fmt.Sprintf("%d assets  · / to filter", total)))
 	}
 
 	return tea.NewView(buf.String())

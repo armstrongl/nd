@@ -1,57 +1,57 @@
-# Profiles & Snapshots
+# Profiles & snapshots
 
 Profiles and snapshots help you manage multiple sets of agent assets and switch between them.
 
-## What Are Profiles?
+## What are profiles?
 
-A **profile** is a named collection of assets -- like browser profiles for your coding agent. You might have a "work" profile with enterprise-focused skills and a "personal" profile with hobby project tools.
+A **profile** is a named collection of assets: like browser profiles for your coding agent. You might have a "work" profile with enterprise-focused skills and a "personal" profile with hobby project tools.
 
-## Creating Profiles
+## Create profiles
 
-### From an Asset List
+### From an asset list
 
 Specify exactly which assets belong in the profile:
 
-```bash
+```shell
 nd profile create work --assets skills/enterprise-auth,skills/jira-integration,agents/code-reviewer
 ```
 
-### From Current Deployments
+### From current deployments
 
 Capture whatever is currently deployed:
 
-```bash
+```shell
 nd profile create work --from-current
 ```
 
 Add a description:
 
-```bash
+```shell
 nd profile create work --from-current --description "Enterprise development setup"
 ```
 
-## Building Profiles Incrementally
+## Build profiles incrementally
 
 Add assets to an existing profile one at a time:
 
-```bash
+```shell
 nd profile add-asset work skills/new-skill
 nd profile add-asset work commands/deploy-staging
 ```
 
-## Listing Profiles
+## List profiles
 
-```bash
+```shell
 nd profile list
 ```
 
 The active profile is marked with `*`.
 
-## Deploying a Profile
+## Deploy a profile
 
 Deploy all assets from a profile:
 
-```bash
+```shell
 nd profile deploy work
 ```
 
@@ -59,15 +59,15 @@ This resolves each asset reference from your registered sources and creates syml
 
 Preview first:
 
-```bash
+```shell
 nd profile deploy work --dry-run
 ```
 
-## Switching Profiles
+## Switch profiles
 
 Switch from the current active profile to another:
 
-```bash
+```shell
 nd profile switch personal
 ```
 
@@ -78,19 +78,19 @@ This shows a diff preview of what will change:
 
 Before switching, nd automatically saves a snapshot (safety net). After confirming, it removes old profile assets and deploys new ones.
 
-## Deleting Profiles
+## Delete profiles
 
-```bash
+```shell
 nd profile delete work
 ```
 
 This removes the profile definition but does **not** remove any currently deployed assets. Run `nd profile delete` with no arguments to get an interactive picker.
 
-## Pinning Assets
+## Pin assets
 
 **Pinned assets persist across profile switches.** Use this for assets you always want available regardless of which profile is active.
 
-```bash
+```shell
 # Pin an asset
 nd pin skills/greeting
 
@@ -98,29 +98,29 @@ nd pin skills/greeting
 nd unpin skills/greeting
 ```
 
-When switching profiles, nd skips pinned assets entirely -- they are neither removed nor redeployed.
+When switching profiles, nd skips pinned assets entirely: they are neither removed nor redeployed.
 
 ## Snapshots
 
 A **snapshot** is a point-in-time record of all current deployments. Think of it as a bookmark you can return to.
 
-### Save a Snapshot
+### Save a snapshot
 
-```bash
+```shell
 nd snapshot save before-experiment
 ```
 
-### List Snapshots
+### List snapshots
 
-```bash
+```shell
 nd snapshot list
 ```
 
 Both user-created and auto-created snapshots are shown. Auto-snapshots (created before destructive operations) are tagged with `(auto)`.
 
-### Restore a Snapshot
+### Restore a snapshot
 
-```bash
+```shell
 nd snapshot restore before-experiment
 ```
 
@@ -128,21 +128,21 @@ This removes all current deployments and redeploys the snapshot's assets. nd sav
 
 Run `nd snapshot restore` with no arguments to get an interactive picker.
 
-### Delete a Snapshot
+### Delete a snapshot
 
-```bash
+```shell
 nd snapshot delete old-snapshot
 ```
 
-### Auto-Snapshots
+### Auto-snapshots
 
 nd automatically saves snapshots before destructive operations like profile switching and snapshot restoring. The 5 most recent auto-snapshots are retained; older ones are cleaned up.
 
-## Workflow Example
+## Workflow example
 
 Here is a complete workflow using profiles, pinning, and snapshots:
 
-```bash
+```shell
 # Create two profiles
 nd profile create work --assets skills/jira,skills/enterprise-auth,agents/reviewer
 nd profile create personal --assets skills/blog-writer,skills/recipe-helper

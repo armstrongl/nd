@@ -158,8 +158,7 @@ func TestScanContextAssets(t *testing.T) {
 
 	if withMeta == nil {
 		t.Fatal("go-project-rules not found")
-	}
-	if withMeta.Type != nd.AssetContext {
+	} else if withMeta.Type != nd.AssetContext {
 		t.Errorf("type: got %q", withMeta.Type)
 	}
 	if withMeta.ContextFile == nil {
@@ -180,12 +179,13 @@ func TestScanContextAssets(t *testing.T) {
 
 	if withoutMeta == nil {
 		t.Fatal("web-frontend not found")
-	}
-	if withoutMeta.Meta != nil {
-		t.Error("Meta should be nil for asset without _meta.yaml")
-	}
-	if withoutMeta.ContextFile == nil {
-		t.Fatal("ContextFile should still be set")
+	} else {
+		if withoutMeta.Meta != nil {
+			t.Error("Meta should be nil for asset without _meta.yaml")
+		}
+		if withoutMeta.ContextFile == nil {
+			t.Fatal("ContextFile should still be set")
+		}
 	}
 }
 

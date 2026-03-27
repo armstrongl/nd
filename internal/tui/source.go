@@ -448,16 +448,16 @@ func (s *sourceScreen) viewList() tea.View {
 		return tea.NewView("  " + NoSources())
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %s\n\n", s.styles.Bold.Render("Sources")))
+	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Sources"))
 	for _, src := range s.sources {
 		loc := src.Path
 		if src.URL != "" {
 			loc = src.URL
 		}
-		b.WriteString(fmt.Sprintf("  %-20s  %s\n",
-			src.ID, s.styles.Subtle.Render(loc)))
+		fmt.Fprintf(&b, "  %-20s  %s\n",
+			src.ID, s.styles.Subtle.Render(loc))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s", s.styles.Subtle.Render("Press esc to go back.")))
+	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
 	return tea.NewView(b.String())
 }
 
@@ -467,10 +467,10 @@ func (s *sourceScreen) formatSyncResult(msg sourceSyncedMsg) string {
 	}
 	var b strings.Builder
 	if msg.synced > 0 {
-		b.WriteString(fmt.Sprintf("%s Synced %d source(s).\n", s.styles.Success.Render(GlyphOK), msg.synced))
+		fmt.Fprintf(&b, "%s Synced %d source(s).\n", s.styles.Success.Render(GlyphOK), msg.synced)
 	}
 	for _, err := range msg.errors {
-		b.WriteString(fmt.Sprintf("  %s %s\n", s.styles.Danger.Render(GlyphBroken), err.Error()))
+		fmt.Fprintf(&b, "  %s %s\n", s.styles.Danger.Render(GlyphBroken), err.Error())
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

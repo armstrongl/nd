@@ -108,8 +108,7 @@ default_scope: project
 	}
 	if pc == nil {
 		t.Fatal("expected non-nil project config")
-	}
-	if pc.DefaultScope == nil || *pc.DefaultScope != nd.ScopeProject {
+	} else if pc.DefaultScope == nil || *pc.DefaultScope != nd.ScopeProject {
 		t.Errorf("scope: got %v", pc.DefaultScope)
 	}
 }
