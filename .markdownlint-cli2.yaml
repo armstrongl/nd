@@ -1,0 +1,67 @@
+# markdownlint configuration for nd documentation.
+# Enforces structural markdown rules. Project-specific style rules
+# (sentence case, shell fences, forbidden words) are in scripts/lint-docs.sh.
+
+config:
+  # Heading style: ATX only (# not underlines)
+  MD003:
+    style: "atx"
+
+  # Unordered list style: consistent dashes
+  MD004:
+    style: "dash"
+
+  # No trailing spaces
+  MD009: true
+
+  # No hard tabs
+  MD010: true
+
+  # No multiple consecutive blank lines
+  MD012: true
+
+  # Line length: disabled (no hard wrapping)
+  MD013: false
+
+  # Blank lines around headings
+  MD022: true
+
+  # Single H1 per file
+  MD025: true
+
+  # Fenced code blocks surrounded by blank lines
+  MD031: true
+
+  # Lists surrounded by blank lines
+  MD032: true
+
+  # Files end with single newline
+  MD047: true
+
+  # No bare URLs (must be in angle brackets or markdown links)
+  MD034: true
+
+  # No duplicate headings in the same file
+  MD024:
+    siblings_only: true
+
+  # Ordered list item prefix: ordered (1. 2. 3.)
+  MD029:
+    style: "ordered"
+
+  # No inline HTML — disabled (we use <!-- comments -->)
+  MD033: false
+
+globs:
+  - "docs/**/*.md"
+  - "README.md"
+  - "CONTRIBUTING.md"
+  - "ARCHITECTURE.md"
+
+ignores:
+  - "docs/reference/**"
+  - "docs/plans/**"
+  - "docs/brainstorms/**"
+  - "docs/ideation/**"
+  - "docs/solutions/**"
+  - "node_modules/**"
