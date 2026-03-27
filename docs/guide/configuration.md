@@ -2,7 +2,7 @@
 
 nd uses YAML configuration files with a layered merging system.
 
-## Config File Locations
+## Config file locations
 
 | Location | Path | Purpose |
 |----------|------|---------|
@@ -12,7 +12,7 @@ nd uses YAML configuration files with a layered merging system.
 
 The global config is created by `nd init`. Project-level config is optional.
 
-## Data Directories
+## Data directories
 
 nd stores all data under `~/.config/nd/`:
 
@@ -26,7 +26,7 @@ nd stores all data under `~/.config/nd/`:
 | `backups/` | Context file conflict backups |
 | `logs/` | Operation log (`operations.log`) |
 
-## Full Annotated Example
+## Full annotated example
 
 ```yaml
 # Schema version (always 1)
@@ -66,7 +66,7 @@ agents:
     project_dir: .claude
 ```
 
-## Config Key Reference
+## Config key reference
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -86,18 +86,18 @@ agents:
 | `agents[].global_dir` | string | -- | Agent's global config directory |
 | `agents[].project_dir` | string | -- | Agent's project config directory |
 
-## Config Merging
+## Config merging
 
 nd merges configuration from multiple sources in this order (later overrides earlier):
 
-1. **Built-in defaults** -- Sensible defaults for all settings
-2. **Global config** -- `~/.config/nd/config.yaml`
-3. **Project config** -- `.nd/config.yaml` (if present)
-4. **CLI flags** -- `--scope`, `--config`, etc.
+1. **Built-in defaults:** Sensible defaults for all settings
+2. **Global config:** `~/.config/nd/config.yaml`
+3. **Project config:** `.nd/config.yaml` (if present)
+4. **CLI flags:** `--scope`, `--config`, etc.
 
 For sources, global sources appear first (higher priority), followed by project sources. This means if the same asset exists in both a global and project source, the global source wins.
 
-## Project-Level Config
+## Project-level config
 
 Create `.nd/config.yaml` in your project root to override settings per-project:
 
@@ -115,7 +115,7 @@ Use cases:
 - Add project-specific asset sources
 - Override symlink strategy for a team
 
-## Environment Variables
+## Environment variables
 
 | Variable | Used By | Description |
 |----------|---------|-------------|
@@ -125,17 +125,17 @@ Use cases:
 
 If neither `$EDITOR` nor `$VISUAL` is set, `nd settings edit` falls back to `vi`.
 
-## Editing Config
+## Edit config
 
 Open your config in your default editor:
 
-```bash
+```shell
 nd settings edit
 ```
 
 After editing, validate your config:
 
-```bash
+```shell
 nd doctor
 ```
 

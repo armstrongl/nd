@@ -123,20 +123,20 @@ func (s *statusScreen) View() tea.View {
 	var b strings.Builder
 	for _, t := range types {
 		entries := grouped[t]
-		b.WriteString(fmt.Sprintf("\n  %s (%d)\n", s.styles.Bold.Render(string(t)), len(entries)))
+		fmt.Fprintf(&b, "\n  %s (%d)\n", s.styles.Bold.Render(string(t)), len(entries))
 		for _, e := range entries {
 			glyph := healthGlyph(e.Health)
 			styled := s.styleGlyph(glyph, e.Health)
 			scope := string(e.Deployment.Scope)
-			b.WriteString(fmt.Sprintf("    %s  %-20s  %s  %s\n",
-				styled, e.Deployment.AssetName, s.styles.Subtle.Render(scope), s.styles.Subtle.Render(e.Deployment.SourceID)))
+			fmt.Fprintf(&b, "    %s  %-20s  %s  %s\n",
+				styled, e.Deployment.AssetName, s.styles.Subtle.Render(scope), s.styles.Subtle.Render(e.Deployment.SourceID))
 		}
 	}
 
 	// Summary line.
-	b.WriteString(fmt.Sprintf("\n  %d deployed", len(s.entries)))
+	fmt.Fprintf(&b, "\n  %d deployed", len(s.entries))
 	if s.issues > 0 {
-		b.WriteString(fmt.Sprintf("  %s", s.styles.Danger.Render(fmt.Sprintf("%d issues", s.issues))))
+		fmt.Fprintf(&b, "  %s", s.styles.Danger.Render(fmt.Sprintf("%d issues", s.issues)))
 	}
 	b.WriteString("\n")
 
