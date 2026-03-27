@@ -33,8 +33,7 @@ func TestIndexLookup(t *testing.T) {
 	got := idx.Lookup(asset.Identity{SourceID: "src1", Type: nd.AssetSkill, Name: "review"})
 	if got == nil {
 		t.Fatal("expected to find asset")
-	}
-	if got.Name != "review" {
+	} else if got.Name != "review" {
 		t.Errorf("got name %q", got.Name)
 	}
 

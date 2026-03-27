@@ -404,12 +404,12 @@ func (s *snapshotScreen) viewList() tea.View {
 			s.styles.Subtle.Render("Press esc to go back."))
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %s\n\n", s.styles.Bold.Render("Snapshots")))
+	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Snapshots"))
 	for _, snap := range s.snapshots {
-		b.WriteString(fmt.Sprintf("  %-30s  %s deployments\n",
+		fmt.Fprintf(&b, "  %-30s  %s deployments\n",
 			snap.Name,
-			s.styles.Subtle.Render(fmt.Sprintf("%d", snap.DeploymentCount))))
+			s.styles.Subtle.Render(fmt.Sprintf("%d", snap.DeploymentCount)))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s", s.styles.Subtle.Render("Press esc to go back.")))
+	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
 	return tea.NewView(b.String())
 }
