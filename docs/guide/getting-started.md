@@ -82,7 +82,7 @@ nd deploy skills/greeting commands/hello agents/researcher
 
 Or run `nd deploy` with no arguments to get an interactive picker.
 
-nd created a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source file. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd created a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 ## 6. Verify
 
