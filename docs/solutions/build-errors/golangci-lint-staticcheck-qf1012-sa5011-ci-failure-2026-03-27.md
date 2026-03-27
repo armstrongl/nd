@@ -98,7 +98,7 @@ Files fixed: `internal/tui/main_menu_test.go`, `internal/asset/index_test.go`, `
 
 **1. Git pre-commit hook** — runs golangci-lint before every commit that includes Go files:
 
-```bash
+```shell
 #!/bin/bash
 # .git/hooks/pre-commit
 
@@ -118,7 +118,7 @@ fi
 
 **2. Claude Code PreToolUse hook** — intercepts `git push` commands and gates on clean lint:
 
-```bash
+```shell
 #!/bin/bash
 # .claude/hooks/lint-before-push.sh
 
