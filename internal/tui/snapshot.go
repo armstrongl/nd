@@ -77,7 +77,7 @@ func (s *snapshotScreen) Title() string { return "Snapshots" }
 
 // InputActive returns true only during the snapshot name input.
 func (s *snapshotScreen) InputActive() bool {
-	return s.step == snapshotSaveName
+	return s.step == snapshotMenu || s.step == snapshotSaveName || s.step == snapshotRestoreSelect
 }
 
 func (s *snapshotScreen) Init() tea.Cmd {
@@ -269,6 +269,9 @@ func (s *snapshotScreen) runSave() tea.Cmd {
 		if err != nil {
 			return snapshotSavedMsg{err: err}
 		}
+		if mgr == nil {
+			return snapshotSavedMsg{err: fmt.Errorf("profile manager not available")}
+		}
 		return snapshotSavedMsg{name: name, err: mgr.SaveSnapshot(name)}
 	}
 }
@@ -277,6 +280,7 @@ func (s *snapshotScreen) buildRestoreForm() (tea.Model, tea.Cmd) {
 	s.step = snapshotRestoreSelect
 	s.restoreChoice = ""
 	s.fixing = false
+	s.confirmForm = nil
 
 	if len(s.snapshots) == 0 {
 		s.doneMsg = "No snapshots available."
@@ -308,6 +312,9 @@ func (s *snapshotScreen) updateRestoreSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Phase 1: selecting snapshot.
 	if s.confirmForm == nil {
+		if s.restoreForm == nil {
+			return s, nil
+		}
 		model, cmd := s.restoreForm.Update(msg)
 		if f, ok := model.(*huh.Form); ok {
 			s.restoreForm = f
@@ -362,13 +369,22 @@ func (s *snapshotScreen) runRestore() tea.Cmd {
 		if err != nil {
 			return snapshotRestoredMsg{err: err}
 		}
+		if mgr == nil {
+			return snapshotRestoredMsg{err: fmt.Errorf("profile manager not available")}
+		}
 		eng, err := svc.DeployEngine()
 		if err != nil {
 			return snapshotRestoredMsg{err: err}
 		}
+		if eng == nil {
+			return snapshotRestoredMsg{err: fmt.Errorf("deploy engine not available")}
+		}
 		summary, err := svc.ScanIndex()
 		if err != nil {
 			return snapshotRestoredMsg{err: err}
+		}
+		if summary == nil || summary.Index == nil {
+			return snapshotRestoredMsg{err: fmt.Errorf("no asset index available")}
 		}
 		result, err := mgr.Restore(snapName, eng, summary.Index)
 		return snapshotRestoredMsg{result: result, err: err}

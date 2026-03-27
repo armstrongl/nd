@@ -20,18 +20,16 @@ func TestSettingsScreen_Title(t *testing.T) {
 
 func TestSettingsScreen_InputActive_Menu(t *testing.T) {
 	s := newSettingsScreen(newMockServices(), NewStyles(true), true)
-	// Menu step uses huh Select which is not text input.
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on menu step, want false")
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on menu step, want true (form active)")
 	}
 }
 
 func TestSettingsScreen_InputActive_ScopeSwitch(t *testing.T) {
 	s := newSettingsScreen(newMockServices(), NewStyles(true), true)
 	s.step = settingsSwitchScope
-	// Scope switch uses a huh Select form — not text input.
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on scope switch step, want false")
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on scope switch step, want true (form active)")
 	}
 }
 

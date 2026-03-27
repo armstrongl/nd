@@ -71,7 +71,9 @@ func (s *settingsScreen) buildMenu() {
 }
 
 func (s *settingsScreen) Title() string    { return "Settings" }
-func (s *settingsScreen) InputActive() bool { return false }
+func (s *settingsScreen) InputActive() bool {
+	return s.step == settingsMenu || s.step == settingsSwitchScope
+}
 
 func (s *settingsScreen) Init() tea.Cmd {
 	return s.form.Init()

@@ -29,8 +29,9 @@ func TestSnapshotScreen_InputActive_Save(t *testing.T) {
 
 func TestSnapshotScreen_InputActive_Menu(t *testing.T) {
 	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
-	if s.InputActive() {
-		t.Fatal("InputActive() = true on menu step, want false")
+	s.step = snapshotMenu
+	if !s.InputActive() {
+		t.Fatal("InputActive() = false on menu step, want true (form active)")
 	}
 }
 

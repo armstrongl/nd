@@ -101,7 +101,8 @@ func (s *statusScreen) View() tea.View {
 		return tea.NewView("  Loading...")
 	}
 	if s.err != nil {
-		return tea.NewView(fmt.Sprintf("  Error: %s", s.err))
+		return tea.NewView(fmt.Sprintf("  Error: %s\n\n  %s",
+			s.err, s.styles.Subtle.Render("Press esc to go back.")))
 	}
 	if len(s.entries) == 0 {
 		return tea.NewView("  " + NothingDeployed())

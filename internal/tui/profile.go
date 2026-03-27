@@ -76,7 +76,7 @@ func newProfileScreen(svc Services, styles Styles, isDark bool) *profileScreen {
 func (s *profileScreen) Title() string { return "Profiles" }
 
 func (s *profileScreen) InputActive() bool {
-	return s.step == profileCreateName
+	return s.step == profileMenu || s.step == profileSwitch || s.step == profileCreateName
 }
 
 func (s *profileScreen) Init() tea.Cmd {
@@ -286,13 +286,22 @@ func (s *profileScreen) runSwitch() tea.Cmd {
 		if err != nil {
 			return profileSwitchedMsg{err: err}
 		}
+		if mgr == nil {
+			return profileSwitchedMsg{err: fmt.Errorf("profile manager not available")}
+		}
 		eng, err := svc.DeployEngine()
 		if err != nil {
 			return profileSwitchedMsg{err: err}
 		}
+		if eng == nil {
+			return profileSwitchedMsg{err: fmt.Errorf("deploy engine not available")}
+		}
 		summary, err := svc.ScanIndex()
 		if err != nil {
 			return profileSwitchedMsg{err: err}
+		}
+		if summary == nil || summary.Index == nil {
+			return profileSwitchedMsg{err: fmt.Errorf("no asset index available")}
 		}
 		result, err := mgr.Switch(current, target, eng, summary.Index, svc.GetProjectRoot())
 		return profileSwitchedMsg{result: result, err: err}
