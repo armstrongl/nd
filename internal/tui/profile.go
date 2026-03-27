@@ -370,17 +370,17 @@ func (s *profileScreen) viewList() tea.View {
 		return tea.NewView("  " + NoProfiles())
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %s\n\n", s.styles.Bold.Render("Profiles")))
+	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Profiles"))
 	for _, p := range s.profiles {
 		marker := " "
 		if p.Name == s.active {
 			marker = "*"
 		}
-		b.WriteString(fmt.Sprintf("  %s  %-30s  %s\n",
+		fmt.Fprintf(&b, "  %s  %-30s  %s\n",
 			marker, p.Name,
-			s.styles.Subtle.Render(fmt.Sprintf("%d assets", p.AssetCount))))
+			s.styles.Subtle.Render(fmt.Sprintf("%d assets", p.AssetCount)))
 	}
-	b.WriteString(fmt.Sprintf("\n  %s", s.styles.Subtle.Render("Press esc to go back.")))
+	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
 	return tea.NewView(b.String())
 }
 

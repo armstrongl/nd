@@ -1,39 +1,39 @@
-# Creating Asset Sources
+# Create asset sources
 
 An asset source is a directory (local or git) containing coding agent assets organized by type. This guide explains how to structure your own.
 
-## Directory Convention
+## Directory convention
 
 nd discovers assets by looking for directories named after asset types:
 
 ```
 my-assets/
-+-- skills/
-|   +-- greeting/           # Directory asset
-|   +-- code-review/        # Directory asset
-+-- agents/
-|   +-- researcher.md       # File asset
-+-- commands/
-|   +-- deploy-all.md       # File asset
-+-- output-styles/
-|   +-- concise.md          # File asset
-+-- rules/
-|   +-- no-emojis.md        # File asset
-+-- context/
-|   +-- go-project-rules/   # Folder-per-asset layout
-|   |   +-- CLAUDE.md       # Context file
-|   |   +-- _meta.yaml      # Optional metadata
-|   +-- coding-standards/
-|       +-- CLAUDE.md
-+-- plugins/
-|   +-- my-plugin/          # Directory asset (not symlink-deployed)
-+-- hooks/
-    +-- pre-commit/         # Directory asset
+├── skills/
+│   ├── greeting/           # Directory asset
+│   └── code-review/        # Directory asset
+├── agents/
+│   └── researcher.md       # File asset
+├── commands/
+│   └── deploy-all.md       # File asset
+├── output-styles/
+│   └── concise.md          # File asset
+├── rules/
+│   └── no-emojis.md        # File asset
+├── context/
+│   ├── go-project-rules/   # Folder-per-asset layout
+│   │   ├── CLAUDE.md       # Context file
+│   │   └── _meta.yaml      # Optional metadata
+│   └── coding-standards/
+│       └── CLAUDE.md
+├── plugins/
+│   └── my-plugin/          # Directory asset (not symlink-deployed)
+└── hooks/
+    └── pre-commit/         # Directory asset
 ```
 
 Not every directory needs to be present. nd only discovers assets in directories that exist.
 
-## Asset Types
+## Asset types
 
 | Type | Format | Deployable | Description |
 |------|--------|------------|-------------|
@@ -42,11 +42,11 @@ Not every directory needs to be present. nd only discovers assets in directories
 | `commands` | File | Yes | Custom command definitions |
 | `output-styles` | File | Yes | Output formatting styles (requires manual settings.json registration) |
 | `rules` | File | Yes | Rule files for agent behavior |
-| `context` | Folder-per-asset | Yes | Context files (special deployment rules -- see below) |
+| `context` | Folder-per-asset | Yes | Context files (special deployment rules: see below) |
 | `plugins` | Directory | No | Plugin packages (uses export workflow, not symlinks) |
 | `hooks` | Directory | Yes | Hook definitions (requires manual settings.json registration) |
 
-## Context Files
+## Context files
 
 Context files have special deployment rules:
 
@@ -63,7 +63,7 @@ description: "Project coding standards and conventions"
 tags: ["standards", "conventions"]
 ```
 
-## Manifest File
+## Manifest file
 
 For sources that don't follow the convention-based directory structure, create an `nd-source.yaml` manifest at the source root:
 
@@ -81,11 +81,11 @@ exclude:
 
 When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. Convention-based discovery only happens if no manifest is found.
 
-## Publishing Your Source
+## Publish your source
 
-Sharing your asset source is as simple as pushing to git:
+To share your asset source, push it to git:
 
-```bash
+```shell
 cd my-assets
 git init
 git add .
@@ -96,7 +96,7 @@ git push -u origin main
 
 Others can add it with:
 
-```bash
+```shell
 nd source add you/my-assets
 # or
 nd source add https://github.com/you/my-assets.git
