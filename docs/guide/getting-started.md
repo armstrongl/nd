@@ -1,4 +1,4 @@
-# Getting Started
+# Get started
 
 This guide takes you from zero to your first deployed asset in about 5 minutes.
 
@@ -6,7 +6,7 @@ This guide takes you from zero to your first deployed asset in about 5 minutes.
 
 Choose your preferred method:
 
-```bash
+```shell
 # Homebrew (macOS/Linux)
 brew install --cask armstrongl/tap/nd
 
@@ -19,7 +19,7 @@ git clone https://github.com/armstrongl/nd.git && cd nd && go build -o nd .
 
 Verify the installation:
 
-```bash
+```shell
 nd version
 ```
 
@@ -27,17 +27,17 @@ nd version
 
 Create the nd configuration directory and default config:
 
-```bash
+```shell
 nd init
 ```
 
 This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
 
-## 3. Add Your First Source
+## 3. Add your first source
 
 A **source** is a local directory or git repository containing agent assets organized by type.
 
-```bash
+```shell
 # Local directory
 nd source add ~/my-coding-assets
 
@@ -48,45 +48,47 @@ nd source add owner/repo
 nd source add https://github.com/owner/repo.git
 ```
 
-nd scans the source for assets organized in convention-based directories (`skills/`, `agents/`, `commands/`, etc.). See [Creating Sources](creating-sources.md) for how to structure your own.
+nd scans the source for assets organized in convention-based directories (`skills/`, `agents/`, `commands/`, etc.). See [Creating sources](creating-sources.md) for how to structure your own.
 
-## 4. Browse Available Assets
+## 4. Browse available assets
 
 List all assets discovered from your sources:
 
-```bash
+```shell
 nd list
 ```
 
 Filter by type:
 
-```bash
+```shell
 nd list --type skills
 ```
 
 Assets marked with `*` are already deployed.
 
-## 5. Deploy an Asset
+## 5. Deploy an asset
 
 Deploy an asset by creating a symlink in your agent's config directory:
 
-```bash
+```shell
 nd deploy skills/greeting
 ```
 
 Deploy multiple assets at once:
 
-```bash
+```shell
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
 Or run `nd deploy` with no arguments to get an interactive picker.
 
+nd created a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source file. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+
 ## 6. Verify
 
 Check that everything is healthy:
 
-```bash
+```shell
 nd status
 ```
 
@@ -94,17 +96,17 @@ You should see your deployed assets with health indicators (checkmarks for healt
 
 For a deeper health check of your entire setup:
 
-```bash
+```shell
 nd doctor
 ```
 
-## 7. Optional Setup
+## 7. Optional setup
 
-### Shell Completions
+### Shell completions
 
 Enable tab-completion for your shell:
 
-```bash
+```shell
 # Bash
 nd completion bash --install
 
@@ -117,23 +119,23 @@ nd completion fish --install
 
 For zsh, you may need to add this to your `~/.zshrc` if not already present:
 
-```bash
+```shell
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
 ```
 
-### Edit Configuration
+### Edit configuration
 
 Open your config file in your default editor:
 
-```bash
+```shell
 nd settings edit
 ```
 
-## Next Steps
+## Next steps
 
-- **[User Guide](user-guide.md)** -- Learn about managing sources, scopes, syncing, and more
-- **[Profiles & Snapshots](profiles-and-snapshots.md)** -- Group assets into profiles and switch between them
-- **[Configuration](configuration.md)** -- Customize nd behavior
-- **[Creating Sources](creating-sources.md)** -- Build and share your own asset libraries
-- **TUI Dashboard** -- Coming soon (under redesign)
+- **[How nd works](how-nd-works.md):** What happens on disk when you deploy
+- **[User guide](user-guide.md):** Learn about managing sources, scopes, syncing, and more
+- **[Profiles & snapshots](profiles-and-snapshots.md):** Group assets into profiles and switch between them
+- **[Configuration](configuration.md):** Customize nd behavior
+- **[Creating sources](creating-sources.md):** Build and share your own asset libraries
