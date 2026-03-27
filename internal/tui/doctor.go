@@ -215,15 +215,15 @@ func (d *doctorScreen) runSync() tea.Cmd {
 func (d *doctorScreen) viewConfirm() tea.View {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("  %s %d issue(s) found:\n\n",
-		d.styles.Warning.Render(GlyphBroken), len(d.issues)))
+	fmt.Fprintf(&b, "  %s %d issue(s) found:\n\n",
+		d.styles.Warning.Render(GlyphBroken), len(d.issues))
 
 	for _, issue := range d.issues {
 		glyph := healthGlyph(issue.Status)
 		styled := styleGlyphWith(d.styles, glyph, issue.Status)
-		b.WriteString(fmt.Sprintf("    %s  %-20s  %s\n",
+		fmt.Fprintf(&b, "    %s  %-20s  %s\n",
 			styled, issue.Deployment.AssetName,
-			d.styles.Subtle.Render(issue.Detail)))
+			d.styles.Subtle.Render(issue.Detail))
 	}
 
 	if d.confirmForm != nil {
@@ -254,27 +254,27 @@ func (d *doctorScreen) viewDone() tea.View {
 	removed := len(d.syncResult.Removed)
 	warnings := d.syncResult.Warnings
 
-	b.WriteString(fmt.Sprintf("  %s Fixes applied:\n\n",
-		d.styles.Success.Render(GlyphOK)))
+	fmt.Fprintf(&b, "  %s Fixes applied:\n\n",
+		d.styles.Success.Render(GlyphOK))
 
 	if repaired > 0 {
-		b.WriteString(fmt.Sprintf("  %s Repaired: %d\n",
-			d.styles.Success.Render(GlyphArrow), repaired))
+		fmt.Fprintf(&b, "  %s Repaired: %d\n",
+			d.styles.Success.Render(GlyphArrow), repaired)
 	}
 	if removed > 0 {
-		b.WriteString(fmt.Sprintf("  %s Removed:  %d\n",
-			d.styles.Warning.Render(GlyphArrow), removed))
+		fmt.Fprintf(&b, "  %s Removed:  %d\n",
+			d.styles.Warning.Render(GlyphArrow), removed)
 	}
 	if repaired == 0 && removed == 0 {
 		b.WriteString("  No changes made.\n")
 	}
 
 	for _, w := range warnings {
-		b.WriteString(fmt.Sprintf("  %s %s\n",
-			d.styles.Warning.Render("!"), w))
+		fmt.Fprintf(&b, "  %s %s\n",
+			d.styles.Warning.Render("!"), w)
 	}
 
-	b.WriteString(fmt.Sprintf("\n  %s", d.styles.Subtle.Render("Press enter to return.")))
+	fmt.Fprintf(&b, "\n  %s", d.styles.Subtle.Render("Press enter to return."))
 
 	return tea.NewView(b.String())
 }

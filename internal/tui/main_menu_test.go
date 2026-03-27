@@ -151,9 +151,6 @@ func TestMainMenu_DarkAndLightModes(t *testing.T) {
 	for _, isDark := range []bool{true, false} {
 		s := NewStyles(isDark)
 		m := newMainMenuScreen(newMockServices(), s, isDark)
-		if m == nil {
-			t.Fatalf("newMainMenuScreen(_, %v) returned nil", isDark)
-		}
 		if m.isDark != isDark {
 			t.Fatalf("isDark = %v, want %v", m.isDark, isDark)
 		}

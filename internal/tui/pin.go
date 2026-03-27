@@ -293,17 +293,17 @@ func (s *pinScreen) viewDone() tea.View {
 			s.styles.Subtle.Render("Press esc to go back.")))
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %s Changes applied:\n\n", s.styles.Success.Render(GlyphOK)))
+	fmt.Fprintf(&b, "  %s Changes applied:\n\n", s.styles.Success.Render(GlyphOK))
 	if s.pinned > 0 {
-		b.WriteString(fmt.Sprintf("  %s Pinned:   %d\n", s.styles.Primary.Render(GlyphArrow), s.pinned))
+		fmt.Fprintf(&b, "  %s Pinned:   %d\n", s.styles.Primary.Render(GlyphArrow), s.pinned)
 	}
 	if s.unpinned > 0 {
-		b.WriteString(fmt.Sprintf("  %s Unpinned: %d\n", s.styles.Subtle.Render(GlyphArrow), s.unpinned))
+		fmt.Fprintf(&b, "  %s Unpinned: %d\n", s.styles.Subtle.Render(GlyphArrow), s.unpinned)
 	}
 	if s.pinned == 0 && s.unpinned == 0 {
 		b.WriteString("  No changes made.\n")
 	}
-	b.WriteString(fmt.Sprintf("\n  %s", s.styles.Subtle.Render("Press enter to return.")))
+	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press enter to return."))
 	return tea.NewView(b.String())
 }
 
