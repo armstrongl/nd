@@ -63,5 +63,7 @@ ignores:
   - "docs/plans/**"
   - "docs/brainstorms/**"
   - "docs/ideation/**"
+  # Solutions are auto-generated learning artifacts with code-heavy formatting
+  # that doesn't need structural linting (e.g., long code blocks, shell snippets).
   - "docs/solutions/**"
   - "node_modules/**"

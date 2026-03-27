@@ -2,7 +2,7 @@
 # Project-specific documentation style linter for nd.
 # Checks rules that markdownlint cannot enforce.
 # Run: ./scripts/lint-docs.sh [file ...]
-# With no arguments, checks all docs + README.
+# With no arguments, checks docs/guide/ plus root markdown files (README, CONTRIBUTING, ARCHITECTURE).
 
 set -euo pipefail
 
@@ -50,19 +50,17 @@ check_file() {
     fi
   done
 
-  # "just" and "easy/easily" — only flag outside code blocks
-  # (simple grep; code blocks may cause false positives in rare cases)
+  # "just" and "easy/easily" — only flag outside fenced code blocks
   for word in "just" "easy" "easily" "simple"; do
-    if grep -inw "$word" "$file" | grep -v '^\s*#' | grep -v '```' >/dev/null 2>&1; then
-      while IFS= read -r match; do
-        # Skip lines inside code fences (heuristic: indented 4+ spaces or starts with common code chars)
-        if echo "$match" | grep -qE '^\s{4,}|^\s*`|^\s*\$|^\s*#|^\s*//' 2>/dev/null; then
-          continue
-        fi
-        echo -e "${YELLOW}warning${NC}: $file:$match: likely forbidden word '$word' (verify not in code)"
-        warnings=$((warnings + 1))
-      done < <(grep -inw "$word" "$file")
-    fi
+    while IFS= read -r match; do
+      echo -e "${YELLOW}warning${NC}: $file:$match: likely forbidden word '$word' (verify not in code)"
+      warnings=$((warnings + 1))
+    done < <(awk -v w="$word" '
+      BEGIN { fence=0; IGNORECASE=1 }
+      /^```/ { fence=!fence; next }
+      fence { next }
+      { for(i=1;i<=NF;i++) { gsub(/[^a-zA-Z]/, "", $i); if(tolower($i)==w) { print NR": "$0; next } } }
+    ' "$file")
   done
 
   # 3. Old-style tree notation (+-- or | ) — skip lines inside fenced code blocks
@@ -93,14 +91,15 @@ check_file() {
     done < <(grep -nE '^#{2,} ' "$file")
   fi
 
-  # 5. Em-dash separators in list items (- **Term** -- description)
-  # Only flag -- surrounded by spaces in non-code lines
-  if grep -nE '^\s*-.*\s--\s' "$file" | grep -v '```' | grep -v '^\s*#' >/dev/null 2>&1; then
-    while IFS= read -r match; do
-      echo -e "${YELLOW}warning${NC}: $file:$match: use ':' separator instead of '--'"
-      warnings=$((warnings + 1))
-    done < <(grep -nE '^\s*-.*\s--\s' "$file" | grep -v '```')
-  fi
+  # 5. Em-dash separators in list items (- **Term** -- description) — skip fenced code blocks
+  while IFS= read -r match; do
+    echo -e "${YELLOW}warning${NC}: $file:$match: use ':' separator instead of '--'"
+    warnings=$((warnings + 1))
+  done < <(awk '
+    /^```/ { fence=!fence; next }
+    fence { next }
+    /^[[:space:]]*-.*[[:space:]]--[[:space:]]/ { print NR": "$0 }
+  ' "$file")
 
   errors=$((errors + file_errors))
 }
