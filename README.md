@@ -7,6 +7,9 @@
 
 Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code with symlink-based deployment.
 
+<img width="890" height="676" alt="CleanShot 2026-03-27 at 20 18 18@2x" src="https://github.com/user-attachments/assets/026301f2-b208-436c-b446-806d72f119a5" />
+
+
 ## What it does
 
 - **Register sources:** Point nd at local directories or git repos containing agent assets
