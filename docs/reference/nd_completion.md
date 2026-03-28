@@ -1,18 +1,22 @@
 ---
-title: "nd profile list"
-weight: 180
+title: "nd completion"
+weight: 20
 ---
 
-List all profiles
+Generate shell completion scripts
 
-```
-nd profile list [flags]
-```
+## Synopsis
+
+Generate shell completion scripts for nd.
+
+Available shells: bash, zsh, fish
+
+Run "nd completion <shell> --help" for shell-specific instructions.
 
 ## Options
 
 ```
-  -h, --help   help for list
+  -h, --help   help for completion
 ```
 
 ## Options inherited from parent commands
@@ -30,4 +34,7 @@ nd profile list [flags]
 
 ## SEE ALSO
 
-- [nd profile](nd_profile.md) - Manage deployment profiles
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd completion bash](nd_completion_bash.md) - Generate bash completion script
+- [nd completion fish](nd_completion_fish.md) - Generate fish completion script
+- [nd completion zsh](nd_completion_zsh.md) - Generate zsh completion script

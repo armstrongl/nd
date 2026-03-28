@@ -1,4 +1,7 @@
-## nd profile deploy
+---
+title: "nd profile deploy"
+weight: 170
+---
 
 Deploy all assets in a profile
 
@@ -6,16 +9,16 @@ Deploy all assets in a profile
 nd profile deploy <name> [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for deploy
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +28,6 @@ nd profile deploy <name> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 - [nd profile](nd_profile.md) - Manage deployment profiles

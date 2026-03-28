@@ -1,8 +1,11 @@
-## nd export marketplace
+---
+title: "nd export marketplace"
+weight: 90
+---
 
 Generate a Claude Code marketplace from exported plugins
 
-### Synopsis
+## Synopsis
 
 Generate a marketplace directory structure from one or more previously exported plugins.
 
@@ -12,7 +15,7 @@ Each --plugins path must point to a directory containing a .claude-plugin/plugin
 nd export marketplace [flags]
 ```
 
-### Options
+## Options
 
 ```
       --description string   marketplace description
@@ -25,10 +28,10 @@ nd export marketplace [flags]
       --plugins strings      paths to exported plugin directories
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -38,6 +41,6 @@ nd export marketplace [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 - [nd export](nd_export.md) - Export assets as a Claude Code plugin

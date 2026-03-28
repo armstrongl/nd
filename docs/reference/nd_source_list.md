@@ -1,4 +1,7 @@
-## nd source list
+---
+title: "nd source list"
+weight: 300
+---
 
 List registered sources
 
@@ -6,16 +9,16 @@ List registered sources
 nd source list [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for list
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +28,6 @@ nd source list [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 - [nd source](nd_source.md) - Manage asset sources

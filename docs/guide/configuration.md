@@ -3,6 +3,7 @@ title: "Configuration"
 description: "Load when modifying config loading, merging, validation, or debugging config file issues."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 40
 paths:
   - "internal/config/**"
   - "cmd/settings.go"

@@ -1,18 +1,34 @@
 ---
-title: "nd source"
-weight: 280
+title: "nd completion zsh"
+weight: 50
 ---
 
-Manage asset sources
+Generate zsh completion script
 
 ## Synopsis
 
-Add, remove, and list asset source directories.
+Generate zsh completion script for nd.
+
+To install completions:
+  nd completion zsh --install
+
+Or manually:
+  nd completion zsh > ~/.zfunc/_nd
+
+Then add to ~/.zshrc (if not already present):
+  fpath+=~/.zfunc
+  autoload -Uz compinit && compinit
+
+```
+nd completion zsh [flags]
+```
 
 ## Options
 
 ```
-  -h, --help   help for source
+  -h, --help                 help for zsh
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -30,7 +46,4 @@ Add, remove, and list asset source directories.
 
 ## SEE ALSO
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
-- [nd source add](nd_source_add.md) - Register a new asset source
-- [nd source list](nd_source_list.md) - List registered sources
-- [nd source remove](nd_source_remove.md) - Remove a registered source
+- [nd completion](nd_completion.md) - Generate shell completion scripts

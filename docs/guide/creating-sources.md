@@ -3,6 +3,7 @@ title: "Create asset sources"
 description: "Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 50
 paths:
   - "internal/sourcemanager/**"
   - "internal/asset/**"

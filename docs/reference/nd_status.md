@@ -1,4 +1,7 @@
-## nd status
+---
+title: "nd status"
+weight: 320
+---
 
 Show deployment status and health
 
@@ -6,16 +9,16 @@ Show deployment status and health
 nd status [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for status
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +28,6 @@ nd status [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 - [nd](nd.md) - Napoleon Dynamite — coding agent asset manager

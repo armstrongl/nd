@@ -3,6 +3,7 @@ title: "User guide"
 description: "Load when modifying CLI commands, interactive pickers, JSON output, scripting flags, or sync/doctor workflows."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 30
 paths:
   - "cmd/**"
 tags:

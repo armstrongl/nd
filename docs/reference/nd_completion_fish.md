@@ -1,18 +1,30 @@
 ---
-title: "nd profile list"
-weight: 180
+title: "nd completion fish"
+weight: 40
 ---
 
-List all profiles
+Generate fish completion script
+
+## Synopsis
+
+Generate fish completion script for nd.
+
+To install completions:
+  nd completion fish --install
+
+Or manually:
+  nd completion fish > ~/.config/fish/completions/nd.fish
 
 ```
-nd profile list [flags]
+nd completion fish [flags]
 ```
 
 ## Options
 
 ```
-  -h, --help   help for list
+  -h, --help                 help for fish
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -30,4 +42,4 @@ nd profile list [flags]
 
 ## SEE ALSO
 
-- [nd profile](nd_profile.md) - Manage deployment profiles
+- [nd completion](nd_completion.md) - Generate shell completion scripts

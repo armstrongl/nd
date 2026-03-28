@@ -3,6 +3,7 @@ title: "Profiles and snapshots"
 description: "Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 60
 paths:
   - "internal/profile/**"
   - "cmd/profile.go"
