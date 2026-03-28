@@ -10,6 +10,15 @@ permissions:
   contents: read
 
 jobs:
+  lint-markdown:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rvben/rumdl@v0
+        with:
+          report-type: annotations
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

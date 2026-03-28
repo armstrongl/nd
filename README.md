@@ -1,9 +1,11 @@
 # nd
 
+<!-- rumdl-disable MD044 -->
 [![CI](https://github.com/armstrongl/nd/actions/workflows/ci.yml/badge.svg)](https://github.com/armstrongl/nd/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/github/go-mod-go-version/armstrongl/nd)](https://go.dev/)
+[![Go](https://img.shields.io/github/go-mod/go-version/armstrongl/nd)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/armstrongl/nd)](https://github.com/armstrongl/nd/releases)
+<!-- rumdl-enable MD044 -->
 
 Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code with symlink-based deployment.
 

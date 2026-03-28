@@ -27,5 +27,4 @@ nd settings edit [flags]
 
 ### SEE ALSO
 
-* [nd settings](nd_settings.md)	 - Manage nd settings
-
+- [nd settings](nd_settings.md) - Manage nd settings

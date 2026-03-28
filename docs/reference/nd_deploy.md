@@ -7,8 +7,9 @@ Deploy assets by creating symlinks
 Deploy one or more assets by creating symlinks from source to agent config.
 
 Asset references can be:
-  name           Search all types for matching name
-  type/name      Search specific type (e.g., skills/greeting)
+
+- `name`: Search all types for a matching name.
+- `type/name`: Search a specific type (for example, `skills/greeting`).
 
 ```
 nd deploy <asset> [assets...] [flags]
@@ -38,5 +39,4 @@ nd deploy <asset> [assets...] [flags]
 
 ### SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
-
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager

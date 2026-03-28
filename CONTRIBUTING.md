@@ -9,17 +9,20 @@ Thank you for considering contributing to nd! This guide will help you get start
 - [golangci-lint](https://golangci-lint.run/) v2: `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`
 - [gofumpt](https://github.com/mvdan/gofumpt): `go install mvdan.cc/gofumpt@latest`
 
-## Getting Started
+## Getting started
 
 ```shell
 git clone https://github.com/armstrongl/nd.git
 cd nd
+git config core.hooksPath .githooks
 go test ./...
 go build -o nd .
 ./nd version
 ```
 
-## Development Workflow
+The `core.hooksPath` line enables the pre-commit hook that auto-fixes Markdown lint issues on commit.
+
+## Development workflow
 
 1. Create a branch from `main`
 2. Write tests first (TDD -- red/green/refactor)
@@ -51,7 +54,7 @@ go tool cover -html=coverage.out
 
 **Coverage expectations:** 80%+ for business logic packages (`internal/`). Lower coverage is acceptable for CLI (`cmd/`) and TUI (`internal/tui/`) due to interactive code paths.
 
-## Adding a New CLI Command
+## Adding a new CLI command
 
 1. Create `cmd/foo.go` with a `func newFooCmd(app *App) *cobra.Command` function
 2. Create `cmd/foo_test.go` with tests (write tests first)
@@ -60,13 +63,14 @@ go tool cover -html=coverage.out
 5. Add shell completion if the command takes arguments
 6. Regenerate command reference: `go run ./cmd/gendocs/`
 
-## Code Style
+## Code style
 
-- **Formatter:** gofumpt (strict superset of gofmt)
-- **Linter:** golangci-lint v2 with default configuration
+- **Go formatter:** gofumpt (strict superset of gofmt)
+- **Go linter:** golangci-lint v2 with default configuration
+- **Markdown linter:** [rumdl](https://github.com/rvben/rumdl) with `.rumdl.toml` configuration
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) required
 
-## Commit Messages
+## Commit messages
 
 Format: `type(scope): description`
 
@@ -81,7 +85,7 @@ Examples:
 - `docs: update getting started guide`
 - `ci: add coverage upload to CI workflow`
 
-## Pull Requests
+## Pull requests
 
 - One feature or fix per PR
 - Tests required for all code changes
@@ -89,6 +93,6 @@ Examples:
 - Reference the issue number if applicable
 - Keep PRs focused and reviewable
 
-## Project Structure
+## Project structure
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed overview of the codebase structure, package responsibilities, and key patterns.
