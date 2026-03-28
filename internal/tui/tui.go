@@ -72,11 +72,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, nil
+		return m, m.screenSizeCmd()
 
 	case NavigateMsg:
 		m.screens = append(m.screens, msg.Screen)
-		return m, msg.Screen.Init()
+		return m, tea.Batch(msg.Screen.Init(), m.screenSizeCmd())
 
 	case BackMsg:
 		if len(m.screens) <= 1 {
@@ -85,14 +85,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		n := len(m.screens)
 		m.screens[n-1] = nil // release for GC
 		m.screens = m.screens[:n-1]
-		return m, nil
+		return m, m.screenSizeCmd()
 
 	case PopToRootMsg:
 		for i := 1; i < len(m.screens); i++ {
 			m.screens[i] = nil // release for GC
 		}
 		m.screens = m.screens[:1]
-		return m, nil
+		return m, m.screenSizeCmd()
 
 	case RefreshHeaderMsg:
 		m.header = m.header.Refresh(m.svc)
@@ -122,7 +122,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				n := len(m.screens)
 				m.screens[n-1] = nil // release for GC
 				m.screens = m.screens[:n-1]
-				return m, nil
+				return m, m.screenSizeCmd()
 			}
 		}
 	}
@@ -137,6 +137,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+// chromeHeight is the number of lines consumed by the root model's chrome:
+// 1 header + 1 blank separator + 1 blank separator + 1 help bar = 4.
+// This must stay in sync with the layout in View().
+const chromeHeight = 4
+
+// screenSizeCmd returns a command that sends a ScreenSizeMsg with the
+// computed content area dimensions to the active screen.
+func (m Model) screenSizeCmd() tea.Cmd {
+	w, h := m.width, m.height-chromeHeight
+	if h < 0 {
+		h = 0
+	}
+	return func() tea.Msg {
+		return ScreenSizeMsg{Width: w, Height: h}
+	}
 }
 
 // View composes header, current screen content, and help bar vertically.

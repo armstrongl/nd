@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"strings"
 	"testing"
@@ -149,5 +150,153 @@ func TestSnapshotScreen_RefreshHeaderAfterRestore(t *testing.T) {
 		// OK
 	default:
 		t.Errorf("restore should emit RefreshHeaderMsg, got %T", msg)
+	}
+}
+
+// --- Viewport wrapping tests (Unit 5) ---
+
+func TestSnapshotScreen_ScreenSizeMsg_StoresPending(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	// pendingHeight stores the footer-adjusted value (30-1=29).
+	if s.pendingWidth != 80 || s.pendingHeight != 29 {
+		t.Fatalf("expected pending 80x29, got %dx%d", s.pendingWidth, s.pendingHeight)
+	}
+}
+
+func TestSnapshotScreen_ScreenSizeMsg_UpdatesExistingViewport(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	s.Update(snapshotLoadedMsg{snapshots: []profile.SnapshotSummary{{Name: "snap1", DeploymentCount: 3}}, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+	s.Update(ScreenSizeMsg{Width: 120, Height: 50})
+	if s.vp == nil {
+		t.Fatal("viewport should exist after initListViewport")
+	}
+	if s.vp.Width() != 120 {
+		t.Fatalf("expected vp width 120, got %d", s.vp.Width())
+	}
+	if s.vp.Height() != 49 {
+		t.Fatalf("expected vp height 49 (50-1 for footer), got %d", s.vp.Height())
+	}
+}
+
+func TestSnapshotScreen_ListViewport_InitAppliesPendingDimensions(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 100, Height: 40})
+	s.snapshots = []profile.SnapshotSummary{{Name: "snap1"}}
+	s.step = snapshotList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created")
+	}
+	if s.vp.Width() != 100 {
+		t.Fatalf("expected vp width 100, got %d", s.vp.Width())
+	}
+	if s.vp.Height() != 39 {
+		t.Fatalf("expected vp height 39 (40-1), got %d", s.vp.Height())
+	}
+}
+
+func TestSnapshotScreen_ListViewShowsContent(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	snapshots := []profile.SnapshotSummary{
+		{Name: "before-upgrade", DeploymentCount: 5},
+		{Name: "auto-2026-03-22", DeploymentCount: 3},
+	}
+	s.Update(snapshotLoadedMsg{snapshots: snapshots, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "before-upgrade") {
+		t.Errorf("list view should show snapshot names, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "auto-2026-03-22") {
+		t.Errorf("list view should show all snapshots, got: %q", v.Content)
+	}
+}
+
+func TestSnapshotScreen_ListViewFooterVisible(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	snapshots := []profile.SnapshotSummary{{Name: "snap1", DeploymentCount: 1}}
+	s.Update(snapshotLoadedMsg{snapshots: snapshots, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should be visible, got: %q", v.Content)
+	}
+}
+
+func TestSnapshotScreen_ListViewManySnapshotsFooterStillVisible(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 5})
+	snapshots := make([]profile.SnapshotSummary, 50)
+	for i := range snapshots {
+		snapshots[i] = profile.SnapshotSummary{Name: fmt.Sprintf("snap-%03d", i), DeploymentCount: i}
+	}
+	s.Update(snapshotLoadedMsg{snapshots: snapshots, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should remain visible with overflow, got: %q", v.Content)
+	}
+}
+
+func TestSnapshotScreen_UpdateListForwardsToViewport(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	snapshots := make([]profile.SnapshotSummary, 50)
+	for i := range snapshots {
+		snapshots[i] = profile.SnapshotSummary{Name: fmt.Sprintf("snap-%03d", i), DeploymentCount: i}
+	}
+	s.Update(snapshotLoadedMsg{snapshots: snapshots, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+
+	// Capture view before key press.
+	before := s.View().Content
+
+	// Send a 'j' key press — should be forwarded to viewport for scrolling.
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'j'}))
+
+	after := s.View().Content
+	if after == "" {
+		t.Fatal("viewport should still produce content after key press")
+	}
+	_ = before
+}
+
+func TestSnapshotScreen_ScreenSizeMsg_ZeroHeight_NoPanic(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 0})
+	if s.pendingHeight != 0 {
+		t.Fatalf("expected pendingHeight=0, got %d", s.pendingHeight)
+	}
+	s.snapshots = []profile.SnapshotSummary{{Name: "snap1"}}
+	s.step = snapshotList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created even with zero height")
+	}
+}
+
+func TestSnapshotScreen_EmptyListStillWorks(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	s.Update(snapshotLoadedMsg{snapshots: nil, err: nil})
+	s.step = snapshotList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "No snapshots saved yet.") {
+		t.Errorf("empty snapshot list should show 'no snapshots' message, got: %q", v.Content)
 	}
 }

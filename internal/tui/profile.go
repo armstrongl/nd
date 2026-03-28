@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/profile"
@@ -21,26 +22,22 @@ const (
 	profileDone
 )
 
-// profileLoadedMsg carries the initial profile list and active profile.
 type profileLoadedMsg struct {
 	profiles []profile.ProfileSummary
 	active   string
 	err      error
 }
 
-// profileSwitchedMsg carries the result of a profile switch.
 type profileSwitchedMsg struct {
 	result *profile.SwitchResult
 	err    error
 }
 
-// profileCreatedMsg carries the result of creating a new profile.
 type profileCreatedMsg struct {
 	name string
 	err  error
 }
 
-// profileScreen provides Switch, Create, and List flows for profiles.
 type profileScreen struct {
 	svc    Services
 	styles Styles
@@ -51,22 +48,22 @@ type profileScreen struct {
 	active   string
 	err      error
 
-	// menu
 	menuForm   *huh.Form
 	menuChoice string
 	navigated  bool
 
-	// switch
 	switchForm   *huh.Form
 	switchChoice string
 	switching    bool
 
-	// create
 	createForm *huh.Form
 	createName string
 
-	// done
 	doneMsg string
+
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
 }
 
 func newProfileScreen(svc Services, styles Styles, isDark bool) *profileScreen {
@@ -100,6 +97,20 @@ func (s *profileScreen) Init() tea.Cmd {
 
 func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		// Reserve 1 line for the footer hint rendered outside the viewport.
+		h := msg.Height
+		if h > 0 {
+			h--
+		}
+		if s.vp != nil {
+			s.vp.SetWidth(msg.Width)
+			s.vp.SetHeight(h)
+		} else {
+			s.pendingWidth = msg.Width
+			s.pendingHeight = h
+		}
+		return s, nil
 	case profileLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -109,7 +120,6 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.profiles = msg.profiles
 		s.active = msg.active
 		return s.buildMenu()
-
 	case profileSwitchedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -122,7 +132,6 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.step = profileDone
 		return s, func() tea.Msg { return RefreshHeaderMsg{} }
-
 	case profileCreatedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -136,6 +145,8 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch s.step {
 	case profileMenu:
 		return s.updateMenu(msg)
+	case profileList:
+		return s.updateList(msg)
 	case profileSwitch:
 		return s.updateSwitchForm(msg)
 	case profileCreateName:
@@ -161,7 +172,7 @@ func (s *profileScreen) View() tea.View {
 			return tea.NewView(s.menuForm.View())
 		}
 	case profileList:
-		return s.viewList()
+		return s.viewListWrapped()
 	case profileSwitch:
 		if s.switchForm != nil {
 			return tea.NewView(s.switchForm.View())
@@ -176,8 +187,6 @@ func (s *profileScreen) View() tea.View {
 	}
 	return tea.NewView("")
 }
-
-// --- Step builders ---
 
 func (s *profileScreen) buildMenu() (tea.Model, tea.Cmd) {
 	s.step = profileMenu
@@ -217,6 +226,7 @@ func (s *profileScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s.buildCreateForm()
 		case "list":
 			s.step = profileList
+			s.initListViewport()
 			return s, nil
 		default:
 			return s, func() tea.Msg { return BackMsg{} }
@@ -232,13 +242,11 @@ func (s *profileScreen) buildSwitchForm() (tea.Model, tea.Cmd) {
 	s.step = profileSwitch
 	s.switchChoice = ""
 	s.switching = false
-
 	if len(s.profiles) == 0 {
 		s.doneMsg = "No profiles to switch to. Create one first."
 		s.step = profileDone
 		return s, nil
 	}
-
 	opts := make([]huh.Option[string], 0, len(s.profiles))
 	for _, p := range s.profiles {
 		label := p.Name
@@ -247,7 +255,6 @@ func (s *profileScreen) buildSwitchForm() (tea.Model, tea.Cmd) {
 		}
 		opts = append(opts, huh.NewOption(label, p.Name))
 	}
-
 	s.switchForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -365,9 +372,9 @@ func (s *profileScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *profileScreen) viewList() tea.View {
+func (s *profileScreen) viewList() string {
 	if len(s.profiles) == 0 {
-		return tea.NewView("  " + NoProfiles())
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Profiles"))
@@ -380,8 +387,36 @@ func (s *profileScreen) viewList() tea.View {
 			marker, p.Name,
 			s.styles.Subtle.Render(fmt.Sprintf("%d assets", p.AssetCount)))
 	}
-	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
-	return tea.NewView(b.String())
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (s *profileScreen) viewListWrapped() tea.View {
+	if len(s.profiles) == 0 {
+		return tea.NewView("  " + NoProfiles())
+	}
+	footer := "\n  " + s.styles.Subtle.Render("Press esc to go back.")
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
+		return tea.NewView(s.vp.View() + footer)
+	}
+	return tea.NewView(s.viewList() + footer)
+}
+
+func (s *profileScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
+		vp, cmd := s.vp.Update(msg)
+		s.vp = &vp
+		return s, cmd
+	}
+	return s, nil
+}
+
+func (s *profileScreen) initListViewport() {
+	vp := viewport.New(
+		viewport.WithWidth(s.pendingWidth),
+		viewport.WithHeight(s.pendingHeight),
+	)
+	s.vp = &vp
+	s.vp.SetContent(s.viewList())
 }
 
 func (s *profileScreen) formatSwitchResult(target string, result *profile.SwitchResult) string {

@@ -533,6 +533,9 @@ func TestDeploy_ScanError_TransitionsToResult(t *testing.T) {
 	if result.err == nil {
 		t.Fatal("err should be set after scan error")
 	}
+	if result.vp == nil {
+		t.Fatal("viewport should be created on scan error path")
+	}
 }
 
 // M6: Empty scan (all deployed) transitions to deployResult
@@ -548,6 +551,165 @@ func TestDeploy_ScanEmpty_TransitionsToResult(t *testing.T) {
 	}
 	if result.info == "" {
 		t.Fatal("info should be set when all assets are deployed")
+	}
+	if result.vp == nil {
+		t.Fatal("viewport should be created on empty scan path")
+	}
+}
+
+// --- Viewport wrapping tests (Unit 4) ---
+
+// Verify that deploy result with many items renders via viewport when given dimensions.
+func TestDeploy_ResultViewport_ManyItems(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+
+	// Set pending dimensions before transitioning to result.
+	ds.pendingWidth = 80
+	ds.pendingHeight = 10
+
+	// Generate many succeeded items to exceed viewport height.
+	var succeeded []deploy.DeployResult
+	for i := 0; i < 30; i++ {
+		succeeded = append(succeeded, deploy.DeployResult{
+			Deployment: state.Deployment{
+				AssetName: fmt.Sprintf("asset-%03d", i),
+				AssetType: nd.AssetSkill,
+			},
+		})
+	}
+
+	msg := deployDoneMsg{succeeded: succeeded}
+	updated, _ := ds.Update(msg)
+	ds = updated.(*deployScreen)
+
+	if ds.vp == nil {
+		t.Fatal("viewport should be initialized after transitioning to result")
+	}
+	if ds.vp.Width() != 80 {
+		t.Fatalf("viewport width = %d, want 80", ds.vp.Width())
+	}
+	if ds.vp.Height() != 10 {
+		t.Fatalf("viewport height = %d, want 10", ds.vp.Height())
+	}
+
+	v := ds.View()
+	if v.Content == "" {
+		t.Fatal("viewport-wrapped result view should not be empty")
+	}
+	// The content should contain at least the first asset.
+	if !strings.Contains(ds.viewResult(), "asset-000") {
+		t.Error("result content should contain first asset")
+	}
+}
+
+// Verify that j/k scroll keys are forwarded to viewport (not consumed as navigation).
+func TestDeploy_ResultViewport_ScrollForwarding(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.pendingWidth = 80
+	ds.pendingHeight = 5
+
+	// Transition to result with enough content to scroll.
+	var succeeded []deploy.DeployResult
+	for i := 0; i < 30; i++ {
+		succeeded = append(succeeded, deploy.DeployResult{
+			Deployment: state.Deployment{
+				AssetName: fmt.Sprintf("asset-%03d", i),
+				AssetType: nd.AssetSkill,
+			},
+		})
+	}
+
+	ds.Update(deployDoneMsg{succeeded: succeeded})
+
+	// Send 'j' key — should be forwarded to viewport, not produce a navigation message.
+	_, cmd := ds.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	// Viewport may return nil or a scroll cmd — either is acceptable.
+	// The key point is no PopToRootMsg or BackMsg.
+	if cmd != nil {
+		msg := cmd()
+		switch msg.(type) {
+		case PopToRootMsg, BackMsg:
+			t.Fatal("j key should not produce navigation messages at result step")
+		}
+	}
+}
+
+// Verify that enter at result step still emits PopToRootMsg even with viewport active.
+func TestDeploy_ResultViewport_EnterStillReturns(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.pendingWidth = 80
+	ds.pendingHeight = 10
+
+	ds.Update(deployDoneMsg{
+		succeeded: []deploy.DeployResult{
+			{Deployment: state.Deployment{AssetName: "a", AssetType: nd.AssetSkill}},
+		},
+	})
+
+	_, cmd := ds.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("enter at result should emit a command even with viewport active")
+	}
+
+	// tea.Batch returns a BatchMsg.
+	msg := cmd()
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg, got %T", msg)
+	}
+
+	var hasPopToRoot bool
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		if _, ok := c().(PopToRootMsg); ok {
+			hasPopToRoot = true
+		}
+	}
+	if !hasPopToRoot {
+		t.Error("enter should emit PopToRootMsg even with viewport active")
+	}
+}
+
+// Verify ScreenSizeMsg updates viewport dimensions after it is created.
+func TestDeploy_ResultViewport_ScreenSizeUpdates(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.pendingWidth = 80
+	ds.pendingHeight = 10
+
+	ds.Update(deployDoneMsg{
+		succeeded: []deploy.DeployResult{
+			{Deployment: state.Deployment{AssetName: "a", AssetType: nd.AssetSkill}},
+		},
+	})
+
+	if ds.vp == nil {
+		t.Fatal("viewport should exist after result transition")
+	}
+
+	// Send a resize.
+	ds.Update(ScreenSizeMsg{Width: 120, Height: 25})
+
+	if ds.vp.Width() != 120 {
+		t.Fatalf("viewport width after resize = %d, want 120", ds.vp.Width())
+	}
+	if ds.vp.Height() != 25 {
+		t.Fatalf("viewport height after resize = %d, want 25", ds.vp.Height())
+	}
+}
+
+// Verify that when no ScreenSizeMsg arrives (width/height 0), View() falls back to raw string.
+func TestDeploy_ResultViewport_FallbackWithoutDimensions(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	// No pending dimensions set — viewport will have 0x0.
+
+	v := ds.View()
+	if v.Content == "" {
+		t.Fatal("View() should fall back to raw string when viewport has zero dimensions")
+	}
+	if !strings.Contains(v.Content, "succeeded") || !strings.Contains(v.Content, "failed") {
+		t.Errorf("fallback view should contain result content; got:\n%s", v.Content)
 	}
 }
 

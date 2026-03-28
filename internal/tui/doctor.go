@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/deploy"
@@ -48,6 +49,15 @@ type doctorScreen struct {
 	// done step
 	syncResult *deploy.SyncResult
 	err        error
+
+	// viewport for scrollable done step (created when entering doctorDone, not at construction).
+	// Doctor confirm is NOT viewport-wrapped — its huh.Confirm form is structurally
+	// incompatible with viewport wrapping. Only viewDoneContent() is wrapped.
+	// Two-phase init: ScreenSizeMsg may arrive before the done step; pending dimensions are stored
+	// and applied when the viewport is created.
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
 }
 
 func newDoctorScreen(svc Services, styles Styles, isDark bool) *doctorScreen {
@@ -80,6 +90,16 @@ func (d *doctorScreen) Init() tea.Cmd {
 // Update handles messages for each step of the doctor flow.
 func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		if d.vp != nil {
+			d.vp.SetWidth(msg.Width)
+			d.vp.SetHeight(msg.Height)
+		} else {
+			d.pendingWidth = msg.Width
+			d.pendingHeight = msg.Height
+		}
+		return d, nil
+
 	case doctorCheckedMsg:
 		return d.handleChecked(msg)
 
@@ -87,6 +107,7 @@ func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.step = doctorDone
 		d.syncResult = msg.result
 		d.err = msg.err
+		d.initViewport()
 		return d, func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -113,7 +134,10 @@ func (d *doctorScreen) View() tea.View {
 		return tea.NewView(fmt.Sprintf("  %s", d.styles.Primary.Render("Applying fixes...")))
 
 	case doctorDone:
-		return d.viewDone()
+		if d.vp != nil && d.vp.Width() > 0 && d.vp.Height() > 0 {
+			return tea.NewView(d.vp.View())
+		}
+		return tea.NewView(d.viewDoneContent())
 	}
 
 	return tea.NewView("")
@@ -125,12 +149,14 @@ func (d *doctorScreen) handleChecked(msg doctorCheckedMsg) (tea.Model, tea.Cmd) 
 	if msg.err != nil {
 		d.err = msg.err
 		d.step = doctorDone
+		d.initViewport()
 		return d, nil
 	}
 
 	if len(msg.issues) == 0 {
 		// All healthy — skip confirm, go straight to done.
 		d.step = doctorDone
+		d.initViewport()
 		return d, nil
 	}
 
@@ -191,6 +217,12 @@ func (d *doctorScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		}
 	}
+	// Forward remaining messages to viewport for scrolling.
+	if d.vp != nil && d.vp.Width() > 0 && d.vp.Height() > 0 {
+		updated, cmd := d.vp.Update(msg)
+		d.vp = &updated
+		return d, cmd
+	}
 	return d, nil
 }
 
@@ -208,6 +240,17 @@ func (d *doctorScreen) runSync() tea.Cmd {
 		result, err := eng.Sync()
 		return doctorSyncedMsg{result: result, err: err}
 	}
+}
+
+// initViewport creates the viewport for the done step, applies any
+// pending dimensions, and sets the initial content.
+func (d *doctorScreen) initViewport() {
+	vp := viewport.New(
+		viewport.WithWidth(d.pendingWidth),
+		viewport.WithHeight(d.pendingHeight),
+	)
+	d.vp = &vp
+	d.vp.SetContent(d.viewDoneContent())
 }
 
 // --- Views ---
@@ -234,19 +277,20 @@ func (d *doctorScreen) viewConfirm() tea.View {
 	return tea.NewView(b.String())
 }
 
-func (d *doctorScreen) viewDone() tea.View {
+// viewDoneContent renders the doctor done results as a string for viewport wrapping.
+func (d *doctorScreen) viewDoneContent() string {
 	if d.err != nil {
-		return tea.NewView(fmt.Sprintf("  %s\n\n  %s\n\n  %s",
+		return fmt.Sprintf("  %s\n\n  %s\n\n  %s",
 			d.styles.Danger.Render("Error"),
 			d.err.Error(),
-			d.styles.Subtle.Render("Press esc to go back.")))
+			d.styles.Subtle.Render("Press esc to go back."))
 	}
 
 	if d.syncResult == nil {
 		// All healthy — no sync was run.
-		return tea.NewView(fmt.Sprintf("  %s All deployments are healthy.\n\n  %s",
+		return fmt.Sprintf("  %s All deployments are healthy.\n\n  %s",
 			d.styles.Success.Render(GlyphOK),
-			d.styles.Subtle.Render("Press enter to return.")))
+			d.styles.Subtle.Render("Press enter to return."))
 	}
 
 	var b strings.Builder
@@ -276,7 +320,7 @@ func (d *doctorScreen) viewDone() tea.View {
 
 	fmt.Fprintf(&b, "\n  %s", d.styles.Subtle.Render("Press enter to return."))
 
-	return tea.NewView(b.String())
+	return b.String()
 }
 
 // styleGlyphWith applies color to a health glyph using the provided Styles.

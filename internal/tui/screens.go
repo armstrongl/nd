@@ -22,3 +22,12 @@ type PopToRootMsg struct{}
 
 // RefreshHeaderMsg re-queries state for header counts.
 type RefreshHeaderMsg struct{}
+
+// ScreenSizeMsg delivers the computed content area dimensions to the active screen.
+// Width is the terminal width. Height is the available content height (terminal
+// height minus header, help bar, and blank-line separators). Sent on push, pop,
+// and terminal resize. See Model.screenSizeCmd() for the height calculation.
+type ScreenSizeMsg struct {
+	Width  int
+	Height int
+}
