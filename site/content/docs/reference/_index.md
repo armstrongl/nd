@@ -62,4 +62,8 @@ Complete reference for every nd command, including flags, options, and usage exa
   {{< card link="nd_settings_edit" title="nd settings edit" subtitle="Open config in editor" >}}
   {{< card link="nd_version" title="nd version" subtitle="Print nd version" >}}
   {{< card link="nd_uninstall" title="nd uninstall" subtitle="Remove all nd symlinks" >}}
+  {{< card link="nd_completion" title="nd completion" subtitle="Generate shell completion scripts" >}}
+  {{< card link="nd_completion_bash" title="nd completion bash" subtitle="Bash completion script" >}}
+  {{< card link="nd_completion_fish" title="nd completion fish" subtitle="Fish completion script" >}}
+  {{< card link="nd_completion_zsh" title="nd completion zsh" subtitle="Zsh completion script" >}}
 {{< /cards >}}
