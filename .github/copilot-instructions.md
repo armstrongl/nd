@@ -48,113 +48,124 @@ tests/integration/   → Integration tests (full CLI exercising real filesystem)
 
 ### Testing patterns
 
-- **Test-driven development** (RED/GREEN workflow)
-- **Standard library `testing` only** — no testify or assertion libraries
-- **`t.Helper()` on all test helpers**
-- **`t.TempDir()` for filesystem isolation** — no shared temp dirs
-- **Table-driven tests** where appropriate, with `t.Run(name, ...)` subtests
-- **Command tests**: Create `cmd.App{}`, build root command via `NewRootCmd(app)`, set args with `rootCmd.SetArgs(...)`, capture output via `rootCmd.SetOut(&buf)`
-- **Integration tests** in `tests/integration/` exercise the real CLI binary and filesystem
-- **Race detection**: CI runs `go test ./... -race`
+- **Standard library `testing` only** — no testify or assertion libraries.
+- **`t.Helper()` on all test helpers**.
+- **`t.TempDir()` for filesystem isolation** — no shared temp dirs.
+- **Table-driven tests** where appropriate, with `t.Run(name, ...)` subtests.
+- **Command tests**: Create `cmd.App{}`, build root command via `NewRootCmd(app)`, set args with `rootCmd.SetArgs(...)`, capture output via `rootCmd.SetOut(&buf)`.
+- **Integration tests** in `tests/integration/` exercise the real CLI binary and filesystem.
+- **Race detection**: CI runs `go test ./... -race`.
 
-### CLI patterns (Cobra)
+### Approved dependencies
 
-- Global flags: `--config`, `--scope` (`-s`), `--dry-run`, `--verbose` (`-v`), `--quiet` (`-q`), `--json`, `--no-color`, `--yes` (`-y`)
-- Commands: deploy, remove, list, status, sync, source (add/remove/list), profile (create/delete/list/switch), snapshot (save/restore/list/delete), doctor, pin, settings, export, init, uninstall, completion, version
-- Running `nd` with no args in a terminal launches the TUI
+Additions need justification. This is the full approved set:
 
-### TUI patterns (Bubble Tea v2)
+- `github.com/spf13/cobra`: CLI framework
+- `gopkg.in/yaml.v3`: YAML parsing
+- `charm.land/bubbletea/v2`, `charm.land/huh/v2`, `charm.land/lipgloss/v2`, `charm.land/bubbles/v2`: TUI stack
+- `golang.org/x/term`: terminal detection
+- `github.com/catppuccin/go`: TUI color palette
 
-- Uses `charm.land/bubbletea/v2`, `charm.land/huh/v2`, `charm.land/lipgloss/v2`
-- Catppuccin-based color palette via `catppuccin/go`
-- Menu-driven wizard-style navigation (not tab-based)
-- All TUI code lives in `internal/tui/` — flat package, no subpackages
-- Input-aware key routing (global keys suppressed when text inputs are focused)
-- Visual minimalism: no borders/chrome, whitespace-driven layout
+### CI pipeline
 
-### Tooling
+CI runs on every PR to `main`. These checks must pass:
 
-- **Linter**: golangci-lint v2 (`.golangci.yaml`)
-- **Formatter**: gofumpt
-- **Releaser**: goreleaser v2 (`.goreleaser.yaml`) — uses `homebrew_casks:` (not deprecated `brews:`)
-- **CI**: GitHub Actions — lint, test (with race detector), build, goreleaser validation
-- **Distribution**: Homebrew cask via `armstrongl/homebrew-tap`, GitHub Releases, `go install`
+1. **golangci-lint v2** (config: `.golangci.yml`): errcheck exclusions for test files, Cobra registration, and syscall.Flock
+2. **`go test ./... -race`**: all tests with race detector
+3. **`go build`**: compilation check
+4. **goreleaser check**: release config validation
 
-### Config file format
+### Commit message format
 
-nd uses YAML config at `~/.config/nd/config.yaml`:
+Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor:`, `docs:`, `ci:`, `test:`, `chore:`.
 
-```yaml
-version: 1
-default_scope: global
-default_agent: claude-code
-symlink_strategy: absolute    # or "relative"
-sources:
-  - id: my-source
-    type: local
-    path: /path/to/source
-agents:
-  - name: claude-code
-    global_dir: ~/.claude
-```
+---
 
-### PR review checklist
+## PR review instructions
 
-When reviewing pull requests, check for these project-specific concerns:
+When reviewing pull requests, apply the following rules. Flag violations as review comments with the appropriate severity.
 
-**Architecture boundaries**
-- Business logic must live in `internal/`, not `cmd/`. Command files in `cmd/` should only parse flags, call services, and format output.
+### Architecture boundaries (block if violated)
+
+- Business logic must live in `internal/`, not `cmd/`. Command files in `cmd/` should only parse flags, call services, and format output. Flag any business logic (conditionals, loops over domain data, validation beyond flag parsing) in `cmd/` files.
 - New packages belong under `internal/`. Nothing should be added to the top-level module API.
 - TUI code stays flat in `internal/tui/` — no subpackages. The `tui.Services` interface is the only coupling point to `cmd.App`.
-- Cross-package dependencies should flow downward: `cmd → internal/*`, `tui → services interface`, `deploy → state + agent + asset + nd`. Circular imports are a hard failure.
+- Cross-package dependencies must flow downward: `cmd → internal/*`, `tui → services interface`, `deploy → state + agent + asset + nd`. Flag any import that creates a cycle or reverses the dependency direction.
 
-**Filesystem safety**
-- All symlink and file operations must go through the `deploy.Engine` (which uses injected OS functions for testability). Direct `os.Symlink`/`os.Remove` calls in new code outside `deploy/` are a red flag.
-- Path traversal: any path derived from user input or config must be validated. Check for `../` escapes. See `PathTraversalError` in `internal/nd/errors.go`.
-- State mutations must use `store.WithLock(fn)` to prevent concurrent corruption. Look for state loads/saves outside a lock scope.
-- Destructive operations (bulk remove, profile switch, uninstall) must create auto-snapshots via `SnapshotSaver` before proceeding (FR-029a).
+### Filesystem safety (block if violated)
 
-**Error handling**
+- All symlink and file operations must go through `deploy.Engine` (which uses injected OS functions for testability). Flag direct `os.Symlink`/`os.Remove`/`os.MkdirAll` calls in new code outside `internal/deploy/`.
+- Path traversal: any path derived from user input or config must be validated. Flag paths that are not checked for `../` escapes. See `PathTraversalError` in `internal/nd/errors.go`.
+- State mutations must use `store.WithLock(fn)` to prevent concurrent corruption. Flag state loads/saves that happen outside a lock scope.
+- Destructive operations (bulk remove, profile switch, uninstall) must create auto-snapshots via `SnapshotSaver` before proceeding (FR-029a). Flag destructive paths without snapshot creation.
+
+### Error handling (block if violated)
+
 - Use domain error types (`ConflictError`, `LockError`, `PathTraversalError`) for actionable errors, `fmt.Errorf("context: %w", err)` for wrapping.
-- Exit codes must follow `internal/nd/exit_codes.go`: 0 success, 1 error, 2 partial failure, 3 invalid usage. Check that commands return the right code for partial-success scenarios (e.g., bulk deploy where some assets fail).
-- Errors should propagate up, not be swallowed. The only exception is `oplog` (best-effort logging that never blocks operations).
+- Exit codes must follow `internal/nd/exit_codes.go`: 0 success, 1 error, 2 partial failure, 3 invalid usage. Flag commands that return the wrong code, especially for partial-success scenarios (e.g., bulk deploy where some assets fail).
+- Errors must propagate up, not be swallowed. The only exception is `oplog` (best-effort logging that never blocks operations). Flag any `_ = err` or empty error handling outside oplog.
 
-**Testing**
-- Every new exported function or method needs tests. Check for missing test files.
-- Tests must use `t.TempDir()` for filesystem isolation — never write to real config dirs or `/tmp` directly.
-- Test helpers must call `t.Helper()`.
-- No external test libraries (testify, gomock, etc.). Standard `testing` package only.
-- Command-level tests should use the `NewRootCmd(app)` + `SetArgs` + `Execute()` pattern (see `cmd/deploy_test.go`).
-- Check that new code doesn't break `go test ./... -race`.
+### Testing (block if missing)
 
-**Symlink deployment correctness**
+- Every new exported function or method needs tests. Flag missing test files or untested exported symbols.
+- Tests must use `t.TempDir()` for filesystem isolation — flag any writes to real config dirs, `/tmp` directly, or hardcoded paths.
+- Test helpers must call `t.Helper()`. Flag helpers without it.
+- No external test libraries (testify, gomock, etc.). Flag any new test dependency.
+- Command-level tests must use the `NewRootCmd(app)` + `SetArgs` + `Execute()` pattern (see `cmd/deploy_test.go` for reference). Flag tests that shell out to the binary for unit-level tests.
+- Flag any change that would break `go test ./... -race` (shared mutable state without synchronization).
+
+### Symlink deployment correctness (block if wrong)
+
 - New asset types must be added to `AllAssetTypes()` and conditionally to `DeployableAssetTypes()` in `internal/nd/asset_type.go`.
-- Directory-based assets (skills, plugins, hooks) vs file-based assets (commands, rules, etc.) — check `IsDirectory()` is correct for new types.
-- Relative vs absolute symlink strategy must be respected. Check `nd.SymlinkStrategy` usage.
-- Deploy/remove results must be logged to oplog via `oplog.Writer`.
+- Directory-based assets (skills, plugins, hooks) vs file-based assets (commands, rules, etc.) — verify `IsDirectory()` is correct for any new types.
+- Relative vs absolute symlink strategy must be respected. Verify `nd.SymlinkStrategy` usage.
+- Deploy/remove results must be logged to oplog via `oplog.Writer`. Flag deploy or remove paths that skip oplog logging.
 
-**CLI conventions**
-- Conventional Commits format: `feat(scope):`, `fix(scope):`, `refactor:`, `docs:`, `ci:`, `test:`.
-- New commands need: the command file, a test file, registration in `root.go`, and `--dry-run`/`--json`/`--yes` support where applicable.
-- Destructive commands must require `--yes` or interactive confirmation. Check for unguarded destructive paths.
-- `--dry-run` must produce output describing what _would_ happen without side effects.
+### CLI conventions (block if wrong)
 
-**TUI consistency**
+- New commands need: the command file in `cmd/`, a corresponding test file, registration in `root.go`, and `--dry-run`/`--json`/`--yes` support where applicable.
+- Destructive commands must require `--yes` or interactive confirmation. Flag any unguarded destructive path (removes, deletes, uninstalls, profile switches).
+- `--dry-run` must produce output describing what _would_ happen without any side effects. Flag dry-run paths that perform mutations.
+- Global flags (`--config`, `--scope`, `--dry-run`, `--verbose`, `--quiet`, `--json`, `--no-color`, `--yes`) are defined in `root.go`. New commands should respect these, not redefine them.
+
+### TUI consistency (suggest if wrong)
+
 - New screens must follow the existing pattern: model struct, `Init`/`Update`/`View` methods, integration with the screen stack in `tui.go`.
-- Colors must come from the Catppuccin theme in `internal/tui/theme.go` — no hardcoded ANSI codes or hex colors.
-- Key bindings must be input-aware (suppressed when text inputs are focused).
-- Empty states must be handled (no panics on nil/empty data).
+- Colors must come from the Catppuccin theme in `internal/tui/theme.go` — flag any hardcoded ANSI codes or hex colors.
+- Key bindings must be input-aware (global keys suppressed when text inputs are focused).
+- Empty states must be handled — flag potential panics on nil/empty data in view rendering.
 
-**Dependencies**
-- New dependencies need justification. This project deliberately keeps deps minimal.
-- Charm libraries (`charm.land/*`) are the approved TUI stack. No competing TUI frameworks.
-- `gopkg.in/yaml.v3` for YAML. No alternative YAML libraries.
-- `github.com/spf13/cobra` for CLI. No alternative CLI frameworks.
+### Dependencies (block if unjustified)
 
-### What NOT to do
+- New direct dependencies require justification. This project deliberately keeps deps minimal.
+- Charm libraries (`charm.land/*`) are the approved TUI stack. Flag competing TUI frameworks.
+- `gopkg.in/yaml.v3` for YAML. Flag alternative YAML libraries.
+- `github.com/spf13/cobra` for CLI. Flag alternative CLI frameworks.
+- Flag any new test-only dependencies (testify, gomock, etc.).
 
-- Don't put business logic in `cmd/` — it belongs in `internal/`
-- Don't export anything from `internal/` packages (Go enforces this, but keep APIs minimal)
-- Don't use `init()` functions — prefer explicit constructors
-- Don't add external test dependencies (testify, gomock) — use standard library
-- Don't use border-heavy UI in TUI — the design system is whitespace-driven
+### Documentation style (suggest if wrong)
+
+All documentation in `docs/` and `README.md` must follow these rules. Flag violations in docs changes:
+
+- **Sentence case headings**: capitalize only the first word and proper nouns (`## Create profiles` not `## Creating Profiles`).
+- **Base verb forms**: use imperative verbs in headings, not gerunds (`## Deploy assets` not `## Deploying Assets`).
+- **`shell` code fences**: use ` ```shell `, never ` ```bash `.
+- **Colon separators**: use `:` between a term and its description in lists, not `--`.
+- **Standard tree notation**: use `├──`, `└──`, `│` for filesystem trees, not `+--` or `|`.
+- **No forbidden words**: never use `simple`, `simply`, `easy`, `easily`, `just`, `obviously`, or `straightforward`.
+- **Asset terminology**: use "source" or "asset", not "file", when describing nd deployments (both files and directories are valid targets).
+- **Agent behavior hedging**: when describing what happens after deploy, use "typically" since pickup timing depends on the agent.
+
+### Security (block if violated)
+
+- No secrets, credentials, or tokens in committed code. Flag any hardcoded paths to user home directories, API keys, or tokens.
+- Git clone URLs from user config must be validated before execution. Flag unvalidated URL usage in `internal/sourcemanager/git.go`.
+- File permissions: assets copied during plugin export must preserve source permissions but not escalate them. Flag any `os.Chmod(0777, ...)` or overly permissive modes.
+- Symlinks must not escape their intended scope boundary. The deploy engine validates this — flag any bypass of scope validation.
+
+### What to approve without comment
+
+- Straightforward dependency updates (patch/minor) in `go.mod`/`go.sum` where CI passes.
+- Purely additive test coverage with no production code changes.
+- Documentation-only changes that pass `scripts/lint-docs.sh` style checks.
+- Refactors within a single `internal/` package that don't change the public API or behavior.
