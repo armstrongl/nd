@@ -2,8 +2,8 @@
 # Pre-commit hook: lint and auto-fix staged Markdown files with rumdl.
 set -euo pipefail
 
-# Get staged .md files, excluding deleted files.
-staged_md=$(git diff --cached --name-only --diff-filter=d -- '*.md') || true
+# Get staged .md files, excluding deleted files (null-delimited for safety).
+staged_md=$(git diff --cached --name-only --diff-filter=d -z -- '*.md') || true
 
 if [ -z "$staged_md" ]; then
   exit 0
@@ -16,14 +16,14 @@ if ! command -v rumdl &>/dev/null; then
   exit 0
 fi
 
-# Auto-fix staged files.
-echo "$staged_md" | xargs rumdl check --fix 2>/dev/null || true
+# Auto-fix staged files (null-delimited for safety).
+git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 rumdl check --fix -- 2>/dev/null || true
 
 # Re-stage fixed files.
-echo "$staged_md" | xargs git add
+git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 git add --
 
 # Final lint — fail if unfixable issues remain.
-if ! echo "$staged_md" | xargs rumdl check; then
+if ! git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 rumdl check --; then
   echo ""
   echo "Markdown lint errors remain after auto-fix. Fix manually or adjust .rumdl.toml."
   exit 1
