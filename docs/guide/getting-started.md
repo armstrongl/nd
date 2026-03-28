@@ -1,3 +1,18 @@
+---
+title: "Get started"
+description: "Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user."
+lastValidated: "2026-03-28"
+maxAgeDays: 90
+paths:
+  - "cmd/init.go"
+  - "cmd/source.go"
+  - "cmd/deploy.go"
+tags:
+  - setup
+  - installation
+  - onboarding
+---
+
 # Get started
 
 This guide takes you from zero to your first deployed asset in about 5 minutes.

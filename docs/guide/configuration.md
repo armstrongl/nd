@@ -1,3 +1,18 @@
+---
+title: "Configuration"
+description: "Load when modifying config loading, merging, validation, or debugging config file issues."
+lastValidated: "2026-03-28"
+maxAgeDays: 90
+paths:
+  - "internal/config/**"
+  - "cmd/settings.go"
+  - "cmd/init.go"
+tags:
+  - config
+  - settings
+  - yaml
+---
+
 # Configuration
 
 nd uses YAML configuration files with a layered merging system.
@@ -111,6 +126,7 @@ sources:
 ```
 
 Use cases:
+
 - Force project scope for a repository
 - Add project-specific asset sources
 - Override symlink strategy for a team

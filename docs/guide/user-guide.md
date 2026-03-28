@@ -1,3 +1,16 @@
+---
+title: "User guide"
+description: "Load when modifying CLI commands, interactive pickers, JSON output, scripting flags, or sync/doctor workflows."
+lastValidated: "2026-03-28"
+maxAgeDays: 90
+paths:
+  - "cmd/**"
+tags:
+  - cli
+  - commands
+  - workflows
+---
+
 # User guide
 
 This guide covers the core workflows for managing assets with nd.
@@ -169,6 +182,7 @@ nd status
 ```
 
 Shows all deployed assets with:
+
 - Health indicators (checkmark = healthy, X = issue)
 - Scope (global or project)
 - Origin (manual, pinned, or profile name)
@@ -220,6 +234,7 @@ nd doctor
 ```
 
 This validates:
+
 1. Config file validity
 2. Source accessibility
 3. Deployment health (broken symlinks, drift)

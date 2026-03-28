@@ -1,3 +1,20 @@
+---
+title: "Profiles and snapshots"
+description: "Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic."
+lastValidated: "2026-03-28"
+maxAgeDays: 90
+paths:
+  - "internal/profile/**"
+  - "cmd/profile.go"
+  - "cmd/snapshot.go"
+  - "cmd/pin.go"
+  - "cmd/unpin.go"
+tags:
+  - profiles
+  - snapshots
+  - pinning
+---
+
 # Profiles & snapshots
 
 Profiles and snapshots help you manage multiple sets of agent assets and switch between them.
@@ -72,6 +89,7 @@ nd profile switch personal
 ```
 
 This shows a diff preview of what will change:
+
 - **Remove:** Assets from the current profile (origin: `profile:<current>`)
 - **Deploy:** Assets from the new profile
 - **Keep:** Pinned and manually deployed assets
