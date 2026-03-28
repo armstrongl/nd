@@ -175,6 +175,9 @@ func TestRemove_DeploymentsLoadedMsg_Error(t *testing.T) {
 	if rm.err.Error() != "disk error" {
 		t.Fatalf("err = %q, want %q", rm.err.Error(), "disk error")
 	}
+	if rm.vp == nil {
+		t.Fatal("viewport should be created on error path")
+	}
 }
 
 func TestRemove_RemoveDoneMsg_AllSucceeded(t *testing.T) {

@@ -101,6 +101,9 @@ func TestDoctorScreen_ErrorView(t *testing.T) {
 	testErr := fmt.Errorf("state file locked")
 	s.Update(doctorCheckedMsg{issues: nil, err: testErr})
 
+	if s.vp == nil {
+		t.Fatal("viewport should be created on check error path")
+	}
 	v := s.View()
 	if !strings.Contains(v.Content, "state file locked") {
 		t.Errorf("error view should show error message, got: %q", v.Content)

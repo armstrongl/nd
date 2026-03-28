@@ -181,8 +181,9 @@ func TestSourceScreen_MenuView_AfterLoad(t *testing.T) {
 func TestSourceScreen_ScreenSizeMsg_StoresPending(t *testing.T) {
 	s := newSourceScreen(newMockServices(), NewStyles(true), true)
 	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
-	if s.pendingWidth != 80 || s.pendingHeight != 30 {
-		t.Fatalf("expected pending 80x30, got %dx%d", s.pendingWidth, s.pendingHeight)
+	// pendingHeight stores the footer-adjusted value (30-1=29).
+	if s.pendingWidth != 80 || s.pendingHeight != 29 {
+		t.Fatalf("expected pending 80x29, got %dx%d", s.pendingWidth, s.pendingHeight)
 	}
 }
 
@@ -220,7 +221,7 @@ func TestSourceScreen_ListViewport_InitAppliesPendingDimensions(t *testing.T) {
 	if s.vp.Width() != 100 {
 		t.Fatalf("expected vp width 100, got %d", s.vp.Width())
 	}
-	// Height = pendingHeight - 1 for footer
+	// pendingHeight already stores the footer-adjusted value (40-1=39).
 	if s.vp.Height() != 39 {
 		t.Fatalf("expected vp height 39 (40-1), got %d", s.vp.Height())
 	}
@@ -303,8 +304,33 @@ func TestSourceScreen_UpdateListForwardsToViewport(t *testing.T) {
 	s.step = sourceList
 	s.initListViewport()
 
-	// Send a 'j' key press — should be forwarded to viewport for scrolling
-	_, cmd := s.Update(tea.KeyPressMsg{Code: 106}) // 'j' = 106
-	// cmd may be nil (viewport returns nil cmd) — the key should not panic
-	_ = cmd
+	// Capture view before key press.
+	before := s.View().Content
+
+	// Send a 'j' key press — should be forwarded to viewport for scrolling.
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'j'}))
+
+	after := s.View().Content
+	// The viewport should have processed the key (view may differ if scrolled).
+	// At minimum, the viewport must still produce content.
+	if after == "" {
+		t.Fatal("viewport should still produce content after key press")
+	}
+	_ = before // used to verify no panic; content may or may not change depending on viewport size
+}
+
+func TestSourceScreen_ScreenSizeMsg_ZeroHeight_NoPanic(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	// ScreenSizeMsg with Height=0 should not cause negative viewport height.
+	s.Update(ScreenSizeMsg{Width: 80, Height: 0})
+	if s.pendingHeight != 0 {
+		t.Fatalf("expected pendingHeight=0, got %d", s.pendingHeight)
+	}
+	// Create viewport with zero height — should not panic.
+	s.sources = []source.Source{{ID: "s1", Path: "/a"}}
+	s.step = sourceList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created even with zero height")
+	}
 }

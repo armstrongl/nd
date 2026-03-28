@@ -158,8 +158,9 @@ func TestSnapshotScreen_RefreshHeaderAfterRestore(t *testing.T) {
 func TestSnapshotScreen_ScreenSizeMsg_StoresPending(t *testing.T) {
 	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
 	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
-	if s.pendingWidth != 80 || s.pendingHeight != 30 {
-		t.Fatalf("expected pending 80x30, got %dx%d", s.pendingWidth, s.pendingHeight)
+	// pendingHeight stores the footer-adjusted value (30-1=29).
+	if s.pendingWidth != 80 || s.pendingHeight != 29 {
+		t.Fatalf("expected pending 80x29, got %dx%d", s.pendingWidth, s.pendingHeight)
 	}
 }
 
@@ -260,8 +261,31 @@ func TestSnapshotScreen_UpdateListForwardsToViewport(t *testing.T) {
 	s.step = snapshotList
 	s.initListViewport()
 
-	_, cmd := s.Update(tea.KeyPressMsg{Code: 106}) // 'j'
-	_ = cmd
+	// Capture view before key press.
+	before := s.View().Content
+
+	// Send a 'j' key press — should be forwarded to viewport for scrolling.
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'j'}))
+
+	after := s.View().Content
+	if after == "" {
+		t.Fatal("viewport should still produce content after key press")
+	}
+	_ = before
+}
+
+func TestSnapshotScreen_ScreenSizeMsg_ZeroHeight_NoPanic(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 0})
+	if s.pendingHeight != 0 {
+		t.Fatalf("expected pendingHeight=0, got %d", s.pendingHeight)
+	}
+	s.snapshots = []profile.SnapshotSummary{{Name: "snap1"}}
+	s.step = snapshotList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created even with zero height")
+	}
 }
 
 func TestSnapshotScreen_EmptyListStillWorks(t *testing.T) {

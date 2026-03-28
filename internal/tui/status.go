@@ -25,7 +25,6 @@ type statusScreen struct {
 
 	// Viewport for scrollable content.
 	vp            *viewport.Model
-	vpReady       bool
 	cursor        int   // index into selectableLines
 	selectableLines []int // line numbers (0-based) that are asset rows
 
@@ -121,7 +120,7 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 
 	case ScreenSizeMsg:
-		if s.vpReady {
+		if s.vp != nil {
 			s.vp.SetWidth(msg.Width)
 			s.vp.SetHeight(msg.Height)
 		} else {
@@ -145,7 +144,7 @@ func (s *statusScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "j", "down":
-		if s.vpReady && len(s.selectableLines) > 0 {
+		if s.vp != nil && len(s.selectableLines) > 0 {
 			if s.cursor < len(s.selectableLines)-1 {
 				s.cursor++
 				s.renderAndSync()
@@ -154,7 +153,7 @@ func (s *statusScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return s, nil
 
 	case "k", "up":
-		if s.vpReady && len(s.selectableLines) > 0 {
+		if s.vp != nil && len(s.selectableLines) > 0 {
 			if s.cursor > 0 {
 				s.cursor--
 				s.renderAndSync()
@@ -180,7 +179,7 @@ func (s *statusScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Forward remaining keys to viewport (for arrow-key scrolling).
-	if s.vpReady {
+	if s.vp != nil {
 		vp, cmd := s.vp.Update(msg)
 		s.vp = &vp
 		return s, cmd
@@ -218,7 +217,6 @@ func (s *statusScreen) initViewport() {
 	vp.KeyMap = minimalKeyMap()
 	vp.SoftWrap = true
 	s.vp = &vp
-	s.vpReady = true
 
 	// Apply pending dimensions from ScreenSizeMsg that arrived before data loaded.
 	if s.pendingWidth > 0 || s.pendingHeight > 0 {
@@ -232,7 +230,7 @@ func (s *statusScreen) initViewport() {
 // rebuildContent re-renders the grouped content, recalculates selectable lines,
 // resets the cursor to the first match, and syncs the viewport.
 func (s *statusScreen) rebuildContent() {
-	if !s.vpReady {
+	if s.vp == nil {
 		return
 	}
 
@@ -250,7 +248,7 @@ func (s *statusScreen) rebuildContent() {
 
 // renderAndSync re-applies cursor highlighting and scrolls to the cursor.
 func (s *statusScreen) renderAndSync() {
-	if !s.vpReady {
+	if s.vp == nil {
 		return
 	}
 
@@ -398,7 +396,7 @@ func (s *statusScreen) View() tea.View {
 			indicator)
 	}
 
-	if s.vpReady {
+	if s.vp != nil {
 		filtered := s.filteredEntries()
 		if len(filtered) == 0 && s.filter != "" {
 			fmt.Fprintf(&b, "  %s", s.styles.Subtle.Render("No assets match the filter."))

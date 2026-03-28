@@ -533,6 +533,9 @@ func TestDeploy_ScanError_TransitionsToResult(t *testing.T) {
 	if result.err == nil {
 		t.Fatal("err should be set after scan error")
 	}
+	if result.vp == nil {
+		t.Fatal("viewport should be created on scan error path")
+	}
 }
 
 // M6: Empty scan (all deployed) transitions to deployResult
@@ -548,6 +551,9 @@ func TestDeploy_ScanEmpty_TransitionsToResult(t *testing.T) {
 	}
 	if result.info == "" {
 		t.Fatal("info should be set when all assets are deployed")
+	}
+	if result.vp == nil {
+		t.Fatal("viewport should be created on empty scan path")
 	}
 }
 
