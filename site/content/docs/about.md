@@ -3,7 +3,7 @@ title: About
 weight: -1
 ---
 
-**nd** (Napoleon Dynamite) is a CLI tool for managing coding agent assets — skills, agents, commands, output styles, rules, context files, plugins, and hooks — via symlink deployment.
+**nd** (Napoleon Dynamite) is a CLI tool for managing coding agent assets — skills, agents, commands, output-styles, rules, context files, plugins, and hooks — via symlink deployment.
 
 ## How it works
 
