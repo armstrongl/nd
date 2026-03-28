@@ -1,4 +1,8 @@
-## nd source add
+---
+title: "nd source add"
+weight: 290
+---
+
 
 Register a new asset source
 
@@ -6,17 +10,17 @@ Register a new asset source
 nd source add <path|url> [flags]
 ```
 
-### Options
+## Options
 
 ```
       --alias string   human-readable alias for the source
   -h, --help           help for add
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -26,7 +30,7 @@ nd source add <path|url> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 * [nd source](nd_source.md)	 - Manage asset sources
 

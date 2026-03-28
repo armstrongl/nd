@@ -1,23 +1,35 @@
 ---
-title: "nd init"
-weight: 100
+title: "nd completion zsh"
+weight: 50
 ---
 
 
-Initialize nd configuration
+Generate zsh completion script
 
 ## Synopsis
 
-Interactive walkthrough to set up nd for the first time.
+Generate zsh completion script for nd.
+
+To install completions:
+  nd completion zsh --install
+
+Or manually:
+  nd completion zsh > ~/.zfunc/_nd
+
+Then add to ~/.zshrc (if not already present):
+  fpath+=~/.zfunc
+  autoload -Uz compinit && compinit
 
 ```
-nd init [flags]
+nd completion zsh [flags]
 ```
 
 ## Options
 
 ```
-  -h, --help   help for init
+  -h, --help                 help for zsh
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -35,5 +47,5 @@ nd init [flags]
 
 ## SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
+* [nd completion](nd_completion.md)	 - Generate shell completion scripts
 

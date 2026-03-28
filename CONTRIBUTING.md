@@ -11,7 +11,7 @@ Thank you for considering contributing to nd! This guide will help you get start
 
 ## Getting Started
 
-```bash
+```shell
 git clone https://github.com/armstrongl/nd.git
 cd nd
 go test ./...
@@ -31,7 +31,7 @@ go build -o nd .
 
 ## Testing
 
-```bash
+```shell
 # Run all unit tests
 go test ./...
 
@@ -75,6 +75,7 @@ Format: `type(scope): description`
 **Scopes:** `cli`, `deploy`, `profile`, `source`, `agent`, `config`, `tui`, `docs`, `ci`
 
 Examples:
+
 - `feat(cli): add interactive picker to deploy`
 - `fix(deploy): handle broken symlinks on sync`
 - `docs: update getting started guide`

@@ -8,7 +8,7 @@ nd is a CLI/TUI tool that manages coding agent assets (skills, agents, commands,
 
 ## Layered Architecture
 
-```
+```text
 +---------------------------------------------+
 |              cmd/ (CLI layer)                |
 |          internal/tui/ (TUI layer)           |
@@ -132,7 +132,7 @@ Bubble Tea v2 dashboard.
 
 `nd deploy skills/greeting`:
 
-```
+```text
 cmd/deploy.go
   -> app.SourceManager().Scan()     -- discover assets from all sources
   -> asset.Index.Lookup()           -- find "skills/greeting" in index

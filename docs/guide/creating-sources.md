@@ -1,4 +1,7 @@
-# Create asset sources
+---
+title: "Creating sources"
+weight: 50
+---
 
 An asset source is a directory (local or git) containing coding agent assets organized by type. This guide explains how to structure your own.
 
@@ -6,7 +9,7 @@ An asset source is a directory (local or git) containing coding agent assets org
 
 nd discovers assets by looking for directories named after asset types:
 
-```
+```text
 my-assets/
 ├── skills/
 │   ├── greeting/           # Directory asset
