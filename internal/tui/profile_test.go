@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"strings"
 	"testing"
@@ -156,4 +157,129 @@ func TestProfileScreen_CreateDone_Error(t *testing.T) {
 	if !strings.Contains(v.Content, "profile already exists") {
 		t.Errorf("create error view should show error, got: %q", v.Content)
 	}
+}
+
+// --- Viewport wrapping tests (Unit 5) ---
+
+func TestProfileScreen_ScreenSizeMsg_StoresPending(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	if s.pendingWidth != 80 || s.pendingHeight != 30 {
+		t.Fatalf("expected pending 80x30, got %dx%d", s.pendingWidth, s.pendingHeight)
+	}
+}
+
+func TestProfileScreen_ScreenSizeMsg_UpdatesExistingViewport(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	s.Update(profileLoadedMsg{profiles: []profile.ProfileSummary{{Name: "p1", AssetCount: 5}}, active: "p1"})
+	s.step = profileList
+	s.initListViewport()
+	s.Update(ScreenSizeMsg{Width: 120, Height: 50})
+	if s.vp == nil {
+		t.Fatal("viewport should exist after initListViewport")
+	}
+	if s.vp.Width() != 120 {
+		t.Fatalf("expected vp width 120, got %d", s.vp.Width())
+	}
+	if s.vp.Height() != 49 {
+		t.Fatalf("expected vp height 49 (50-1 for footer), got %d", s.vp.Height())
+	}
+}
+
+func TestProfileScreen_ListViewport_InitAppliesPendingDimensions(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 100, Height: 40})
+	s.profiles = []profile.ProfileSummary{{Name: "p1"}}
+	s.step = profileList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created")
+	}
+	if s.vp.Width() != 100 {
+		t.Fatalf("expected vp width 100, got %d", s.vp.Width())
+	}
+	if s.vp.Height() != 39 {
+		t.Fatalf("expected vp height 39 (40-1), got %d", s.vp.Height())
+	}
+}
+
+func TestProfileScreen_ListViewShowsContent(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	profiles := []profile.ProfileSummary{
+		{Name: "go-dev", AssetCount: 12},
+		{Name: "python-work", AssetCount: 8},
+	}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "go-dev"})
+	s.step = profileList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "go-dev") {
+		t.Errorf("list view should show profile names, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "python-work") {
+		t.Errorf("list view should show all profiles, got: %q", v.Content)
+	}
+}
+
+func TestProfileScreen_ListViewActiveMarkerInViewport(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	profiles := []profile.ProfileSummary{{Name: "go-dev"}}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "go-dev"})
+	s.step = profileList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "*") {
+		t.Errorf("active profile should show '*' marker, got: %q", v.Content)
+	}
+}
+
+func TestProfileScreen_ListViewFooterVisible(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	profiles := []profile.ProfileSummary{{Name: "p1", AssetCount: 1}}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "p1"})
+	s.step = profileList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should be visible, got: %q", v.Content)
+	}
+}
+
+func TestProfileScreen_ListViewManyProfilesFooterStillVisible(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 5})
+	profiles := make([]profile.ProfileSummary, 50)
+	for i := range profiles {
+		profiles[i] = profile.ProfileSummary{Name: fmt.Sprintf("prof-%03d", i), AssetCount: i}
+	}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "prof-000"})
+	s.step = profileList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should remain visible with overflow, got: %q", v.Content)
+	}
+}
+
+func TestProfileScreen_UpdateListForwardsToViewport(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	profiles := make([]profile.ProfileSummary, 50)
+	for i := range profiles {
+		profiles[i] = profile.ProfileSummary{Name: fmt.Sprintf("prof-%03d", i), AssetCount: i}
+	}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "prof-000"})
+	s.step = profileList
+	s.initListViewport()
+
+	_, cmd := s.Update(tea.KeyPressMsg{Code: 106}) // 'j'
+	_ = cmd
 }
