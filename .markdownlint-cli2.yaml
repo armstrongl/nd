@@ -66,4 +66,6 @@ ignores:
   # Solutions are auto-generated learning artifacts with code-heavy formatting
   # that doesn't need structural linting (e.g., long code blocks, shell snippets).
   - "docs/solutions/**"
+  - "docs/specs/**"
+  - "docs/supapowers/**"
   - "node_modules/**"

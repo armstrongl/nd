@@ -1,19 +1,33 @@
 ---
-title: "nd snapshot list"
-weight: 250
+title: "nd completion bash"
+weight: 30
 ---
 
 
-List all snapshots
+Generate bash completion script
+
+## Synopsis
+
+Generate bash completion script for nd.
+
+To install completions:
+  nd completion bash --install
+
+Or manually:
+  nd completion bash > ~/.local/share/bash-completion/completions/nd
+
+Then restart your shell or source the file.
 
 ```
-nd snapshot list [flags]
+nd completion bash [flags]
 ```
 
 ## Options
 
 ```
-  -h, --help   help for list
+  -h, --help                 help for bash
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -31,5 +45,5 @@ nd snapshot list [flags]
 
 ## SEE ALSO
 
-* [nd snapshot](nd_snapshot.md)	 - Manage deployment snapshots
+* [nd completion](nd_completion.md)	 - Generate shell completion scripts
 

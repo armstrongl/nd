@@ -1,30 +1,23 @@
 ---
-title: "nd deploy"
-weight: 60
+title: "nd completion"
+weight: 20
 ---
 
 
-Deploy assets by creating symlinks
+Generate shell completion scripts
 
 ## Synopsis
 
-Deploy one or more assets by creating symlinks from source to agent config.
+Generate shell completion scripts for nd.
 
-Asset references can be:
-  name           Search all types for matching name
-  type/name      Search specific type (e.g., skills/greeting)
+Available shells: bash, zsh, fish
 
-```
-nd deploy <asset> [assets...] [flags]
-```
+Run "nd completion <shell> --help" for shell-specific instructions.
 
 ## Options
 
 ```
-      --absolute      use absolute symlinks (overrides config)
-  -h, --help          help for deploy
-      --relative      use relative symlinks (overrides config)
-      --type string   asset type filter (skills, commands, rules, etc.)
+  -h, --help   help for completion
 ```
 
 ## Options inherited from parent commands
@@ -43,4 +36,7 @@ nd deploy <asset> [assets...] [flags]
 ## SEE ALSO
 
 * [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
+* [nd completion bash](nd_completion_bash.md)	 - Generate bash completion script
+* [nd completion fish](nd_completion_fish.md)	 - Generate fish completion script
+* [nd completion zsh](nd_completion_zsh.md)	 - Generate zsh completion script
 

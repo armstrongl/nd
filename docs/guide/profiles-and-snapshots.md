@@ -1,4 +1,7 @@
-# Profiles & snapshots
+---
+title: "Profiles and snapshots"
+weight: 60
+---
 
 Profiles and snapshots help you manage multiple sets of agent assets and switch between them.
 
@@ -72,6 +75,7 @@ nd profile switch personal
 ```
 
 This shows a diff preview of what will change:
+
 - **Remove:** Assets from the current profile (origin: `profile:<current>`)
 - **Deploy:** Assets from the new profile
 - **Keep:** Pinned and manually deployed assets
