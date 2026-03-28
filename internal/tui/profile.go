@@ -98,12 +98,17 @@ func (s *profileScreen) Init() tea.Cmd {
 func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ScreenSizeMsg:
+		// Reserve 1 line for the footer hint rendered outside the viewport.
+		h := msg.Height
+		if h > 0 {
+			h--
+		}
 		if s.vp != nil {
 			s.vp.SetWidth(msg.Width)
-			s.vp.SetHeight(msg.Height - 1)
+			s.vp.SetHeight(h)
 		} else {
 			s.pendingWidth = msg.Width
-			s.pendingHeight = msg.Height
+			s.pendingHeight = h
 		}
 		return s, nil
 	case profileLoadedMsg:
@@ -391,7 +396,6 @@ func (s *profileScreen) viewListWrapped() tea.View {
 	}
 	footer := "\n  " + s.styles.Subtle.Render("Press esc to go back.")
 	if s.vp != nil {
-		s.vp.SetContent(s.viewList())
 		return tea.NewView(s.vp.View() + footer)
 	}
 	return tea.NewView(s.viewList() + footer)
@@ -407,15 +411,12 @@ func (s *profileScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *profileScreen) initListViewport() {
-	h := s.pendingHeight
-	if h > 0 {
-		h--
-	}
 	vp := viewport.New(
 		viewport.WithWidth(s.pendingWidth),
-		viewport.WithHeight(h),
+		viewport.WithHeight(s.pendingHeight),
 	)
 	s.vp = &vp
+	s.vp.SetContent(s.viewList())
 }
 
 func (s *profileScreen) formatSwitchResult(target string, result *profile.SwitchResult) string {

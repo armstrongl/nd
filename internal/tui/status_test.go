@@ -629,7 +629,7 @@ func TestStatusScreen_ViewportScrollsOnLongList(t *testing.T) {
 	s.Update(statusLoadedMsg{entries: entries})
 
 	// Viewport should be ready.
-	if !s.vpReady {
+	if s.vp == nil {
 		t.Fatal("viewport should be ready after loading entries")
 	}
 
@@ -793,7 +793,7 @@ func TestStatusScreen_ScreenSizeMsgBeforeLoad_StoresPending(t *testing.T) {
 	}
 
 	// Viewport should not exist yet.
-	if s.vpReady {
+	if s.vp != nil {
 		t.Fatal("viewport should not be ready before data loads")
 	}
 }
@@ -811,7 +811,7 @@ func TestStatusScreen_ScreenSizeMsgAfterLoad_SizesViewport(t *testing.T) {
 
 	sendStatusLoaded(s, entries, nil)
 
-	if !s.vpReady {
+	if s.vp == nil {
 		t.Fatal("viewport should be ready after loading entries")
 	}
 
@@ -934,7 +934,59 @@ func TestStatusScreen_EmptyStateUnchanged(t *testing.T) {
 	if !strings.Contains(v.Content, nothingMsg) {
 		t.Fatalf("View() with no entries should contain NothingDeployed() message, got %q", v.Content)
 	}
-	if s.vpReady {
+	if s.vp != nil {
 		t.Fatal("viewport should not be created for empty entries")
+	}
+}
+
+func TestStatusScreen_FilterModeSuppressesShortcuts(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	entries := []deploy.StatusEntry{
+		{
+			Deployment: state.Deployment{AssetType: nd.AssetSkill, AssetName: "a", SourceID: "s1", Scope: nd.ScopeGlobal},
+			Health:     state.HealthOK,
+		},
+	}
+	sendStatusLoaded(s, entries, nil)
+
+	// Activate filter mode.
+	s.Update(keyMsg('/'))
+	if !s.filtering {
+		t.Fatal("expected filtering=true after pressing /")
+	}
+
+	// Press 'd' — should append to filter, NOT navigate to deploy screen.
+	_, cmd := s.Update(keyMsg('d'))
+	if s.filter != "d" {
+		t.Fatalf("expected filter=%q, got %q", "d", s.filter)
+	}
+	// The cmd should NOT be a NavigateMsg.
+	if cmd != nil {
+		msg := cmd()
+		if _, ok := msg.(NavigateMsg); ok {
+			t.Fatal("pressing 'd' during filter should not produce NavigateMsg")
+		}
+	}
+}
+
+func TestStatusScreen_BackspaceOnEmptyFilter_NoPanic(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	entries := []deploy.StatusEntry{
+		{
+			Deployment: state.Deployment{AssetType: nd.AssetSkill, AssetName: "a", SourceID: "s1", Scope: nd.ScopeGlobal},
+			Health:     state.HealthOK,
+		},
+	}
+	sendStatusLoaded(s, entries, nil)
+
+	// Activate filter, don't type anything, press backspace.
+	s.Update(keyMsg('/'))
+	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyBackspace}))
+	if s.filter != "" {
+		t.Fatalf("filter should remain empty after backspace on empty, got %q", s.filter)
 	}
 }

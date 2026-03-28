@@ -170,12 +170,10 @@ func (m *removeScreen) View() tea.View {
 	case removeRunning:
 		return m.viewRunning()
 	case removeResult:
-		content := m.viewResultContent()
 		if m.vp != nil && m.vp.Width() > 0 && m.vp.Height() > 0 {
-			m.vp.SetContent(content)
 			return tea.NewView(m.vp.View())
 		}
-		return tea.NewView(content)
+		return tea.NewView(m.viewResultContent())
 	}
 
 	return tea.NewView("")
@@ -410,14 +408,15 @@ func (m *removeScreen) viewResultContent() string {
 	return b.String()
 }
 
-// initViewport creates the viewport for the result step and applies any
-// pending dimensions stored from earlier ScreenSizeMsg deliveries.
+// initViewport creates the viewport for the result step, applies any
+// pending dimensions, and sets the initial content.
 func (m *removeScreen) initViewport() {
 	vp := viewport.New(
 		viewport.WithWidth(m.pendingWidth),
 		viewport.WithHeight(m.pendingHeight),
 	)
 	m.vp = &vp
+	m.vp.SetContent(m.viewResultContent())
 }
 
 // --- Helpers ---

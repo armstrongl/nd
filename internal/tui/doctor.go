@@ -134,12 +134,10 @@ func (d *doctorScreen) View() tea.View {
 		return tea.NewView(fmt.Sprintf("  %s", d.styles.Primary.Render("Applying fixes...")))
 
 	case doctorDone:
-		content := d.viewDoneContent()
 		if d.vp != nil && d.vp.Width() > 0 && d.vp.Height() > 0 {
-			d.vp.SetContent(content)
 			return tea.NewView(d.vp.View())
 		}
-		return tea.NewView(content)
+		return tea.NewView(d.viewDoneContent())
 	}
 
 	return tea.NewView("")
@@ -244,14 +242,15 @@ func (d *doctorScreen) runSync() tea.Cmd {
 	}
 }
 
-// initViewport creates the viewport for the done step and applies any
-// pending dimensions stored from earlier ScreenSizeMsg deliveries.
+// initViewport creates the viewport for the done step, applies any
+// pending dimensions, and sets the initial content.
 func (d *doctorScreen) initViewport() {
 	vp := viewport.New(
 		viewport.WithWidth(d.pendingWidth),
 		viewport.WithHeight(d.pendingHeight),
 	)
 	d.vp = &vp
+	d.vp.SetContent(d.viewDoneContent())
 }
 
 // --- Views ---

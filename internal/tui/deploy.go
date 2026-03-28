@@ -233,12 +233,10 @@ func (ds *deployScreen) View() tea.View {
 			ds.styles.Primary.Render("Deploying...")))
 
 	case deployResult:
-		content := ds.viewResult()
 		if ds.vp != nil && ds.vp.Width() > 0 && ds.vp.Height() > 0 {
-			ds.vp.SetContent(content)
 			return tea.NewView(ds.vp.View())
 		}
-		return tea.NewView(content)
+		return tea.NewView(ds.viewResult())
 	}
 
 	return tea.NewView("")
@@ -514,14 +512,15 @@ func (ds *deployScreen) viewResult() string {
 	return b.String()
 }
 
-// initViewport creates the viewport for the result step and applies any
-// pending dimensions stored from earlier ScreenSizeMsg deliveries.
+// initViewport creates the viewport for the result step, applies any
+// pending dimensions, and sets the initial content.
 func (ds *deployScreen) initViewport() {
 	vp := viewport.New(
 		viewport.WithWidth(ds.pendingWidth),
 		viewport.WithHeight(ds.pendingHeight),
 	)
 	ds.vp = &vp
+	ds.vp.SetContent(ds.viewResult())
 }
 
 // --- helpers ---
