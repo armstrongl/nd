@@ -44,6 +44,5 @@ nd export [flags]
 
 ### SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
-* [nd export marketplace](nd_export_marketplace.md)	 - Generate a Claude Code marketplace from exported plugins
-
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd export marketplace](nd_export_marketplace.md) - Generate a Claude Code marketplace from exported plugins

@@ -1,4 +1,4 @@
-## nd — Coding Agent Asset Manager
+## nd — coding agent asset manager
 
 nd is a Go CLI tool that manages coding agent assets (skills, agents, commands, output-styles, rules, context files, plugins, hooks) via symlink-based deployment. Think of it as a package manager for AI coding assistant configurations.
 
@@ -125,7 +125,7 @@ When reviewing pull requests, apply the following rules. Flag violations as revi
 
 - New commands need: the command file in `cmd/`, a corresponding test file, registration in `root.go`, and `--dry-run`/`--json`/`--yes` support where applicable.
 - Destructive commands must require `--yes` or interactive confirmation. Flag any unguarded destructive path (removes, deletes, uninstalls, profile switches).
-- `--dry-run` must produce output describing what _would_ happen without any side effects. Flag dry-run paths that perform mutations.
+- `--dry-run` must produce output describing what *would* happen without any side effects. Flag dry-run paths that perform mutations.
 - Global flags (`--config`, `--scope`, `--dry-run`, `--verbose`, `--quiet`, `--json`, `--no-color`, `--yes`) are defined in `root.go`. New commands should respect these, not redefine them.
 
 ### TUI consistency (suggest if wrong)

@@ -1,3 +1,6 @@
+# rumdl configuration — aligned with Tailscale documentation style conventions.
+# https://github.com/rvben/rumdl
+
 [global]
 exclude = [
   ".git",
@@ -9,19 +12,55 @@ exclude = [
   "bin",
   "node_modules",
 ]
+extend-enable = ["MD063"]
+extend-disable = ["MD033", "MD034", "MD040"]
+flavor = "gfm"
+respect-gitignore = true
+cache = true
 
+# Per-file rule exceptions.
 [per-file-ignores]
 "CHANGELOG.md" = ["MD024"]
+".github/copilot-instructions.md" = ["MD041", "MD063"]
+".github/agents/**" = ["MD041"]
+"AGENTS.md" = ["MD041"]
+"docs/guide/**" = ["MD025", "MD063"]
+"docs/reference/**" = ["MD041", "MD063"]
+"ARCHITECTURE.md" = ["MD063"]
 
+# --- Heading rules ---
+
+# ATX-style headings only (# Heading).
 [MD003]
 style = "atx"
 
+# No trailing punctuation in headings.
+[MD026]
+punctuation = ".,;:!"
+
+# Sentence-case headings (capitalize first word and proper nouns only).
+[MD063]
+style = "sentence-case"
+ignore-words = ["nd"]
+preserve-cased-words = true
+
+# --- List rules ---
+
+# Unordered lists use dashes.
 [MD004]
 style = "dash"
 
+# 2-space indent for nested unordered lists.
 [MD007]
 indent = 2
 
+# Ordered lists use sequential numbers (1, 2, 3).
+[MD029]
+style = "ordered"
+
+# --- Whitespace rules ---
+
+# No line length limit for prose. Skip code blocks, tables, and headings.
 [MD013]
 line-length = 0
 reflow = true
@@ -29,14 +68,34 @@ code-blocks = false
 tables = false
 headings = false
 
-[MD029]
-style = "ordered"
+# --- Code block rules ---
 
-[MD044]
-names = ["Go", "Python", "GitHub"]
-
+# Fenced code blocks only (not indented).
 [MD046]
 style = "fenced"
 
+# Backtick fences (not tildes).
 [MD048]
 style = "backtick"
+
+# --- Formatting rules ---
+
+# Enforce consistent capitalization of proper names.
+[MD044]
+names = [
+  "Claude Code",
+  "Cobra",
+  "Homebrew",
+  "GitHub",
+  "Linux",
+  "macOS",
+  "Python",
+  "Windows",
+]
+
+# Asterisks for emphasis (*italic*) and strong (**bold**).
+[MD049]
+style = "asterisk"
+
+[MD050]
+style = "asterisk"

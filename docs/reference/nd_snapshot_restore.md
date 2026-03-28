@@ -27,5 +27,4 @@ nd snapshot restore <name> [flags]
 
 ### SEE ALSO
 
-* [nd snapshot](nd_snapshot.md)	 - Manage deployment snapshots
-
+- [nd snapshot](nd_snapshot.md) - Manage deployment snapshots

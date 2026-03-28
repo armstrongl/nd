@@ -27,11 +27,10 @@ Create, list, deploy, and switch between named profiles.
 
 ### SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
-* [nd profile add-asset](nd_profile_add-asset.md)	 - Add an asset to an existing profile
-* [nd profile create](nd_profile_create.md)	 - Create a new profile
-* [nd profile delete](nd_profile_delete.md)	 - Delete a profile
-* [nd profile deploy](nd_profile_deploy.md)	 - Deploy all assets in a profile
-* [nd profile list](nd_profile_list.md)	 - List all profiles
-* [nd profile switch](nd_profile_switch.md)	 - Switch from current profile to another
-
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd profile add-asset](nd_profile_add-asset.md) - Add an asset to an existing profile
+- [nd profile create](nd_profile_create.md) - Create a new profile
+- [nd profile delete](nd_profile_delete.md) - Delete a profile
+- [nd profile deploy](nd_profile_deploy.md) - Deploy all assets in a profile
+- [nd profile list](nd_profile_list.md) - List all profiles
+- [nd profile switch](nd_profile_switch.md) - Switch from current profile to another

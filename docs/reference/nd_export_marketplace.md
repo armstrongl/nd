@@ -40,5 +40,4 @@ nd export marketplace [flags]
 
 ### SEE ALSO
 
-* [nd export](nd_export.md)	 - Export assets as a Claude Code plugin
-
+- [nd export](nd_export.md) - Export assets as a Claude Code plugin

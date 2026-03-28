@@ -27,5 +27,4 @@ nd version [flags]
 
 ### SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
-
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager

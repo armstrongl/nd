@@ -28,5 +28,4 @@ nd source add <path|url> [flags]
 
 ### SEE ALSO
 
-* [nd source](nd_source.md)	 - Manage asset sources
-
+- [nd source](nd_source.md) - Manage asset sources

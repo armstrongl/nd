@@ -27,9 +27,8 @@ Save, restore, list, and delete point-in-time deployment snapshots.
 
 ### SEE ALSO
 
-* [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
-* [nd snapshot delete](nd_snapshot_delete.md)	 - Delete a snapshot
-* [nd snapshot list](nd_snapshot_list.md)	 - List all snapshots
-* [nd snapshot restore](nd_snapshot_restore.md)	 - Restore deployments from a snapshot
-* [nd snapshot save](nd_snapshot_save.md)	 - Save current deployments as a named snapshot
-
+- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd snapshot delete](nd_snapshot_delete.md) - Delete a snapshot
+- [nd snapshot list](nd_snapshot_list.md) - List all snapshots
+- [nd snapshot restore](nd_snapshot_restore.md) - Restore deployments from a snapshot
+- [nd snapshot save](nd_snapshot_save.md) - Save current deployments as a named snapshot

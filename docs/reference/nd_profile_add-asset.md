@@ -27,5 +27,4 @@ nd profile add-asset <profile> <asset> [flags]
 
 ### SEE ALSO
 
-* [nd profile](nd_profile.md)	 - Manage deployment profiles
-
+- [nd profile](nd_profile.md) - Manage deployment profiles
