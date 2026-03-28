@@ -1,3 +1,6 @@
 .worktrees/
 dist/
 coverage.out
+staleness-report.json
+staleness-output.json
+.venv/
