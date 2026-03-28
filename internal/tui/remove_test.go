@@ -2,9 +2,12 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
@@ -461,6 +464,166 @@ func TestRemove_BuildRemoveRequests_UsesDeploymentScope(t *testing.T) {
 	}
 	if reqs[0].ProjectRoot != "/my/project" {
 		t.Errorf("expected project root %q, got %q", "/my/project", reqs[0].ProjectRoot)
+	}
+}
+
+// --- Viewport wrapping tests (Unit 4) ---
+
+// Verify that remove result with many failures renders via viewport when given dimensions.
+func TestRemove_ResultViewport_ManyFailures(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.pendingWidth = 80
+	m.pendingHeight = 10
+	m.step = removeRunning
+
+	// Generate many failures to exceed viewport height.
+	var failures []deploy.RemoveError
+	for i := 0; i < 30; i++ {
+		failures = append(failures, deploy.RemoveError{
+			Identity: asset.Identity{
+				SourceID: "src",
+				Type:     nd.AssetSkill,
+				Name:     fmt.Sprintf("asset-%03d", i),
+			},
+			Err: fmt.Errorf("permission denied"),
+		})
+	}
+
+	msg := removeDoneMsg{succeeded: 0, failed: failures}
+	updated, _ := m.Update(msg)
+	rm := updated.(*removeScreen)
+
+	if rm.vp == nil {
+		t.Fatal("viewport should be initialized after transitioning to result")
+	}
+	if rm.vp.Width() != 80 {
+		t.Fatalf("viewport width = %d, want 80", rm.vp.Width())
+	}
+	if rm.vp.Height() != 10 {
+		t.Fatalf("viewport height = %d, want 10", rm.vp.Height())
+	}
+
+	v := rm.View()
+	if v.Content == "" {
+		t.Fatal("viewport-wrapped result view should not be empty")
+	}
+	// Underlying content should contain failure details.
+	content := rm.viewResultContent()
+	if !strings.Contains(content, "asset-000") {
+		t.Error("result content should contain first failed asset")
+	}
+	if !strings.Contains(content, "30 failed") {
+		t.Errorf("result content should show '30 failed'; got:\n%s", content)
+	}
+}
+
+// Verify that j/k scroll keys are forwarded to viewport at remove result step.
+func TestRemove_ResultViewport_ScrollForwarding(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.pendingWidth = 80
+	m.pendingHeight = 5
+	m.step = removeRunning
+
+	var failures []deploy.RemoveError
+	for i := 0; i < 30; i++ {
+		failures = append(failures, deploy.RemoveError{
+			Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: fmt.Sprintf("a-%d", i)},
+			Err:      errors.New("err"),
+		})
+	}
+
+	m.Update(removeDoneMsg{succeeded: 0, failed: failures})
+
+	// Send 'j' key — should be forwarded to viewport.
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	if cmd != nil {
+		msg := cmd()
+		switch msg.(type) {
+		case PopToRootMsg, BackMsg:
+			t.Fatal("j key should not produce navigation messages at result step")
+		}
+	}
+}
+
+// Verify enter at remove result step still emits PopToRootMsg with viewport active.
+func TestRemove_ResultViewport_EnterStillReturns(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.pendingWidth = 80
+	m.pendingHeight = 10
+	m.step = removeRunning
+
+	m.Update(removeDoneMsg{succeeded: 3, failed: nil})
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("enter at result should emit a command even with viewport active")
+	}
+
+	msg := cmd()
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg, got %T", msg)
+	}
+
+	var hasPopToRoot bool
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		if _, ok := c().(PopToRootMsg); ok {
+			hasPopToRoot = true
+		}
+	}
+	if !hasPopToRoot {
+		t.Error("enter should emit PopToRootMsg even with viewport active")
+	}
+}
+
+// Verify ScreenSizeMsg updates viewport dimensions after creation.
+func TestRemove_ResultViewport_ScreenSizeUpdates(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.pendingWidth = 80
+	m.pendingHeight = 10
+	m.step = removeRunning
+
+	m.Update(removeDoneMsg{succeeded: 1, failed: nil})
+
+	if m.vp == nil {
+		t.Fatal("viewport should exist after result transition")
+	}
+
+	m.Update(ScreenSizeMsg{Width: 120, Height: 25})
+
+	if m.vp.Width() != 120 {
+		t.Fatalf("viewport width after resize = %d, want 120", m.vp.Width())
+	}
+	if m.vp.Height() != 25 {
+		t.Fatalf("viewport height after resize = %d, want 25", m.vp.Height())
+	}
+}
+
+// Verify fallback rendering when viewport has zero dimensions.
+func TestRemove_ResultViewport_FallbackWithoutDimensions(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeResult
+	m.succeeded = 3
+
+	v := m.View()
+	if v.Content == "" {
+		t.Fatal("View() should fall back to raw string when viewport has zero dimensions")
+	}
+	if !strings.Contains(v.Content, "3") {
+		t.Error("fallback view should contain succeeded count")
 	}
 }
 
