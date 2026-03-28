@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/profile"
@@ -21,25 +22,21 @@ const (
 	snapshotDone
 )
 
-// snapshotLoadedMsg carries the initial snapshot list.
 type snapshotLoadedMsg struct {
 	snapshots []profile.SnapshotSummary
 	err       error
 }
 
-// snapshotSavedMsg carries the result of saving a snapshot.
 type snapshotSavedMsg struct {
 	name string
 	err  error
 }
 
-// snapshotRestoredMsg carries the result of restoring a snapshot.
 type snapshotRestoredMsg struct {
 	result *profile.RestoreResult
 	err    error
 }
 
-// snapshotScreen provides Save, Restore, and List flows for snapshots.
 type snapshotScreen struct {
 	svc    Services
 	styles Styles
@@ -49,24 +46,24 @@ type snapshotScreen struct {
 	snapshots []profile.SnapshotSummary
 	err       error
 
-	// menu
-	menuForm  *huh.Form
+	menuForm   *huh.Form
 	menuChoice string
 	navigated  bool
 
-	// save
 	saveForm *huh.Form
 	saveName string
 
-	// restore
 	restoreForm   *huh.Form
 	restoreChoice string
 	confirmForm   *huh.Form
 	confirmed     bool
 	fixing        bool
 
-	// result
 	doneMsg string
+
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
 }
 
 func newSnapshotScreen(svc Services, styles Styles, isDark bool) *snapshotScreen {
@@ -75,7 +72,6 @@ func newSnapshotScreen(svc Services, styles Styles, isDark bool) *snapshotScreen
 
 func (s *snapshotScreen) Title() string { return "Snapshots" }
 
-// InputActive returns true only during the snapshot name input.
 func (s *snapshotScreen) InputActive() bool {
 	return s.step == snapshotMenu || s.step == snapshotSaveName || s.step == snapshotRestoreSelect
 }
@@ -97,6 +93,15 @@ func (s *snapshotScreen) Init() tea.Cmd {
 
 func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		if s.vp != nil {
+			s.vp.SetWidth(msg.Width)
+			s.vp.SetHeight(msg.Height - 1)
+		} else {
+			s.pendingWidth = msg.Width
+			s.pendingHeight = msg.Height
+		}
+		return s, nil
 	case snapshotLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -105,7 +110,6 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.snapshots = msg.snapshots
 		return s.buildMenu()
-
 	case snapshotSavedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -114,7 +118,6 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.step = snapshotDone
 		return s, nil
-
 	case snapshotRestoredMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -137,6 +140,8 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s.updateSaveForm(msg)
 	case snapshotRestoreSelect:
 		return s.updateRestoreSelect(msg)
+	case snapshotList:
+		return s.updateList(msg)
 	case snapshotDone:
 		return s.updateDone(msg)
 	}
@@ -169,15 +174,13 @@ func (s *snapshotScreen) View() tea.View {
 			return tea.NewView(s.confirmForm.View())
 		}
 	case snapshotList:
-		return s.viewList()
+		return s.viewListWrapped()
 	case snapshotDone:
 		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
 			s.doneMsg, s.styles.Subtle.Render("Press enter to return.")))
 	}
 	return tea.NewView("")
 }
-
-// --- Step builders ---
 
 func (s *snapshotScreen) buildMenu() (tea.Model, tea.Cmd) {
 	s.step = snapshotMenu
@@ -216,6 +219,7 @@ func (s *snapshotScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s.buildRestoreForm()
 		case "list":
 			s.step = snapshotList
+			s.initListViewport()
 			return s, nil
 		default:
 			return s, func() tea.Msg { return BackMsg{} }
@@ -281,19 +285,16 @@ func (s *snapshotScreen) buildRestoreForm() (tea.Model, tea.Cmd) {
 	s.restoreChoice = ""
 	s.fixing = false
 	s.confirmForm = nil
-
 	if len(s.snapshots) == 0 {
 		s.doneMsg = "No snapshots available."
 		s.step = snapshotDone
 		return s, nil
 	}
-
 	opts := make([]huh.Option[string], len(s.snapshots))
 	for i, snap := range s.snapshots {
 		label := fmt.Sprintf("%s  (%d deployments)", snap.Name, snap.DeploymentCount)
 		opts[i] = huh.NewOption(label, snap.Name)
 	}
-
 	s.restoreForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -309,8 +310,6 @@ func (s *snapshotScreen) updateRestoreSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if s.fixing {
 		return s, nil
 	}
-
-	// Phase 1: selecting snapshot.
 	if s.confirmForm == nil {
 		if s.restoreForm == nil {
 			return s, nil
@@ -327,8 +326,6 @@ func (s *snapshotScreen) updateRestoreSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, cmd
 	}
-
-	// Phase 2: confirming.
 	model, cmd := s.confirmForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.confirmForm = f
@@ -398,10 +395,9 @@ func (s *snapshotScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *snapshotScreen) viewList() tea.View {
+func (s *snapshotScreen) viewList() string {
 	if len(s.snapshots) == 0 {
-		return tea.NewView("  No snapshots saved yet.\n\n  " +
-			s.styles.Subtle.Render("Press esc to go back."))
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Snapshots"))
@@ -410,6 +406,39 @@ func (s *snapshotScreen) viewList() tea.View {
 			snap.Name,
 			s.styles.Subtle.Render(fmt.Sprintf("%d", snap.DeploymentCount)))
 	}
-	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
-	return tea.NewView(b.String())
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (s *snapshotScreen) viewListWrapped() tea.View {
+	if len(s.snapshots) == 0 {
+		return tea.NewView("  No snapshots saved yet.\n\n  " +
+			s.styles.Subtle.Render("Press esc to go back."))
+	}
+	footer := "\n  " + s.styles.Subtle.Render("Press esc to go back.")
+	if s.vp != nil {
+		s.vp.SetContent(s.viewList())
+		return tea.NewView(s.vp.View() + footer)
+	}
+	return tea.NewView(s.viewList() + footer)
+}
+
+func (s *snapshotScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.vp != nil {
+		vp, cmd := s.vp.Update(msg)
+		s.vp = &vp
+		return s, cmd
+	}
+	return s, nil
+}
+
+func (s *snapshotScreen) initListViewport() {
+	h := s.pendingHeight
+	if h > 0 {
+		h--
+	}
+	vp := viewport.New(
+		viewport.WithWidth(s.pendingWidth),
+		viewport.WithHeight(h),
+	)
+	s.vp = &vp
 }

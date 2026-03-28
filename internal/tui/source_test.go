@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"strings"
 	"testing"
@@ -173,4 +174,137 @@ func TestSourceScreen_MenuView_AfterLoad(t *testing.T) {
 	if v.Content == "" {
 		t.Fatal("menu view should not be empty after load")
 	}
+}
+
+// --- Viewport wrapping tests (Unit 5) ---
+
+func TestSourceScreen_ScreenSizeMsg_StoresPending(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	if s.pendingWidth != 80 || s.pendingHeight != 30 {
+		t.Fatalf("expected pending 80x30, got %dx%d", s.pendingWidth, s.pendingHeight)
+	}
+}
+
+func TestSourceScreen_ScreenSizeMsg_UpdatesExistingViewport(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	// Store pending dimensions
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	// Load sources and navigate to list
+	s.Update(sourceLoadedMsg{sources: []source.Source{{ID: "s1", Path: "/a"}}, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+	// Now send a new ScreenSizeMsg — should update the viewport directly
+	s.Update(ScreenSizeMsg{Width: 120, Height: 50})
+	if s.vp == nil {
+		t.Fatal("viewport should exist after initListViewport")
+	}
+	if s.vp.Width() != 120 {
+		t.Fatalf("expected vp width 120, got %d", s.vp.Width())
+	}
+	// Height should be msg.Height - 1 for footer
+	if s.vp.Height() != 49 {
+		t.Fatalf("expected vp height 49 (50-1 for footer), got %d", s.vp.Height())
+	}
+}
+
+func TestSourceScreen_ListViewport_InitAppliesPendingDimensions(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 100, Height: 40})
+	s.sources = []source.Source{{ID: "s1", Path: "/a"}}
+	s.step = sourceList
+	s.initListViewport()
+	if s.vp == nil {
+		t.Fatal("viewport should be created")
+	}
+	if s.vp.Width() != 100 {
+		t.Fatalf("expected vp width 100, got %d", s.vp.Width())
+	}
+	// Height = pendingHeight - 1 for footer
+	if s.vp.Height() != 39 {
+		t.Fatalf("expected vp height 39 (40-1), got %d", s.vp.Height())
+	}
+}
+
+func TestSourceScreen_ListViewShowsContent(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	sources := []source.Source{
+		{ID: "local-src", Path: "/home/user/assets"},
+		{ID: "remote-src", URL: "https://github.com/org/nd-assets", Path: "/tmp/nd-remote-src"},
+	}
+	s.Update(sourceLoadedMsg{sources: sources, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "local-src") {
+		t.Errorf("list view should show source IDs, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "remote-src") {
+		t.Errorf("list view should show all sources, got: %q", v.Content)
+	}
+}
+
+func TestSourceScreen_ListViewFooterVisible(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	sources := []source.Source{{ID: "s1", Path: "/a"}}
+	s.Update(sourceLoadedMsg{sources: sources, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should be visible, got: %q", v.Content)
+	}
+}
+
+func TestSourceScreen_ListViewManySourcesFooterStillVisible(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	// Small viewport height to force overflow
+	s.Update(ScreenSizeMsg{Width: 80, Height: 5})
+	sources := make([]source.Source, 50)
+	for i := range sources {
+		sources[i] = source.Source{ID: fmt.Sprintf("src-%03d", i), Path: fmt.Sprintf("/path/%d", i)}
+	}
+	s.Update(sourceLoadedMsg{sources: sources, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+
+	v := s.View()
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("footer hint should remain visible with overflow, got: %q", v.Content)
+	}
+}
+
+func TestSourceScreen_ListViewEmptyStillWorks(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	s.Update(sourceLoadedMsg{sources: nil, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+
+	v := s.View()
+	// Empty list should show NoSources message
+	if v.Content == "" {
+		t.Error("empty list view should not be blank")
+	}
+}
+
+func TestSourceScreen_UpdateListForwardsToViewport(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(ScreenSizeMsg{Width: 80, Height: 30})
+	sources := make([]source.Source, 50)
+	for i := range sources {
+		sources[i] = source.Source{ID: fmt.Sprintf("src-%03d", i), Path: fmt.Sprintf("/path/%d", i)}
+	}
+	s.Update(sourceLoadedMsg{sources: sources, err: nil})
+	s.step = sourceList
+	s.initListViewport()
+
+	// Send a 'j' key press — should be forwarded to viewport for scrolling
+	_, cmd := s.Update(tea.KeyPressMsg{Code: 106}) // 'j' = 106
+	// cmd may be nil (viewport returns nil cmd) — the key should not panic
+	_ = cmd
 }
