@@ -24,8 +24,19 @@ def run_git_log(since: str, paths: list[str], repo_root: str) -> str:
             text=True,
             cwd=repo_root,
         )
+        if result.returncode != 0:
+            print(
+                f"Warning: git log failed with exit code {result.returncode} "
+                f"for paths {paths!r} in {repo_root!r}: {result.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return ""
         return result.stdout.strip()
-    except (subprocess.SubprocessError, FileNotFoundError):
+    except (subprocess.SubprocessError, FileNotFoundError) as exc:
+        print(
+            f"Warning: failed to run git log for paths {paths!r} in {repo_root!r}: {exc}",
+            file=sys.stderr,
+        )
         return ""
 
 
@@ -127,7 +138,20 @@ def load_default_max_age(repo_root: str) -> int:
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return config.get("defaults", {}).get("maxAgeDays", 90)
-    except (yaml.YAMLError, TypeError):
+    except yaml.YAMLError:
+        return 90
+
+    if not isinstance(config, dict):
+        return 90
+
+    raw_value = config.get("defaults", {}).get("maxAgeDays", 90)
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        print(
+            f"Warning: invalid defaults.maxAgeDays in {config_path!r}: {raw_value!r} — using 90",
+            file=sys.stderr,
+        )
         return 90
 
 

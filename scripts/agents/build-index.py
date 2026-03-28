@@ -6,9 +6,6 @@ import glob
 import json
 import os
 import re
-import sys
-
-import yaml
 
 from frontmatter import parse_frontmatter
 

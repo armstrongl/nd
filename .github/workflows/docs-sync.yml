@@ -17,12 +17,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Identify changed docs
         id: changed
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
-          FILES=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'docs/guide/*.md' | tr '\n' ' ')
+          FILES=$(git diff --name-only --diff-filter=AM "$BEFORE_SHA" "$AFTER_SHA" -- 'docs/guide/*.md' | tr '\n' ' ')
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
           if [ -z "$FILES" ]; then
             echo "No doc files changed."
