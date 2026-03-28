@@ -1,4 +1,8 @@
-## nd profile create
+---
+title: "nd profile create"
+weight: 150
+---
+
 
 Create a new profile
 
@@ -6,7 +10,7 @@ Create a new profile
 nd profile create <name> [flags]
 ```
 
-### Options
+## Options
 
 ```
       --assets string        comma-separated list of assets (type/name)
@@ -15,10 +19,10 @@ nd profile create <name> [flags]
   -h, --help                 help for create
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -28,7 +32,7 @@ nd profile create <name> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 * [nd profile](nd_profile.md)	 - Manage deployment profiles
 

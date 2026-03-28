@@ -1,19 +1,31 @@
 ---
-title: "nd snapshot list"
-weight: 250
+title: "nd completion fish"
+weight: 40
 ---
 
 
-List all snapshots
+Generate fish completion script
+
+## Synopsis
+
+Generate fish completion script for nd.
+
+To install completions:
+  nd completion fish --install
+
+Or manually:
+  nd completion fish > ~/.config/fish/completions/nd.fish
 
 ```
-nd snapshot list [flags]
+nd completion fish [flags]
 ```
 
 ## Options
 
 ```
-  -h, --help   help for list
+  -h, --help                 help for fish
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -31,5 +43,5 @@ nd snapshot list [flags]
 
 ## SEE ALSO
 
-* [nd snapshot](nd_snapshot.md)	 - Manage deployment snapshots
+* [nd completion](nd_completion.md)	 - Generate shell completion scripts
 
