@@ -1,5 +1,6 @@
 baseURL: https://armstrongl.github.io/nd/
 title: nd
+enableRobotsTXT: true
 
 module:
   hugoVersion:
@@ -24,3 +25,38 @@ markup:
         useEmbedded: always
   highlight:
     noClasses: false
+
+menu:
+  main:
+    - name: Documentation
+      pageRef: /docs
+      weight: 1
+    - name: About
+      pageRef: /docs/about
+      weight: 2
+    - name: GitHub
+      url: https://github.com/armstrongl/nd
+      weight: 3
+    - name: Search
+      weight: 4
+      params:
+        type: search
+
+  sidebar:
+    - name: More
+      params:
+        type: separator
+      weight: 1
+    - name: "GitHub ↗"
+      url: https://github.com/armstrongl/nd
+      weight: 2
+    - name: "Go Docs ↗"
+      url: https://pkg.go.dev/github.com/armstrongl/nd
+      weight: 3
+
+params:
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  footer:
+    displayPoweredBy: false
