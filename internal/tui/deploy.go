@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/asset"
@@ -69,8 +70,15 @@ type deployScreen struct {
 	// result step
 	succeeded []deploy.DeployResult
 	failed    []deploy.DeployError
-	dryRun    bool                 // true when result is a dry-run preview
+	dryRun    bool                   // true when result is a dry-run preview
 	dryReqs   []deploy.DeployRequest // populated for dry-run display
+
+	// viewport for scrollable result step (created when entering deployResult, not at construction).
+	// Two-phase init: ScreenSizeMsg may arrive before the result step; pending dimensions are stored
+	// and applied when the viewport is created.
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
 
 	err  error
 	info string // non-error informational message (e.g. "all deployed")
@@ -129,10 +137,21 @@ func (ds *deployScreen) Init() tea.Cmd {
 // Update handles messages for each step of the deploy flow.
 func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		if ds.vp != nil {
+			ds.vp.SetWidth(msg.Width)
+			ds.vp.SetHeight(msg.Height)
+		} else {
+			ds.pendingWidth = msg.Width
+			ds.pendingHeight = msg.Height
+		}
+		return ds, nil
+
 	case deployDoneMsg:
 		ds.step = deployResult
 		ds.succeeded = msg.succeeded
 		ds.failed = msg.failed
+		ds.initViewport()
 		// M5: Log operation to oplog
 		if ol := ds.svc.OpLog(); ol != nil {
 			var identities []asset.Identity
@@ -154,6 +173,7 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			ds.err = msg.err
 			ds.step = deployResult // M6: avoid dead-end re-triggering
+			ds.initViewport()
 			return ds, nil
 		}
 		if len(msg.assets) == 0 {
@@ -163,6 +183,7 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			ds.info = AllDeployed(typeName) // L7: not an error
 			ds.step = deployResult          // M6: avoid dead-end re-triggering
+			ds.initViewport()
 			return ds, nil
 		}
 		ds.assets = msg.assets
@@ -212,6 +233,9 @@ func (ds *deployScreen) View() tea.View {
 			ds.styles.Primary.Render("Deploying...")))
 
 	case deployResult:
+		if ds.vp != nil && ds.vp.Width() > 0 && ds.vp.Height() > 0 {
+			return tea.NewView(ds.vp.View())
+		}
 		return tea.NewView(ds.viewResult())
 	}
 
@@ -375,6 +399,7 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		ds.step = deployResult
 		ds.dryRun = true
 		ds.dryReqs = reqs
+		ds.initViewport()
 		return func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -418,6 +443,7 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 
 // updateResult handles key presses at the result step.
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
+// Viewport key events (j/k/d/f) are forwarded for scrolling.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if keyMsg.String() == "enter" {
@@ -427,6 +453,12 @@ func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 				func() tea.Msg { return RefreshHeaderMsg{} },
 			)
 		}
+	}
+	// Forward remaining messages to viewport for scrolling.
+	if ds.vp != nil && ds.vp.Width() > 0 && ds.vp.Height() > 0 {
+		updated, cmd := ds.vp.Update(msg)
+		ds.vp = &updated
+		return ds, cmd
 	}
 	return ds, nil
 }
@@ -478,6 +510,17 @@ func (ds *deployScreen) viewResult() string {
 	fmt.Fprintf(&b, "  %s", ds.styles.Subtle.Render("Press enter to return."))
 
 	return b.String()
+}
+
+// initViewport creates the viewport for the result step, applies any
+// pending dimensions, and sets the initial content.
+func (ds *deployScreen) initViewport() {
+	vp := viewport.New(
+		viewport.WithWidth(ds.pendingWidth),
+		viewport.WithHeight(ds.pendingHeight),
+	)
+	ds.vp = &vp
+	ds.vp.SetContent(ds.viewResult())
 }
 
 // --- helpers ---

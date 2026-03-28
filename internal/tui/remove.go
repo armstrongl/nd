@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/deploy"
@@ -64,6 +65,13 @@ type removeScreen struct {
 	dryRun    bool                   // true when result is a dry-run preview
 	dryReqs   []deploy.RemoveRequest // populated for dry-run display
 
+	// viewport for scrollable result step (created when entering removeResult, not at construction).
+	// Two-phase init: ScreenSizeMsg may arrive before the result step; pending dimensions are stored
+	// and applied when the viewport is created.
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
+
 	err error
 }
 
@@ -103,6 +111,16 @@ func (m *removeScreen) Init() tea.Cmd {
 // Update handles messages for each step of the remove flow.
 func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		if m.vp != nil {
+			m.vp.SetWidth(msg.Width)
+			m.vp.SetHeight(msg.Height)
+		} else {
+			m.pendingWidth = msg.Width
+			m.pendingHeight = msg.Height
+		}
+		return m, nil
+
 	case deploymentsLoadedMsg:
 		return m.handleDeploymentsLoaded(msg)
 
@@ -110,6 +128,7 @@ func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.step = removeResult
 		m.succeeded = msg.succeeded
 		m.failed = msg.failed
+		m.initViewport()
 		// M5: Log operation to oplog
 		if ol := m.svc.OpLog(); ol != nil {
 			_ = ol.Log(oplog.LogEntry{
@@ -151,7 +170,10 @@ func (m *removeScreen) View() tea.View {
 	case removeRunning:
 		return m.viewRunning()
 	case removeResult:
-		return m.viewResult()
+		if m.vp != nil && m.vp.Width() > 0 && m.vp.Height() > 0 {
+			return tea.NewView(m.vp.View())
+		}
+		return tea.NewView(m.viewResultContent())
 	}
 
 	return tea.NewView("")
@@ -163,6 +185,7 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 	if msg.err != nil {
 		m.err = msg.err
 		m.step = removeResult
+		m.initViewport()
 		return m, nil
 	}
 
@@ -267,6 +290,7 @@ func (m *removeScreen) transitionToRunning() (tea.Model, tea.Cmd) {
 		m.step = removeResult
 		m.dryRun = true
 		m.dryReqs = reqs
+		m.initViewport()
 		return m, func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -316,6 +340,12 @@ func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		}
 	}
+	// Forward remaining messages to viewport for scrolling.
+	if m.vp != nil && m.vp.Width() > 0 && m.vp.Height() > 0 {
+		updated, cmd := m.vp.Update(msg)
+		m.vp = &updated
+		return m, cmd
+	}
 	return m, nil
 }
 
@@ -343,7 +373,8 @@ func (m *removeScreen) viewRunning() tea.View {
 		m.styles.Primary.Render("Removing...")))
 }
 
-func (m *removeScreen) viewResult() tea.View {
+// viewResultContent renders the remove results as a string for viewport wrapping.
+func (m *removeScreen) viewResultContent() string {
 	var b strings.Builder
 
 	// H2: Dry-run preview
@@ -355,7 +386,7 @@ func (m *removeScreen) viewResult() tea.View {
 				GlyphArrow, req.Identity.Type, req.Identity.Name)
 		}
 		fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
-		return tea.NewView(b.String())
+		return b.String()
 	}
 
 	if m.succeeded > 0 {
@@ -374,7 +405,18 @@ func (m *removeScreen) viewResult() tea.View {
 
 	fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
 
-	return tea.NewView(b.String())
+	return b.String()
+}
+
+// initViewport creates the viewport for the result step, applies any
+// pending dimensions, and sets the initial content.
+func (m *removeScreen) initViewport() {
+	vp := viewport.New(
+		viewport.WithWidth(m.pendingWidth),
+		viewport.WithHeight(m.pendingHeight),
+	)
+	m.vp = &vp
+	m.vp.SetContent(m.viewResultContent())
 }
 
 // --- Helpers ---

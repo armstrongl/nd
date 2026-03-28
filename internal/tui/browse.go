@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/list"
+
 	"github.com/armstrongl/nd/internal/asset"
 )
 
@@ -15,19 +16,41 @@ type browseLoadedMsg struct {
 	err      error
 }
 
+// assetItem implements list.DefaultItem for use in the bubbles/list component.
+type assetItem struct {
+	name     string
+	desc     string // "type · source"
+	filterV  string // name + type + source for fuzzy matching
+	deployed bool
+}
+
+func (i assetItem) Title() string       { return i.title() }
+func (i assetItem) Description() string { return i.desc }
+func (i assetItem) FilterValue() string { return i.filterV }
+
+func (i assetItem) title() string {
+	marker := " "
+	if i.deployed {
+		marker = "*"
+	}
+	return fmt.Sprintf("%s %s", marker, i.name)
+}
+
 // browseScreen shows all available assets with deployment status markers.
-// It supports a text filter toggled with '/'.
+// It uses bubbles/list for cursor navigation, pagination, and built-in fuzzy filtering.
 type browseScreen struct {
 	svc    Services
 	styles Styles
 	isDark bool
 
-	assets   []*asset.Asset
-	deployed map[string]bool
-	filter   string
-	filtering bool
-	err      error
-	loaded   bool
+	list    *list.Model
+	err     error
+	loaded  bool
+	noItems bool // true when loaded with zero assets
+
+	// Two-phase init: store dimensions until list is created.
+	pendingWidth  int
+	pendingHeight int
 }
 
 func newBrowseScreen(svc Services, styles Styles, isDark bool) *browseScreen {
@@ -36,9 +59,21 @@ func newBrowseScreen(svc Services, styles Styles, isDark bool) *browseScreen {
 
 func (b *browseScreen) Title() string { return "Browse" }
 
-// InputActive returns true while the filter input is active,
+// InputActive returns true while the list's filter is active,
 // suppressing global q/esc key handling.
-func (b *browseScreen) InputActive() bool { return b.filtering }
+func (b *browseScreen) InputActive() bool {
+	if b.list == nil {
+		return false
+	}
+	return b.list.FilterState() != list.Unfiltered
+}
+
+// HelpItems returns context-sensitive help items for the browse screen.
+func (b *browseScreen) HelpItems() []HelpItem {
+	return []HelpItem{
+		{"/", "filter"},
+	}
+}
 
 // Init starts async loading of all assets and deployed state.
 func (b *browseScreen) Init() tea.Cmd {
@@ -68,55 +103,66 @@ func (b *browseScreen) Init() tea.Cmd {
 	}
 }
 
-// Update handles messages and filter key input.
+// Update handles messages, delegating most input to the bubbles/list component.
 func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case browseLoadedMsg:
 		b.loaded = true
-		b.assets = msg.assets
-		b.deployed = msg.deployed
 		b.err = msg.err
-		return b, nil
+		if b.err != nil {
+			return b, nil
+		}
 
-	case tea.KeyPressMsg:
-		return b.handleKey(msg)
-	}
+		if len(msg.assets) == 0 {
+			b.noItems = true
+			return b, nil
+		}
 
-	return b, nil
-}
-
-// handleKey processes keyboard input, routing filter keys vs navigation.
-func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if b.filtering {
-		switch msg.String() {
-		case "esc":
-			b.filter = ""
-			b.filtering = false
-		case "enter":
-			b.filtering = false
-		case "backspace":
-			if len(b.filter) > 0 {
-				b.filter = b.filter[:len(b.filter)-1]
-			}
-		default:
-			// Append printable characters to filter.
-			if msg.Text != "" {
-				b.filter += msg.Text
+		// Convert assets to list items.
+		items := make([]list.Item, len(msg.assets))
+		for i, a := range msg.assets {
+			items[i] = assetItem{
+				name:     a.Name,
+				desc:     fmt.Sprintf("%s · %s", a.Type, a.SourceID),
+				filterV:  fmt.Sprintf("%s %s %s", a.Name, a.Type, a.SourceID),
+				deployed: msg.deployed[a.String()],
 			}
 		}
-		return b, nil
-	}
 
-	// Not filtering: handle / to enter filter mode.
-	if msg.String() == "/" {
-		b.filtering = true
+		// Create the list with pending dimensions (or zero if none received yet).
+		delegate := list.NewDefaultDelegate()
+		delegate.Styles = list.NewDefaultItemStyles(b.isDark)
+		l := list.New(items, delegate, b.pendingWidth, b.pendingHeight)
+		l.DisableQuitKeybindings()
+		l.SetShowTitle(false)
+		l.SetShowHelp(false)
+		l.SetShowFilter(true)
+		l.SetStatusBarItemName("asset", "assets")
+		b.list = &l
 		return b, nil
+
+	case ScreenSizeMsg:
+		if b.list != nil {
+			b.list.SetSize(msg.Width, msg.Height)
+		} else {
+			b.pendingWidth = msg.Width
+			b.pendingHeight = msg.Height
+		}
+		return b, nil
+
+	default:
+		// Delegate all other messages (key presses, filter matches, etc.) to the list.
+		if b.list != nil {
+			newList, cmd := b.list.Update(msg)
+			b.list = &newList
+			return b, cmd
+		}
 	}
 
 	return b, nil
 }
 
-// View renders the asset list with optional filter.
+// View renders the asset list with cursor highlight and pagination.
 func (b *browseScreen) View() tea.View {
 	if !b.loaded {
 		return tea.NewView("  Loading assets...")
@@ -127,76 +173,12 @@ func (b *browseScreen) View() tea.View {
 			b.err.Error(),
 			b.styles.Subtle.Render("Press esc to go back.")))
 	}
-
-	visible := b.visibleAssets()
-	if len(visible) == 0 && len(b.assets) == 0 {
+	if b.noItems {
 		return tea.NewView("  " + NoAssets())
 	}
-
-	var buf strings.Builder
-
-	// Filter bar when active.
-	if b.filtering || b.filter != "" {
-		indicator := " "
-		if b.filtering {
-			indicator = "_"
-		}
-		fmt.Fprintf(&buf, "  %s %s%s\n\n",
-			b.styles.Subtle.Render("/"),
-			b.filter,
-			indicator)
+	if b.list == nil {
+		return tea.NewView("  Loading assets...")
 	}
 
-	if len(visible) == 0 {
-		fmt.Fprintf(&buf, "  %s",
-			b.styles.Subtle.Render("No assets match the filter."))
-		return tea.NewView(buf.String())
-	}
-
-	for _, a := range visible {
-		marker := " "
-		if b.deployed[a.String()] {
-			marker = "*"
-		}
-
-		typePart := b.styles.Subtle.Render(string(a.Type))
-		srcPart := b.styles.Subtle.Render(a.SourceID)
-
-		description := ""
-		if a.Meta != nil && a.Meta.Description != "" {
-			description = b.styles.Subtle.Render("  " + a.Meta.Description)
-		}
-
-		fmt.Fprintf(&buf, "  %s  %-12s  %-24s  %s%s\n",
-			marker, typePart, a.Name, srcPart, description)
-	}
-
-	total := len(b.assets)
-	shown := len(visible)
-	if b.filter != "" {
-		fmt.Fprintf(&buf, "\n  %s",
-			b.styles.Subtle.Render(fmt.Sprintf("%d of %d  · / to filter", shown, total)))
-	} else {
-		fmt.Fprintf(&buf, "\n  %s",
-			b.styles.Subtle.Render(fmt.Sprintf("%d assets  · / to filter", total)))
-	}
-
-	return tea.NewView(buf.String())
-}
-
-// visibleAssets returns the filtered asset list (or all if no filter set).
-func (b *browseScreen) visibleAssets() []*asset.Asset {
-	if b.filter == "" {
-		return b.assets
-	}
-	lower := strings.ToLower(b.filter)
-	var out []*asset.Asset
-	for _, a := range b.assets {
-		if strings.Contains(strings.ToLower(a.Name), lower) ||
-			strings.Contains(strings.ToLower(string(a.Type)), lower) ||
-			strings.Contains(strings.ToLower(a.SourceID), lower) {
-			out = append(out, a)
-		}
-	}
-	return out
+	return tea.NewView(b.list.View())
 }

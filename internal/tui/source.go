@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/source"
@@ -24,31 +25,26 @@ const (
 	sourceDone
 )
 
-// sourceLoadedMsg carries the initial source list.
 type sourceLoadedMsg struct {
 	sources []source.Source
 	err     error
 }
 
-// sourceAddedMsg carries the result of adding a source.
 type sourceAddedMsg struct {
 	src *source.Source
 	err error
 }
 
-// sourceRemovedMsg carries the result of removing a source.
 type sourceRemovedMsg struct {
 	id  string
 	err error
 }
 
-// sourceSyncedMsg carries the result of syncing all sources.
 type sourceSyncedMsg struct {
 	synced int
 	errors []error
 }
 
-// sourceScreen provides List, Add, Remove, and Sync flows for sources.
 type sourceScreen struct {
 	svc    Services
 	styles Styles
@@ -58,24 +54,24 @@ type sourceScreen struct {
 	sources []source.Source
 	err     error
 
-	// menu
 	menuForm   *huh.Form
 	menuChoice string
 	navigated  bool
 
-	// add forms
-	addForm    *huh.Form
-	addInput   string
+	addForm  *huh.Form
+	addInput string
 
-	// remove
-	removeForm    *huh.Form
-	removeChoice  string
-	confirmForm   *huh.Form
-	confirmed     bool
-	removing      bool
+	removeForm   *huh.Form
+	removeChoice string
+	confirmForm  *huh.Form
+	confirmed    bool
+	removing     bool
 
-	// done
 	doneMsg string
+
+	vp            *viewport.Model
+	pendingWidth  int
+	pendingHeight int
 }
 
 func newSourceScreen(svc Services, styles Styles, isDark bool) *sourceScreen {
@@ -104,6 +100,20 @@ func (s *sourceScreen) Init() tea.Cmd {
 
 func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScreenSizeMsg:
+		// Reserve 1 line for the footer hint rendered outside the viewport.
+		h := msg.Height
+		if h > 0 {
+			h--
+		}
+		if s.vp != nil {
+			s.vp.SetWidth(msg.Width)
+			s.vp.SetHeight(h)
+		} else {
+			s.pendingWidth = msg.Width
+			s.pendingHeight = h
+		}
+		return s, nil
 	case sourceLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -112,7 +122,6 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.sources = msg.sources
 		return s.buildMenu()
-
 	case sourceAddedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -121,7 +130,6 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.step = sourceDone
 		return s, func() tea.Msg { return RefreshHeaderMsg{} }
-
 	case sourceRemovedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
@@ -130,7 +138,6 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.step = sourceDone
 		return s, func() tea.Msg { return RefreshHeaderMsg{} }
-
 	case sourceSyncedMsg:
 		s.step = sourceDone
 		s.doneMsg = s.formatSyncResult(msg)
@@ -140,6 +147,8 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch s.step {
 	case sourceMenu:
 		return s.updateMenu(msg)
+	case sourceList:
+		return s.updateList(msg)
 	case sourceAddLocalInput, sourceAddGitInput:
 		return s.updateAddForm(msg)
 	case sourceRemoveSelect, sourceRemoveConfirm:
@@ -165,7 +174,7 @@ func (s *sourceScreen) View() tea.View {
 			return tea.NewView(s.menuForm.View())
 		}
 	case sourceList:
-		return s.viewList()
+		return s.viewListWrapped()
 	case sourceAddLocalInput, sourceAddGitInput:
 		if s.addForm != nil {
 			return tea.NewView(s.addForm.View())
@@ -186,8 +195,6 @@ func (s *sourceScreen) View() tea.View {
 	}
 	return tea.NewView("")
 }
-
-// --- Step builders ---
 
 func (s *sourceScreen) buildMenu() (tea.Model, tea.Cmd) {
 	s.step = sourceMenu
@@ -224,6 +231,7 @@ func (s *sourceScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch s.menuChoice {
 		case "list":
 			s.step = sourceList
+			s.initListViewport()
 			return s, nil
 		case "add-local":
 			return s.buildAddForm("local")
@@ -312,13 +320,11 @@ func (s *sourceScreen) buildRemoveForm() (tea.Model, tea.Cmd) {
 	s.step = sourceRemoveSelect
 	s.removeChoice = ""
 	s.removing = false
-
 	if len(s.sources) == 0 {
 		s.doneMsg = "No sources to remove."
 		s.step = sourceDone
 		return s, nil
 	}
-
 	opts := make([]huh.Option[string], len(s.sources))
 	for i, src := range s.sources {
 		label := src.ID
@@ -344,7 +350,6 @@ func (s *sourceScreen) updateRemove(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if s.removing {
 		return s, nil
 	}
-
 	if s.step == sourceRemoveSelect {
 		model, cmd := s.removeForm.Update(msg)
 		if f, ok := model.(*huh.Form); ok {
@@ -358,8 +363,6 @@ func (s *sourceScreen) updateRemove(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, cmd
 	}
-
-	// sourceRemoveConfirm
 	if s.confirmForm == nil {
 		return s, nil
 	}
@@ -443,9 +446,9 @@ func (s *sourceScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *sourceScreen) viewList() tea.View {
+func (s *sourceScreen) viewList() string {
 	if len(s.sources) == 0 {
-		return tea.NewView("  " + NoSources())
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Sources"))
@@ -457,8 +460,36 @@ func (s *sourceScreen) viewList() tea.View {
 		fmt.Fprintf(&b, "  %-20s  %s\n",
 			src.ID, s.styles.Subtle.Render(loc))
 	}
-	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
-	return tea.NewView(b.String())
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (s *sourceScreen) viewListWrapped() tea.View {
+	if len(s.sources) == 0 {
+		return tea.NewView("  " + NoSources())
+	}
+	footer := "\n  " + s.styles.Subtle.Render("Press esc to go back.")
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
+		return tea.NewView(s.vp.View() + footer)
+	}
+	return tea.NewView(s.viewList() + footer)
+}
+
+func (s *sourceScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
+		vp, cmd := s.vp.Update(msg)
+		s.vp = &vp
+		return s, cmd
+	}
+	return s, nil
+}
+
+func (s *sourceScreen) initListViewport() {
+	vp := viewport.New(
+		viewport.WithWidth(s.pendingWidth),
+		viewport.WithHeight(s.pendingHeight),
+	)
+	s.vp = &vp
+	s.vp.SetContent(s.viewList())
 }
 
 func (s *sourceScreen) formatSyncResult(msg sourceSyncedMsg) string {

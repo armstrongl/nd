@@ -445,6 +445,9 @@ func TestPolish_UnstyledStatusViewReadable(t *testing.T) {
 	s := testStyles()
 	ss := &statusScreen{svc: svc, styles: s, isDark: true}
 
+	// Two-phase init: send ScreenSizeMsg before data loads so the viewport
+	// has dimensions when it is created on statusLoadedMsg.
+	ss.Update(ScreenSizeMsg{Width: 80, Height: 40})
 	ss.Update(statusLoadedMsg{
 		entries: []deploy.StatusEntry{
 			{
