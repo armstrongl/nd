@@ -26,8 +26,9 @@ config:
   # Blank lines around headings
   MD022: true
 
-  # Single H1 per file
-  MD025: true
+  # Single H1 per file (ignore frontmatter title field)
+  MD025:
+    front_matter_title: ""
 
   # Fenced code blocks surrounded by blank lines
   MD031: true
