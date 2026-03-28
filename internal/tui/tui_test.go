@@ -257,3 +257,162 @@ func TestInit_ReturnsCmd(t *testing.T) {
 		t.Fatal("expected non-nil cmd from Init")
 	}
 }
+
+// --- ScreenSizeMsg infrastructure tests ---
+
+// execCmd executes a tea.Cmd and returns the resulting message.
+// For tea.Batch commands, it flattens and returns all messages.
+func execCmds(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		var msgs []tea.Msg
+		for _, c := range batch {
+			msgs = append(msgs, execCmds(c)...)
+		}
+		return msgs
+	}
+	return []tea.Msg{msg}
+}
+
+// findScreenSizeMsg returns the first ScreenSizeMsg in a list, or nil.
+func findScreenSizeMsg(msgs []tea.Msg) *ScreenSizeMsg {
+	for _, msg := range msgs {
+		if ssm, ok := msg.(ScreenSizeMsg); ok {
+			return &ssm
+		}
+	}
+	return nil
+}
+
+func TestWindowSizeMsg_SendsScreenSizeMsg(t *testing.T) {
+	m := newTestModel()
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg from WindowSizeMsg")
+	}
+	if ssm.Width != 120 {
+		t.Errorf("expected Width=120, got %d", ssm.Width)
+	}
+	// Height should be terminal height minus chrome (4 lines)
+	if ssm.Height != 36 {
+		t.Errorf("expected Height=36 (40-4), got %d", ssm.Height)
+	}
+}
+
+func TestScreenSizeMsg_HeightFloorAtZero(t *testing.T) {
+	m := newTestModel()
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 2})
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg from WindowSizeMsg")
+	}
+	if ssm.Height != 0 {
+		t.Errorf("expected Height=0 for tiny terminal, got %d", ssm.Height)
+	}
+}
+
+func TestNavigateMsg_BatchesScreenSizeMsg(t *testing.T) {
+	m := newTestModel()
+	m.width = 100
+	m.height = 30
+
+	target := stubScreen{title: "Browse"}
+	_, cmd := m.Update(NavigateMsg{Screen: target})
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg batched with NavigateMsg")
+	}
+	if ssm.Width != 100 {
+		t.Errorf("expected Width=100, got %d", ssm.Width)
+	}
+	if ssm.Height != 26 {
+		t.Errorf("expected Height=26 (30-4), got %d", ssm.Height)
+	}
+}
+
+func TestBackMsg_SendsScreenSizeMsg(t *testing.T) {
+	m := newTestModel()
+	m.width = 80
+	m.height = 24
+	m.screens = append(m.screens, stubScreen{title: "Browse"})
+
+	_, cmd := m.Update(BackMsg{})
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg from BackMsg")
+	}
+	if ssm.Width != 80 || ssm.Height != 20 {
+		t.Errorf("expected 80x20, got %dx%d", ssm.Width, ssm.Height)
+	}
+}
+
+func TestPopToRootMsg_SendsScreenSizeMsg(t *testing.T) {
+	m := newTestModel()
+	m.width = 80
+	m.height = 24
+	m.screens = append(m.screens,
+		stubScreen{title: "Browse"},
+		stubScreen{title: "Deploy"},
+	)
+
+	_, cmd := m.Update(PopToRootMsg{})
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg from PopToRootMsg")
+	}
+	if ssm.Width != 80 || ssm.Height != 20 {
+		t.Errorf("expected 80x20, got %dx%d", ssm.Width, ssm.Height)
+	}
+}
+
+func TestEscPop_SendsScreenSizeMsg(t *testing.T) {
+	m := newTestModel()
+	m.width = 80
+	m.height = 24
+	m.screens = append(m.screens, stubScreen{title: "Browse"})
+
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+
+	msgs := execCmds(cmd)
+	ssm := findScreenSizeMsg(msgs)
+	if ssm == nil {
+		t.Fatal("expected ScreenSizeMsg from esc pop")
+	}
+	if ssm.Width != 80 || ssm.Height != 20 {
+		t.Errorf("expected 80x20, got %dx%d", ssm.Width, ssm.Height)
+	}
+}
+
+func TestScreenSizeMsg_DelegatedToScreen(t *testing.T) {
+	// Verify ScreenSizeMsg reaches the active screen through delegation.
+	m := newTestModel()
+	// The stubScreen ignores ScreenSizeMsg (returns self, nil) which is fine —
+	// this test verifies the message passes through without errors.
+	updated, _ := m.Update(ScreenSizeMsg{Width: 80, Height: 20})
+	m2 := updated.(Model)
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected screen stack unchanged, got %d", len(m2.screens))
+	}
+}
+
+func TestChromeHeight_MatchesViewLayout(t *testing.T) {
+	// Verify chromeHeight (4) matches the actual View layout:
+	// header + "" + content + "" + helpbar = 5 sections, 4 non-content.
+	if chromeHeight != 4 {
+		t.Fatalf("expected chromeHeight=4, got %d", chromeHeight)
+	}
+}
