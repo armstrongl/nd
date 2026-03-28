@@ -344,6 +344,11 @@ func (s *statusScreen) applyHighlight(lines []string, selectable []int) string {
 		highlightLine = selectable[s.cursor]
 	}
 
+	selectableSet := make(map[int]struct{}, len(selectable))
+	for _, idx := range selectable {
+		selectableSet[idx] = struct{}{}
+	}
+
 	var b strings.Builder
 	for i, line := range lines {
 		if i > 0 {
@@ -351,23 +356,13 @@ func (s *statusScreen) applyHighlight(lines []string, selectable []int) string {
 		}
 		if i == highlightLine {
 			fmt.Fprintf(&b, "%s %s", s.styles.Primary.Render(">"), line)
-		} else if s.isSelectableLine(i, selectable) {
+		} else if _, ok := selectableSet[i]; ok {
 			fmt.Fprintf(&b, "  %s", line)
 		} else {
 			fmt.Fprintf(&b, "%s", line)
 		}
 	}
 	return b.String()
-}
-
-// isSelectableLine checks whether a line index is in the selectable set.
-func (s *statusScreen) isSelectableLine(lineIdx int, selectable []int) bool {
-	for _, sl := range selectable {
-		if sl == lineIdx {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *statusScreen) View() tea.View {

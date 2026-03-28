@@ -420,14 +420,14 @@ func (s *snapshotScreen) viewListWrapped() tea.View {
 			s.styles.Subtle.Render("Press esc to go back."))
 	}
 	footer := "\n  " + s.styles.Subtle.Render("Press esc to go back.")
-	if s.vp != nil {
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
 		return tea.NewView(s.vp.View() + footer)
 	}
 	return tea.NewView(s.viewList() + footer)
 }
 
 func (s *snapshotScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if s.vp != nil {
+	if s.vp != nil && s.vp.Width() > 0 && s.vp.Height() > 0 {
 		vp, cmd := s.vp.Update(msg)
 		s.vp = &vp
 		return s, cmd
