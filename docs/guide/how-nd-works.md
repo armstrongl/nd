@@ -1,4 +1,7 @@
-# How nd works
+---
+title: "How nd works"
+weight: 20
+---
 
 nd doesn't copy files. It creates symlinks.
 
@@ -8,7 +11,7 @@ When you run `nd deploy skills/greeting`, nd creates a symbolic link from your a
 
 nd wires each deployed asset from your source into the agent's config directory:
 
-```
+```text
   your source               nd               agent config dir
 +----------------+     (creates link)     +------------------+
 | ~/my-assets/   |  ---- nd deploy --->   | ~/.claude/        |
@@ -24,7 +27,7 @@ Your files stay in the source. nd creates links so the agent can find them. You 
 
 Here is a source directory with two assets: a skill (directory) and a rule (file):
 
-```
+```text
 ~/my-assets/
 ├── skills/
 │   └── greeting/
@@ -35,7 +38,7 @@ Here is a source directory with two assets: a skill (directory) and a rule (file
 
 After running `nd deploy skills/greeting rules/no-emojis`, your agent's config directory looks like this:
 
-```
+```text
 ~/.claude/
 ├── skills/
 │   └── greeting -> ~/my-assets/skills/greeting   # directory symlink
@@ -60,13 +63,13 @@ nd can deploy to two places depending on the scope:
 
 **Global scope** (default) deploys to your agent's user-wide config directory:
 
-```
+```text
 ~/.claude/skills/greeting -> ~/my-assets/skills/greeting
 ```
 
 **Project scope** deploys to the current project's config directory:
 
-```
+```text
 ~/myproject/.claude/skills/greeting -> ~/my-assets/skills/greeting
 ```
 
@@ -88,13 +91,13 @@ Context files break the pattern. Every other asset type deploys into a subdirect
 
 **Global scope:** deploys into the agent's config directory:
 
-```
+```text
 ~/.claude/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
 **Project scope:** deploys into the project root, NOT inside `.claude/`:
 
-```
+```text
 ~/myproject/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
@@ -111,13 +114,13 @@ nd supports two symlink strategies. The default is absolute:
 
 **Absolute** (default): the symlink target is a full path:
 
-```
+```text
 ~/.claude/skills/greeting -> /Users/you/my-assets/skills/greeting
 ```
 
 **Relative:** the symlink target is a relative path from the link's location:
 
-```
+```text
 ~/.claude/skills/greeting -> ../../my-assets/skills/greeting
 ```
 

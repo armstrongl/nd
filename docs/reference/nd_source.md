@@ -1,21 +1,25 @@
-## nd source
+---
+title: "nd source"
+weight: 280
+---
+
 
 Manage asset sources
 
-### Synopsis
+## Synopsis
 
 Add, remove, and list asset source directories.
 
-### Options
+## Options
 
 ```
   -h, --help   help for source
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,7 +29,7 @@ Add, remove, and list asset source directories.
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 * [nd](nd.md)	 - Napoleon Dynamite — coding agent asset manager
 * [nd source add](nd_source_add.md)	 - Register a new asset source

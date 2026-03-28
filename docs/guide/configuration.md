@@ -1,4 +1,7 @@
-# Configuration
+---
+title: "Configuration"
+weight: 40
+---
 
 nd uses YAML configuration files with a layered merging system.
 
@@ -111,6 +114,7 @@ sources:
 ```
 
 Use cases:
+
 - Force project scope for a repository
 - Add project-specific asset sources
 - Override symlink strategy for a team

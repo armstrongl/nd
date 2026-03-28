@@ -1,4 +1,7 @@
-# Get started
+---
+title: "Get started"
+weight: 10
+---
 
 This guide takes you from zero to your first deployed asset in about 5 minutes.
 

@@ -1,4 +1,8 @@
-## nd profile add-asset
+---
+title: "nd profile add-asset"
+weight: 140
+---
+
 
 Add an asset to an existing profile
 
@@ -6,16 +10,16 @@ Add an asset to an existing profile
 nd profile add-asset <profile> <asset> [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for add-asset
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,7 +29,7 @@ nd profile add-asset <profile> <asset> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## SEE ALSO
 
 * [nd profile](nd_profile.md)	 - Manage deployment profiles
 
