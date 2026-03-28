@@ -108,14 +108,35 @@ func TestStubScreen_SatisfiesTeaModel(t *testing.T) {
 	}
 }
 
+func TestScreenSizeMsg_IsDistinctType(t *testing.T) {
+	var msg interface{} = ScreenSizeMsg{Width: 80, Height: 20}
+	if _, ok := msg.(ScreenSizeMsg); !ok {
+		t.Fatal("expected ScreenSizeMsg type assertion to succeed")
+	}
+	if _, ok := msg.(BackMsg); ok {
+		t.Fatal("ScreenSizeMsg should not satisfy BackMsg")
+	}
+}
+
+func TestScreenSizeMsg_CarriesDimensions(t *testing.T) {
+	msg := ScreenSizeMsg{Width: 120, Height: 36}
+	if msg.Width != 120 {
+		t.Fatalf("expected Width=120, got %d", msg.Width)
+	}
+	if msg.Height != 36 {
+		t.Fatalf("expected Height=36, got %d", msg.Height)
+	}
+}
+
 func TestAllMessageTypes_SwitchDispatch(t *testing.T) {
-	// Verify all four message types can be dispatched in a type switch,
+	// Verify all five message types can be dispatched in a type switch,
 	// which is the pattern the root model uses.
 	messages := []interface{}{
 		NavigateMsg{Screen: stubScreen{title: "Deploy"}},
 		BackMsg{},
 		PopToRootMsg{},
 		RefreshHeaderMsg{},
+		ScreenSizeMsg{Width: 80, Height: 20},
 	}
 
 	for i, msg := range messages {
@@ -139,6 +160,11 @@ func TestAllMessageTypes_SwitchDispatch(t *testing.T) {
 		case RefreshHeaderMsg:
 			if i != 3 {
 				t.Fatalf("RefreshHeaderMsg matched at index %d, expected 3", i)
+			}
+			matched = true
+		case ScreenSizeMsg:
+			if i != 4 {
+				t.Fatalf("ScreenSizeMsg matched at index %d, expected 4", i)
 			}
 			matched = true
 		}
