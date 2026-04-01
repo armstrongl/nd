@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rvben/rumdl@v0
-        with:
-          version: "0.1.63"
-          report-type: annotations
+      - name: Install rumdl
+        run: pip install rumdl==0.1.63
+      - name: Lint
+        run: rumdl check .
 
   lint:
     name: Lint
