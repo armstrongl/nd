@@ -7,6 +7,9 @@
 [![Release](https://img.shields.io/github/v/release/armstrongl/nd)](https://github.com/armstrongl/nd/releases)
 <!-- rumdl-enable MD044 -->
 
+> [!WARNING] 
+>  nd is still in alpha and under active development. Please let me know if you encounter issues 🙂
+
 Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code with symlink-based deployment.
 
 ## What it does
