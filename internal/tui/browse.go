@@ -16,7 +16,7 @@ type browseLoadedMsg struct {
 }
 
 // browseScreen shows all available assets with deployment status markers.
-// It supports a text filter toggled with '/'.
+// It supports a text filter toggled with '/' and cursor navigation with j/k.
 type browseScreen struct {
 	svc    Services
 	styles Styles
@@ -24,8 +24,10 @@ type browseScreen struct {
 
 	assets   []*asset.Asset
 	deployed map[string]bool
+	cursor    int
 	filter   string
 	filtering bool
+	notice   string // transient feedback (e.g. "already deployed")
 	err      error
 	loaded   bool
 }
@@ -39,6 +41,24 @@ func (b *browseScreen) Title() string { return "Browse" }
 // InputActive returns true while the filter input is active,
 // suppressing global q/esc key handling.
 func (b *browseScreen) InputActive() bool { return b.filtering }
+
+// FullHelpItems returns step-specific help items for the browse screen.
+func (b *browseScreen) FullHelpItems() []HelpItem {
+	if b.filtering {
+		return []HelpItem{
+			{"esc", "cancel"},
+			{"enter", "apply"},
+			{"backspace", "delete"},
+		}
+	}
+	return []HelpItem{
+		{"esc", "back"},
+		{"j/k", "navigate"},
+		{"enter", "deploy"},
+		{"/", "filter"},
+		{"q", "quit"},
+	}
+}
 
 // Init starts async loading of all assets and deployed state.
 func (b *browseScreen) Init() tea.Cmd {
@@ -76,6 +96,7 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		b.assets = msg.assets
 		b.deployed = msg.deployed
 		b.err = msg.err
+		b.clampCursor()
 		return b, nil
 
 	case tea.KeyPressMsg:
@@ -104,13 +125,46 @@ func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				b.filter += msg.Text
 			}
 		}
+		b.clampCursor()
 		return b, nil
 	}
 
-	// Not filtering: handle / to enter filter mode.
-	if msg.String() == "/" {
+	// Not filtering: guard against pre-load key handling.
+	if !b.loaded {
+		return b, nil
+	}
+
+	b.notice = ""
+	visible := b.visibleAssets()
+
+	switch msg.String() {
+	case "/":
 		b.filtering = true
 		return b, nil
+
+	case "j", "down":
+		if b.cursor < len(visible)-1 {
+			b.cursor++
+		}
+		return b, nil
+
+	case "k", "up":
+		if b.cursor > 0 {
+			b.cursor--
+		}
+		return b, nil
+
+	case "enter":
+		if len(visible) == 0 {
+			return b, nil
+		}
+		a := visible[b.cursor]
+		if b.deployed[a.String()] {
+			b.notice = fmt.Sprintf("%s is already deployed", a.Name)
+			return b, nil
+		}
+		screen := newDeployScreen(b.svc, b.styles, b.isDark)
+		return b, func() tea.Msg { return NavigateMsg{Screen: screen} }
 	}
 
 	return b, nil
@@ -153,7 +207,12 @@ func (b *browseScreen) View() tea.View {
 		return tea.NewView(buf.String())
 	}
 
-	for _, a := range visible {
+	for i, a := range visible {
+		cursor := "  "
+		if i == b.cursor {
+			cursor = GlyphArrow + " "
+		}
+
 		marker := " "
 		if b.deployed[a.String()] {
 			marker = "*"
@@ -167,8 +226,13 @@ func (b *browseScreen) View() tea.View {
 			description = b.styles.Subtle.Render("  " + a.Meta.Description)
 		}
 
-		fmt.Fprintf(&buf, "  %s  %-12s  %-24s  %s%s\n",
-			marker, typePart, a.Name, srcPart, description)
+		fmt.Fprintf(&buf, "%s%s  %-12s  %-24s  %s%s\n",
+			cursor, marker, typePart, a.Name, srcPart, description)
+	}
+
+	// Transient feedback message (e.g. "already deployed").
+	if b.notice != "" {
+		fmt.Fprintf(&buf, "\n  %s", b.styles.Warning.Render(b.notice))
 	}
 
 	total := len(b.assets)
@@ -182,6 +246,18 @@ func (b *browseScreen) View() tea.View {
 	}
 
 	return tea.NewView(buf.String())
+}
+
+// clampCursor ensures the cursor stays within the visible asset list bounds.
+func (b *browseScreen) clampCursor() {
+	visible := b.visibleAssets()
+	if len(visible) == 0 {
+		b.cursor = 0
+		return
+	}
+	if b.cursor >= len(visible) {
+		b.cursor = len(visible) - 1
+	}
 }
 
 // visibleAssets returns the filtered asset list (or all if no filter set).

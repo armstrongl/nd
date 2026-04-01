@@ -13,6 +13,13 @@ type HelpProvider interface {
 	HelpItems() []HelpItem
 }
 
+// FullHelpProvider is an optional interface screens can implement to replace
+// the default help items entirely. Use this when a screen needs step-specific
+// help (e.g. MultiSelect uses "x/space toggle" instead of "enter select").
+type FullHelpProvider interface {
+	FullHelpItems() []HelpItem
+}
+
 // HelpBar renders context-sensitive help at the bottom of the TUI.
 type HelpBar struct{}
 
@@ -27,6 +34,11 @@ func (hb HelpBar) View(s Styles, screen Screen, _ int) string {
 }
 
 func defaultHelp(screen Screen) []HelpItem {
+	// Allow screens to fully replace the help items.
+	if fhp, ok := screen.(FullHelpProvider); ok {
+		return fhp.FullHelpItems()
+	}
+
 	items := []HelpItem{
 		{"esc", "back"},
 		{"j/k", "navigate"},
