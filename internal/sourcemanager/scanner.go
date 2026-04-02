@@ -85,7 +85,7 @@ func ScanSource(sourceID string, rootPath string) source.ScanResult {
 // Validates each entry against the expected structure for its asset type.
 // Non-matching directories are scanned one level deeper to support grouping folders.
 func scanAssetDir(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string) {
-	scanAssetDirImpl(result, sourceID, assetType, dirPath, nil, 1)
+	scanAssetDirImpl(result, sourceID, assetType, dirPath, nil, 1, "")
 }
 
 // scanContextDir scans the context/ directory for context assets.
@@ -218,13 +218,13 @@ func scanWithManifest(result *source.ScanResult, sourceID string, rootPath strin
 
 // scanAssetDirExcluding is like scanAssetDir but skips entries matching the exclude set.
 func scanAssetDirExcluding(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool) {
-	scanAssetDirImpl(result, sourceID, assetType, dirPath, excludeSet, 1)
+	scanAssetDirImpl(result, sourceID, assetType, dirPath, excludeSet, 1, "")
 }
 
 // scanAssetDirImpl is the shared implementation for scanning an asset type directory.
 // It validates entries against the expected structure and recurses into non-matching
 // directories up to remainingDepth levels to support grouping folders.
-func scanAssetDirImpl(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool, remainingDepth int) {
+func scanAssetDirImpl(result *source.ScanResult, sourceID string, assetType nd.AssetType, dirPath string, excludeSet map[string]bool, remainingDepth int, groupDir string) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		result.Errors = append(result.Errors, err)
@@ -254,10 +254,11 @@ func scanAssetDirImpl(result *source.ScanResult, sourceID string, assetType nd.A
 				},
 				SourcePath: entryPath,
 				IsDir:      entry.IsDir(),
+				GroupDir:   groupDir,
 			})
 		} else if entry.IsDir() && remainingDepth > 0 {
 			// Recurse into potential grouping directory
-			scanAssetDirImpl(result, sourceID, assetType, entryPath, excludeSet, remainingDepth-1)
+			scanAssetDirImpl(result, sourceID, assetType, entryPath, excludeSet, remainingDepth-1, name)
 		}
 	}
 }

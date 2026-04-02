@@ -479,6 +479,24 @@ func TestScanGroupingFolderNesting(t *testing.T) {
 			t.Errorf("expected asset %q not found", expected)
 		}
 	}
+
+	// Assert GroupDir values
+	for _, a := range result.Assets {
+		switch a.Name {
+		case "better-skill", "cc-assets":
+			if a.GroupDir != "claude" {
+				t.Errorf("asset %q: GroupDir got %q, want %q", a.Name, a.GroupDir, "claude")
+			}
+		case "code-review":
+			if a.GroupDir != "codex" {
+				t.Errorf("asset %q: GroupDir got %q, want %q", a.Name, a.GroupDir, "codex")
+			}
+		case "go-dev.md", "research.md":
+			if a.GroupDir != "claude" {
+				t.Errorf("asset %q: GroupDir got %q, want %q", a.Name, a.GroupDir, "claude")
+			}
+		}
+	}
 }
 
 func TestScanNestingDepthLimit(t *testing.T) {
@@ -715,5 +733,52 @@ func TestScanMixedValidAndGrouping(t *testing.T) {
 	}
 	if !names["grouped-skill"] {
 		t.Error("grouped-skill not found")
+	}
+
+	// Assert GroupDir values
+	for _, a := range result.Assets {
+		switch a.Name {
+		case "direct-skill":
+			if a.GroupDir != "" {
+				t.Errorf("direct-skill GroupDir: got %q, want empty", a.GroupDir)
+			}
+		case "grouped-skill":
+			if a.GroupDir != "claude" {
+				t.Errorf("grouped-skill GroupDir: got %q, want %q", a.GroupDir, "claude")
+			}
+		}
+	}
+}
+
+func TestScanContextAssetsGroupDirEmpty(t *testing.T) {
+	root := t.TempDir()
+	ctx := filepath.Join(root, "context", "my-rules")
+	os.MkdirAll(ctx, 0o755)
+	os.WriteFile(filepath.Join(ctx, "CLAUDE.md"), []byte("# rules"), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 asset, got %d", len(result.Assets))
+	}
+	if result.Assets[0].GroupDir != "" {
+		t.Errorf("context asset GroupDir: got %q, want empty", result.Assets[0].GroupDir)
+	}
+}
+
+func TestScanNestingWithManifestGroupDir(t *testing.T) {
+	root := t.TempDir()
+
+	os.MkdirAll(filepath.Join(root, "my-skills", "claude", "review"), 0o755)
+	os.WriteFile(filepath.Join(root, "my-skills", "claude", "review", "SKILL.md"), []byte("# skill"), 0o644)
+
+	manifest := "version: 1\npaths:\n  skills:\n    - my-skills\n"
+	os.WriteFile(filepath.Join(root, "nd-source.yaml"), []byte(manifest), 0o644)
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 asset, got %d", len(result.Assets))
+	}
+	if result.Assets[0].GroupDir != "claude" {
+		t.Errorf("GroupDir: got %q, want %q", result.Assets[0].GroupDir, "claude")
 	}
 }
