@@ -663,7 +663,7 @@ func TestDeploy_ResultView_ConflictHint(t *testing.T) {
 		},
 	}
 
-	content := ds.viewResult()
+	content := ds.viewResult().Content
 	if !strings.Contains(content, "Hint") {
 		t.Errorf("result view should show conflict hint; got:\n%s", content)
 	}
@@ -682,7 +682,7 @@ func TestDeploy_ResultView_NoConflictHint_OnGenericError(t *testing.T) {
 		},
 	}
 
-	content := ds.viewResult()
+	content := ds.viewResult().Content
 	if strings.Contains(content, "Hint") {
 		t.Errorf("result view should not show conflict hint for non-conflict errors; got:\n%s", content)
 	}

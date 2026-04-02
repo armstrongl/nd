@@ -75,6 +75,11 @@ type deployScreen struct {
 
 	err  error
 	info string // non-error informational message (e.g. "all deployed")
+
+	// result scrolling
+	height      int
+	scroll      listScroll
+	resultLines []string
 }
 
 // deployDoneMsg signals that the background deploy goroutine completed.
@@ -158,10 +163,15 @@ func (ds *deployScreen) Init() tea.Cmd {
 // Update handles messages for each step of the deploy flow.
 func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		ds.height = msg.Height
+		return ds, nil
+
 	case deployDoneMsg:
 		ds.step = deployResult
 		ds.succeeded = msg.succeeded
 		ds.failed = msg.failed
+		ds.resultLines = nil
 		// M5: Log operation to oplog
 		if ol := ds.svc.OpLog(); ol != nil {
 			var identities []asset.Identity
@@ -241,7 +251,7 @@ func (ds *deployScreen) View() tea.View {
 			ds.styles.Primary.Render("Deploying...")))
 
 	case deployResult:
-		return tea.NewView(ds.viewResult())
+		return ds.viewResult()
 	}
 
 	return tea.NewView("")
@@ -419,6 +429,7 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		ds.step = deployResult
 		ds.dryRun = true
 		ds.dryReqs = reqs
+		ds.resultLines = nil
 		return func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -464,7 +475,14 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if keyMsg.String() == "enter" {
+		switch keyMsg.String() {
+		case "j", "down":
+			ds.scroll.ScrollDown(len(ds.resultLines), ds.contentHeight())
+			return ds, nil
+		case "k", "up":
+			ds.scroll.ScrollUp()
+			return ds, nil
+		case "enter":
 			// M7: PopToRootMsg (matching remove screen behavior)
 			return ds, tea.Batch(
 				func() tea.Msg { return PopToRootMsg{} },
@@ -475,8 +493,19 @@ func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return ds, nil
 }
 
-// viewResult renders the deployment results.
-func (ds *deployScreen) viewResult() string {
+func (ds *deployScreen) contentHeight() int {
+	if ds.height == 0 {
+		return listScrollUnlimited
+	}
+	h := ds.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// buildResultContent renders the full deployment result as a string.
+func (ds *deployScreen) buildResultContent() string {
 	var b strings.Builder
 
 	// H2: Dry-run preview
@@ -531,6 +560,27 @@ func (ds *deployScreen) viewResult() string {
 	fmt.Fprintf(&b, "  %s", ds.styles.Subtle.Render("Press enter to return."))
 
 	return b.String()
+}
+
+// viewResult renders the result step with j/k scrolling when the list exceeds the terminal height.
+func (ds *deployScreen) viewResult() tea.View {
+	if len(ds.resultLines) == 0 {
+		ds.resultLines = splitLines(ds.buildResultContent())
+	}
+
+	lines := ds.resultLines
+	pageSize := ds.contentHeight()
+	start, end := ds.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := ds.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(ds.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := ds.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(ds.styles, "↓", below))
+	}
+	return tea.NewView(b.String())
 }
 
 // --- helpers ---
