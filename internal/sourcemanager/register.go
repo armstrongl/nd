@@ -10,6 +10,22 @@ import (
 	"github.com/armstrongl/nd/internal/source"
 )
 
+// insertBeforeBuiltin appends entry to sources, keeping the builtin source
+// (if present) as the last element. Returns the new slice and the index
+// where the entry was inserted.
+func insertBeforeBuiltin(sources []config.SourceEntry, entry config.SourceEntry) ([]config.SourceEntry, int) {
+	n := len(sources)
+	if n > 0 && sources[n-1].ID == nd.BuiltinSourceID {
+		// Insert before the builtin entry
+		result := make([]config.SourceEntry, 0, n+1)
+		result = append(result, sources[:n-1]...)
+		result = append(result, entry)
+		result = append(result, sources[n-1])
+		return result, n - 1
+	}
+	return append(sources, entry), n
+}
+
 // GenerateSourceID creates a source ID from a path's base name,
 // deduplicating with a numeric suffix if needed.
 func GenerateSourceID(path string, existingIDs map[string]bool) string {
@@ -48,6 +64,7 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 	}
 
 	existingIDs := make(map[string]bool)
+	existingIDs[nd.BuiltinSourceID] = true
 	for _, s := range sm.cfg.Sources {
 		existingIDs[s.ID] = true
 	}
@@ -60,11 +77,12 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 		Alias: alias,
 	}
 
-	sm.cfg.Sources = append(sm.cfg.Sources, entry)
+	oldSources := sm.cfg.Sources
+	sm.cfg.Sources, _ = insertBeforeBuiltin(sm.cfg.Sources, entry)
 
 	if err := WriteConfig(sm.configPath, sm.cfg); err != nil {
 		// Roll back in-memory change
-		sm.cfg.Sources = sm.cfg.Sources[:len(sm.cfg.Sources)-1]
+		sm.cfg.Sources = oldSources
 		return nil, fmt.Errorf("save config: %w", err)
 	}
 
@@ -80,6 +98,10 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 // Remove unregisters a source by ID. Does not delete deployed assets
 // or cloned directories — that is the caller's responsibility.
 func (sm *SourceManager) Remove(sourceID string) error {
+	if sourceID == nd.BuiltinSourceID {
+		return fmt.Errorf("the builtin source cannot be removed")
+	}
+
 	idx := -1
 	for i, s := range sm.cfg.Sources {
 		if s.ID == sourceID {
@@ -116,6 +138,7 @@ func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error
 	}
 
 	existingIDs := make(map[string]bool)
+	existingIDs[nd.BuiltinSourceID] = true
 	for _, s := range sm.cfg.Sources {
 		existingIDs[s.ID] = true
 	}
@@ -141,10 +164,11 @@ func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error
 		Alias: alias,
 	}
 
-	sm.cfg.Sources = append(sm.cfg.Sources, entry)
+	oldSources := sm.cfg.Sources
+	sm.cfg.Sources, _ = insertBeforeBuiltin(sm.cfg.Sources, entry)
 
 	if err := WriteConfig(sm.configPath, sm.cfg); err != nil {
-		sm.cfg.Sources = sm.cfg.Sources[:len(sm.cfg.Sources)-1]
+		sm.cfg.Sources = oldSources
 		os.RemoveAll(cloneTarget)
 		return nil, fmt.Errorf("save config: %w", err)
 	}

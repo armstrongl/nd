@@ -36,6 +36,9 @@ type App struct {
 	pstore  *profile.Store
 	sstore  *state.Store
 	ol      *oplog.Writer
+
+	// initAgent overrides agent detection during init (test use only).
+	initAgent *agent.Agent
 }
 
 // SourceManager returns the source manager, creating it on first call.

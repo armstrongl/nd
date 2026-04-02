@@ -104,8 +104,13 @@ func TestListCmd_Empty(t *testing.T) {
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(out.String(), "No assets") {
-		t.Errorf("expected 'No assets' message, got: %s", out.String())
+	// With no user sources, the builtin source still provides assets
+	got := out.String()
+	if strings.Contains(got, "No assets") {
+		t.Errorf("builtin assets should be listed, got 'No assets' message")
+	}
+	if !strings.Contains(got, "builtin") {
+		t.Errorf("expected builtin source assets in output, got: %s", got)
 	}
 }
 

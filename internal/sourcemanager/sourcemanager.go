@@ -2,9 +2,11 @@ package sourcemanager
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/builtin"
 	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/source"
@@ -36,6 +38,8 @@ func New(configPath string, projectDir string) (*SourceManager, error) {
 		}
 		cfg = MergeConfigs(cfg, pc)
 	}
+
+	appendBuiltinSource(&cfg)
 
 	return &SourceManager{
 		configPath: configPath,
@@ -85,6 +89,24 @@ func (sm *SourceManager) SyncSource(sourceID string) error {
 	}
 
 	return gitPull(entry.Path)
+}
+
+// appendBuiltinSource adds the built-in source as the last (lowest priority)
+// entry in cfg.Sources. If the cache extraction fails, a warning is printed
+// to stderr but execution continues.
+func appendBuiltinSource(cfg *config.Config) {
+	cachePath, err := builtin.Path()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: builtin source unavailable: %v\n", err)
+		return
+	}
+
+	cfg.Sources = append(cfg.Sources, config.SourceEntry{
+		ID:    nd.BuiltinSourceID,
+		Type:  nd.SourceBuiltin,
+		Path:  cachePath,
+		Alias: "nd",
+	})
 }
 
 // ScanSummary holds the result of a full scan across all sources.

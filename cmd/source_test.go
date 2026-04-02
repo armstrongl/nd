@@ -198,9 +198,13 @@ func TestSourceList_Empty(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	// With no user sources, the builtin source is still present
 	got := out.String()
-	if !strings.Contains(got, "No sources") {
-		t.Errorf("empty list should say 'No sources', got: %s", got)
+	if strings.Contains(got, "No sources") {
+		t.Errorf("builtin source should always be listed, got 'No sources' message")
+	}
+	if !strings.Contains(got, "builtin") {
+		t.Errorf("expected builtin source in output, got: %s", got)
 	}
 }
 

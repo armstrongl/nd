@@ -57,7 +57,8 @@ default_agent: claude-code
 # Relative symlinks are more portable across machines
 symlink_strategy: absolute
 
-# Registered asset sources
+# Registered asset sources (user-defined only; the builtin source
+# is injected at runtime and does not appear in this file)
 sources:
   - id: my-assets
     type: local
@@ -90,7 +91,7 @@ agents:
 | `symlink_strategy` | string | `absolute` | Symlink type: `absolute` or `relative` |
 | `sources` | array | `[]` | Registered asset sources |
 | `sources[].id` | string | (generated) | Unique source identifier |
-| `sources[].type` | string | -- | Source type: `local` or `git` |
+| `sources[].type` | string | -- | Source type: `local`, `git`, or `builtin` |
 | `sources[].path` | string | -- | Filesystem path to source |
 | `sources[].url` | string | -- | Git URL (git sources only) |
 | `sources[].alias` | string | -- | Human-readable alias (optional) |
@@ -109,7 +110,7 @@ nd merges configuration from multiple sources in this order (later overrides ear
 3. **Project config:** `.nd/config.yaml` (if present)
 4. **CLI flags:** `--scope`, `--config`, etc.
 
-For sources, global sources appear first (higher priority), followed by project sources. This means if the same asset exists in both a global and project source, the global source wins.
+For sources, global sources appear first (higher priority), followed by project sources. The built-in source always has the lowest priority. This means if the same asset exists in both a user source and the builtin source, the user source wins.
 
 ## Project-level config
 
