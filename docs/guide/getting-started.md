@@ -45,11 +45,17 @@ Create the nd configuration directory and default config:
 nd init
 ```
 
-This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
+This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. It also deploys nd's built-in assets (skills, commands, and an agent) so you have something to work with immediately.
+
+You can browse the built-in assets right away:
+
+```shell
+nd list
+```
 
 ## 3. Add your first source
 
-A **source** is a local directory or git repository containing agent assets organized by type.
+nd ships with a **builtin** source containing nd-specific assets. To add your own assets, register a **source**: a local directory or git repository containing agent assets organized by type.
 
 ```shell
 # Local directory

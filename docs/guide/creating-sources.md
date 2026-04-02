@@ -13,7 +13,7 @@ tags:
   - scanning
 ---
 
-An asset source is a directory (local or git) containing coding agent assets organized by type. This guide explains how to structure your own.
+An asset source is a directory containing coding agent assets organized by type. nd supports three source types: **local** (a directory on disk), **git** (a cloned repository), and **builtin** (embedded in the nd binary). This guide explains how to structure your own local or git source.
 
 ## Directory convention
 

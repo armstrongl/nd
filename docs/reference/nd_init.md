@@ -10,6 +10,10 @@ Initialize nd configuration
 
 Interactive walkthrough to set up nd for the first time.
 
+Creates the config directory structure, writes a default config file, and
+deploys built-in assets (skills, commands, agents) to your coding agent's
+config directory. Use --yes to skip the deploy confirmation prompt.
+
 ```
 nd init [flags]
 ```

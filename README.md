@@ -16,6 +16,7 @@ Manage coding agent assets (skills, agents, commands, rules, and more) across to
 
 ## What it does
 
+- **Built-in assets:** Ships with nd-specific skills, commands, and an agent — ready to use after `nd init`
 - **Register sources:** Point nd at local directories or git repos containing agent assets
 - **Deploy assets:** Create symlinks from agent config directories to source assets, keeping everything in sync
 - **Switch profiles:** Group assets into named profiles and switch between them instantly
@@ -50,15 +51,15 @@ go build -o nd .
 ## Quick start
 
 ```shell
-# Initialize nd configuration
+# Initialize nd and deploy built-in assets
 nd init
+
+# See available assets (built-in assets are ready immediately)
+nd list
 
 # Register an asset source (local directory or git repo)
 nd source add ~/my-assets
 # or: nd source add github-user/asset-repo
-
-# See available assets
-nd list
 
 # Deploy an asset
 nd deploy skills/greeting

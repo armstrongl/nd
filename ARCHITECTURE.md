@@ -31,7 +31,7 @@ Core enums and constants shared across the codebase.
 
 - `AssetType` -- 8 asset types: skills, agents, commands, output-styles, rules, context, plugins, hooks
 - `Scope` -- `global` (agent-wide) or `project` (repo-specific)
-- `SourceType` -- `local` (directory) or `git` (repository)
+- `SourceType` -- `local` (directory), `git` (repository), or `builtin` (embedded in binary)
 - `SymlinkStrategy` -- `absolute` or `relative` symlinks
 - `Origin` -- Deployment origin: `manual`, `pinned`, or `profile:<name>`
 - Utility functions: `FindProjectRoot()`, `AtomicWrite()`

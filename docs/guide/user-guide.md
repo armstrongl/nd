@@ -78,7 +78,7 @@ Git sources are cloned to `~/.config/nd/sources/` and can be synced later.
 nd source list
 ```
 
-Output shows source ID, type (local/git), asset count, and path.
+Output shows source ID, type (`local`, `git`, or `builtin`), asset count, and path. The `builtin` source ships with nd and is always present.
 
 ### Sync git sources
 
@@ -96,7 +96,7 @@ This runs `git pull --ff-only` and then repairs any broken symlinks.
 nd source remove <source-id>
 ```
 
-If assets from this source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel.
+If assets from this source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. The `builtin` source cannot be removed.
 
 ## Deploy assets
 
