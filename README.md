@@ -12,6 +12,8 @@
 
 Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code with symlink-based deployment.
 
+![nd demo](assets/napoleon-dynamite-skills.gif)
+
 ## What it does
 
 - **Register sources:** Point nd at local directories or git repos containing agent assets
