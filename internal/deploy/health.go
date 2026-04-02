@@ -87,6 +87,49 @@ func (e *Engine) checkOne(dep state.Deployment) state.HealthCheck {
 	return hc
 }
 
+// Prune removes ghost deployments whose symlinks no longer exist on disk.
+// Returns the number of records pruned. Only ENOENT triggers removal;
+// other errors (e.g., EACCES) keep the record.
+func (e *Engine) Prune() (int, error) {
+	pruned := 0
+
+	err := e.store.WithLock(func() error {
+		st, _, err := e.store.Load()
+		if err != nil {
+			return fmt.Errorf("load state: %w", err)
+		}
+
+		if len(st.Deployments) == 0 {
+			return nil // short-circuit: nothing to prune
+		}
+
+		var keep []state.Deployment
+		for _, dep := range st.Deployments {
+			_, err := e.lstat(dep.LinkPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					pruned++
+					continue // ghost: skip this record
+				}
+				// Permission error or other: keep the record
+			}
+			keep = append(keep, dep)
+		}
+
+		if pruned == 0 {
+			return nil // no changes, skip save
+		}
+
+		st.Deployments = keep
+		return e.store.Save(st)
+	})
+
+	if err != nil {
+		return 0, err
+	}
+	return pruned, nil
+}
+
 // Sync repairs detected deployment issues (FR-014).
 func (e *Engine) Sync() (*SyncResult, error) {
 	var result SyncResult

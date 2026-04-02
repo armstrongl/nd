@@ -375,6 +375,217 @@ func TestSyncMissingRepairFails(t *testing.T) {
 	}
 }
 
+// --- Prune tests ---
+
+func TestPruneNoGhosts(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetAgent, AssetName: "helper",
+			SourcePath: "/src/agents/helper.md", LinkPath: "/home/.claude/agents/helper.md",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil // all healthy
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 pruned, got %d", count)
+	}
+	// Save should NOT be called when nothing was pruned
+	if store.saved != nil {
+		t.Error("expected Save not to be called when nothing pruned")
+	}
+}
+
+func TestPruneOneGhost(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetAgent, AssetName: "helper",
+			SourcePath: "/src/agents/helper.md", LinkPath: "/home/.claude/agents/helper.md",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(name string) (os.FileInfo, error) {
+		if name == "/home/.claude/agents/helper.md" {
+			return nil, os.ErrNotExist // ghost
+		}
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 pruned, got %d", count)
+	}
+	if store.saved == nil {
+		t.Fatal("expected Save to be called")
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Errorf("expected 1 remaining deployment, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].AssetName != "review" {
+		t.Errorf("expected 'review' to remain, got %q", store.saved.Deployments[0].AssetName)
+	}
+}
+
+func TestPrunePermissionError(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return nil, os.ErrPermission // EACCES, not ENOENT
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 pruned on permission error, got %d", count)
+	}
+	// Record should be kept (Save not called because nothing changed)
+	if store.saved != nil {
+		t.Error("expected Save not to be called when nothing pruned")
+	}
+}
+
+func TestPruneAllGhosts(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/src/skills/review", LinkPath: "/home/.claude/skills/review",
+			Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetAgent, AssetName: "helper",
+			SourcePath: "/src/agents/helper.md", LinkPath: "/home/.claude/agents/helper.md",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist // all ghosts
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 pruned, got %d", count)
+	}
+	if store.saved == nil {
+		t.Fatal("expected Save to be called")
+	}
+	if len(store.saved.Deployments) != 0 {
+		t.Errorf("expected 0 remaining deployments, got %d", len(store.saved.Deployments))
+	}
+}
+
+func TestPruneEmptyState(t *testing.T) {
+	store := newMockStore()
+	// No deployments at all
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 pruned for empty state, got %d", count)
+	}
+	// Save should not be called on empty state (short-circuit)
+	if store.saved != nil {
+		t.Error("expected Save not to be called for empty state")
+	}
+}
+
+func TestPruneMixed(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "healthy",
+			SourcePath: "/src/skills/healthy", LinkPath: "/home/.claude/skills/healthy",
+			Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetAgent, AssetName: "ghost",
+			SourcePath: "/src/agents/ghost.md", LinkPath: "/home/.claude/agents/ghost.md",
+			Scope: nd.ScopeGlobal},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "perm-err",
+			SourcePath: "/src/skills/perm-err", LinkPath: "/home/.claude/skills/perm-err",
+			Scope: nd.ScopeGlobal},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(name string) (os.FileInfo, error) {
+		switch name {
+		case "/home/.claude/skills/healthy":
+			return fakeFileInfo{mode: os.ModeSymlink}, nil
+		case "/home/.claude/agents/ghost.md":
+			return nil, os.ErrNotExist // ghost
+		case "/home/.claude/skills/perm-err":
+			return nil, os.ErrPermission // permission error
+		}
+		return nil, os.ErrNotExist
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 pruned (only ghost), got %d", count)
+	}
+	if store.saved == nil {
+		t.Fatal("expected Save to be called")
+	}
+	if len(store.saved.Deployments) != 2 {
+		t.Errorf("expected 2 remaining deployments, got %d", len(store.saved.Deployments))
+	}
+	// Verify the right ones remain
+	names := make(map[string]bool)
+	for _, d := range store.saved.Deployments {
+		names[d.AssetName] = true
+	}
+	if !names["healthy"] {
+		t.Error("expected 'healthy' to remain")
+	}
+	if !names["perm-err"] {
+		t.Error("expected 'perm-err' to remain")
+	}
+	if names["ghost"] {
+		t.Error("expected 'ghost' to be pruned")
+	}
+}
+
+func TestPruneLoadError(t *testing.T) {
+	store := newMockStore()
+	store.loadErr = fmt.Errorf("corrupt state")
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	_, err := engine.Prune()
+	if err == nil {
+		t.Fatal("expected error when load fails")
+	}
+}
+
 func TestStatus(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
