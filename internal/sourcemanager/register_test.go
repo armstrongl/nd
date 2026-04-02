@@ -52,8 +52,9 @@ func TestAddLocal(t *testing.T) {
 	}
 
 	sources := sm.Sources()
-	if len(sources) != 1 {
-		t.Fatalf("expected 1 source, got %d", len(sources))
+	// 1 user source + 1 builtin source
+	if len(sources) != 2 {
+		t.Fatalf("expected 2 sources (1 user + builtin), got %d", len(sources))
 	}
 }
 
@@ -113,8 +114,9 @@ func TestAddLocalPersistsToConfig(t *testing.T) {
 	// Load config from disk to verify persistence
 	sm2, _ := sourcemanager.New(configPath, "")
 	sources := sm2.Sources()
-	if len(sources) != 1 {
-		t.Fatalf("expected 1 source after reload, got %d", len(sources))
+	// 1 user source + 1 builtin source
+	if len(sources) != 2 {
+		t.Fatalf("expected 2 sources (1 user + builtin) after reload, got %d", len(sources))
 	}
 	if sources[0].Path != sourceDir {
 		t.Errorf("persisted path: got %q, want %q", sources[0].Path, sourceDir)
@@ -169,8 +171,9 @@ func TestRemove(t *testing.T) {
 
 	sourceDir := t.TempDir()
 	sm.AddLocal(sourceDir, "")
-	if len(sm.Sources()) != 1 {
-		t.Fatal("setup: expected 1 source")
+	// 1 user source + 1 builtin source
+	if len(sm.Sources()) != 2 {
+		t.Fatal("setup: expected 2 sources (1 user + builtin)")
 	}
 
 	id := sm.Sources()[0].ID
@@ -178,8 +181,12 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
-	if len(sm.Sources()) != 0 {
-		t.Errorf("expected 0 sources after remove, got %d", len(sm.Sources()))
+	// Only builtin source should remain
+	if len(sm.Sources()) != 1 {
+		t.Errorf("expected 1 source (builtin) after remove, got %d", len(sm.Sources()))
+	}
+	if sm.Sources()[0].ID != nd.BuiltinSourceID {
+		t.Errorf("remaining source should be builtin, got %q", sm.Sources()[0].ID)
 	}
 }
 
@@ -201,10 +208,65 @@ func TestRemovePersists(t *testing.T) {
 	id := sm.Sources()[0].ID
 	sm.Remove(id)
 
-	// Reload from disk
+	// Reload from disk — only builtin source should be present
 	sm2, _ := sourcemanager.New(configPath, "")
-	if len(sm2.Sources()) != 0 {
-		t.Errorf("expected 0 sources after reload, got %d", len(sm2.Sources()))
+	if len(sm2.Sources()) != 1 {
+		t.Errorf("expected 1 source (builtin) after reload, got %d", len(sm2.Sources()))
+	}
+	if sm2.Sources()[0].ID != nd.BuiltinSourceID {
+		t.Errorf("remaining source should be builtin, got %q", sm2.Sources()[0].ID)
+	}
+}
+
+func TestRemoveBuiltinReturnsError(t *testing.T) {
+	sm, _ := newTestManager(t)
+	err := sm.Remove("builtin")
+	if err == nil {
+		t.Fatal("expected error when removing builtin source")
+	}
+	want := "the builtin source cannot be removed"
+	if err.Error() != want {
+		t.Errorf("error: got %q, want %q", err.Error(), want)
+	}
+}
+
+func TestAddLocalSkipsBuiltinID(t *testing.T) {
+	sm, _ := newTestManager(t)
+
+	// Create a directory named "builtin" so the basename would be "builtin"
+	sourceDir := filepath.Join(t.TempDir(), "builtin")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	src, err := sm.AddLocal(sourceDir, "")
+	if err != nil {
+		t.Fatalf("AddLocal: %v", err)
+	}
+	if src.ID == "builtin" {
+		t.Errorf("ID should not be %q, expected deduped variant", src.ID)
+	}
+	if src.ID != "builtin-2" {
+		t.Errorf("ID: got %q, want %q", src.ID, "builtin-2")
+	}
+}
+
+func TestAddGitSkipsBuiltinID(t *testing.T) {
+	sm, _ := newTestManager(t)
+
+	// Create a bare repo named "builtin" so RepoNameFromURL yields "builtin"
+	bareRepo := filepath.Join(t.TempDir(), "builtin")
+	execGit(t, "init", "--bare", bareRepo)
+
+	src, err := sm.AddGit(bareRepo, "")
+	if err != nil {
+		t.Fatalf("AddGit: %v", err)
+	}
+	if src.ID == "builtin" {
+		t.Errorf("ID should not be %q, expected deduped variant", src.ID)
+	}
+	if src.ID != "builtin-2" {
+		t.Errorf("ID: got %q, want %q", src.ID, "builtin-2")
 	}
 }
 

@@ -69,8 +69,12 @@ func TestSourcesEmpty(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := sourcemanager.New(filepath.Join(dir, "config.yaml"), "")
 	sources := sm.Sources()
-	if len(sources) != 0 {
-		t.Errorf("expected 0 sources, got %d", len(sources))
+	// Only the builtin source should be present when no user sources are configured.
+	if len(sources) != 1 {
+		t.Errorf("expected 1 source (builtin), got %d", len(sources))
+	}
+	if sources[0].ID != nd.BuiltinSourceID {
+		t.Errorf("expected builtin source, got %q", sources[0].ID)
 	}
 }
 
@@ -98,8 +102,9 @@ sources:
 	}
 
 	sources := sm.Sources()
-	if len(sources) != 2 {
-		t.Fatalf("expected 2 sources, got %d", len(sources))
+	// 2 user sources + 1 builtin source
+	if len(sources) != 3 {
+		t.Fatalf("expected 3 sources (2 user + builtin), got %d", len(sources))
 	}
 
 	if sources[0].ID != "skills-repo" {
@@ -119,6 +124,10 @@ sources:
 	}
 	if sources[1].Order != 1 {
 		t.Errorf("source[1].Order: got %d", sources[1].Order)
+	}
+	// Builtin source should be last
+	if sources[2].ID != nd.BuiltinSourceID {
+		t.Errorf("source[2].ID: expected builtin, got %q", sources[2].ID)
 	}
 }
 
@@ -146,10 +155,17 @@ func TestScan(t *testing.T) {
 	}
 
 	all := summary.Index.All()
-	if len(all) != 5 {
-		t.Errorf("expected 5 assets, got %d", len(all))
+	// Count only user-source assets (exclude builtin source assets)
+	var userAssets int
+	for _, a := range all {
+		if a.SourceID != nd.BuiltinSourceID {
+			userAssets++
+		}
+	}
+	if userAssets != 5 {
+		t.Errorf("expected 5 user assets, got %d", userAssets)
 		for _, a := range all {
-			t.Logf("  %s", a.Identity)
+			t.Logf("  %s (source: %s)", a.Identity, a.SourceID)
 		}
 	}
 }

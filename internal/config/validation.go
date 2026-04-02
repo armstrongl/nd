@@ -87,7 +87,7 @@ func (c *Config) Validate() []ValidationError {
 		}
 
 		switch s.Type {
-		case nd.SourceLocal, nd.SourceGit:
+		case nd.SourceLocal, nd.SourceGit, nd.SourceBuiltin:
 			// valid
 		default:
 			errs = append(errs, ValidationError{

@@ -122,10 +122,27 @@ func MergeConfigs(global config.Config, project *config.ProjectConfig) config.Co
 }
 
 // WriteConfig writes a config to disk using atomic writes (NFR-010).
+// The builtin source is stripped before writing — it is injected at runtime
+// and must never be persisted to config.yaml.
 func WriteConfig(path string, cfg config.Config) error {
-	data, err := yaml.Marshal(&cfg)
+	persistent := stripBuiltinSource(cfg)
+	data, err := yaml.Marshal(&persistent)
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 	return nd.AtomicWrite(path, data)
+}
+
+// stripBuiltinSource returns a shallow copy of cfg with any source entry
+// whose ID matches nd.BuiltinSourceID removed from Sources.
+func stripBuiltinSource(cfg config.Config) config.Config {
+	filtered := make([]config.SourceEntry, 0, len(cfg.Sources))
+	for _, s := range cfg.Sources {
+		if s.ID == nd.BuiltinSourceID {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+	cfg.Sources = filtered
+	return cfg
 }

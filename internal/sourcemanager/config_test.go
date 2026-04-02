@@ -216,3 +216,122 @@ func TestWriteConfig(t *testing.T) {
 		t.Errorf("round-trip failed: %+v", loaded.Sources)
 	}
 }
+
+func TestNewAppendsBuiltinSourceLast(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: user-src
+    type: local
+    path: /home/dev/skills
+`
+	os.WriteFile(configPath, []byte(content), 0o644)
+
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	sources := sm.Sources()
+	if len(sources) < 2 {
+		t.Fatalf("expected at least 2 sources, got %d", len(sources))
+	}
+
+	last := sources[len(sources)-1]
+	if last.ID != nd.BuiltinSourceID {
+		t.Errorf("last source should be builtin, got %q", last.ID)
+	}
+	if last.Type != nd.SourceBuiltin {
+		t.Errorf("builtin source type: got %q, want %q", last.Type, nd.SourceBuiltin)
+	}
+	if last.Alias != "nd" {
+		t.Errorf("builtin source alias: got %q, want %q", last.Alias, "nd")
+	}
+	if last.Path == "" {
+		t.Error("builtin source path should not be empty")
+	}
+
+	// User source should still be first (highest priority)
+	if sources[0].ID != "user-src" {
+		t.Errorf("first source should be user-src, got %q", sources[0].ID)
+	}
+}
+
+func TestWriteConfigStripsBuiltinSource(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	cfg := sourcemanager.DefaultConfig()
+	cfg.Sources = []config.SourceEntry{
+		{ID: "user-src", Type: nd.SourceLocal, Path: "/test"},
+		{ID: nd.BuiltinSourceID, Type: nd.SourceBuiltin, Path: "/cache/builtin", Alias: "nd"},
+	}
+
+	err := sourcemanager.WriteConfig(path, cfg)
+	if err != nil {
+		t.Fatalf("WriteConfig: %v", err)
+	}
+
+	// Read it back — builtin should not be on disk
+	loaded, err := sourcemanager.LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig after write: %v", err)
+	}
+	if len(loaded.Sources) != 1 {
+		t.Fatalf("expected 1 source on disk (builtin stripped), got %d", len(loaded.Sources))
+	}
+	if loaded.Sources[0].ID != "user-src" {
+		t.Errorf("persisted source: got %q, want %q", loaded.Sources[0].ID, "user-src")
+	}
+}
+
+func TestUserSourcesPriorityPreservedWithBuiltin(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: first-src
+    type: local
+    path: /first
+  - id: second-src
+    type: local
+    path: /second
+  - id: third-src
+    type: local
+    path: /third
+`
+	os.WriteFile(configPath, []byte(content), 0o644)
+
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	sources := sm.Sources()
+	// 3 user sources + 1 builtin
+	if len(sources) != 4 {
+		t.Fatalf("expected 4 sources, got %d", len(sources))
+	}
+
+	// Verify user source order is preserved
+	expectedOrder := []string{"first-src", "second-src", "third-src", nd.BuiltinSourceID}
+	for i, want := range expectedOrder {
+		if sources[i].ID != want {
+			t.Errorf("sources[%d].ID: got %q, want %q", i, sources[i].ID, want)
+		}
+	}
+
+	// Verify priority ordering (Order field = index)
+	for i, s := range sources {
+		if s.Order != i {
+			t.Errorf("sources[%d].Order: got %d, want %d", i, s.Order, i)
+		}
+	}
+}
