@@ -75,6 +75,41 @@ func TestHelpBarView_HelpProviderScreen(t *testing.T) {
 	}
 }
 
+// helpTestFullHelpScreen implements FullHelpProvider to replace defaults entirely.
+type helpTestFullHelpScreen struct{ helpTestScreen }
+
+func (helpTestFullHelpScreen) FullHelpItems() []HelpItem {
+	return []HelpItem{{"x/space", "toggle"}, {"enter", "confirm"}}
+}
+
+func TestHelpBarView_FullHelpProviderScreen(t *testing.T) {
+	hb := HelpBar{}
+	s := NewStyles(true)
+	out := hb.View(s, helpTestFullHelpScreen{}, 80)
+
+	// Full help items should replace defaults.
+	if !strings.Contains(out, "x/space toggle") {
+		t.Errorf("View output missing 'x/space toggle'\ngot: %s", out)
+	}
+	if !strings.Contains(out, "enter confirm") {
+		t.Errorf("View output missing 'enter confirm'\ngot: %s", out)
+	}
+	// Default "enter select" should NOT be present.
+	if strings.Contains(out, "enter select") {
+		t.Errorf("View output should not contain 'enter select' when FullHelpProvider is used\ngot: %s", out)
+	}
+}
+
+func TestDefaultHelp_FullHelpProvider_OverridesDefaults(t *testing.T) {
+	items := defaultHelp(helpTestFullHelpScreen{})
+	if len(items) != 2 {
+		t.Fatalf("defaultHelp(fullHelpProvider) returned %d items, want 2", len(items))
+	}
+	if items[0].Key != "x/space" || items[0].Desc != "toggle" {
+		t.Errorf("first item = %+v, want {x/space toggle}", items[0])
+	}
+}
+
 func TestDefaultHelp_ItemCounts(t *testing.T) {
 	t.Run("basic screen returns 5 items", func(t *testing.T) {
 		items := defaultHelp(helpTestScreen{})

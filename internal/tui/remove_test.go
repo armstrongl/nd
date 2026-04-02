@@ -483,3 +483,70 @@ func TestRemove_DryRunView(t *testing.T) {
 		t.Errorf("dry-run view should list assets; got:\n%s", v.Content)
 	}
 }
+
+// Compile-time assertion: removeScreen satisfies FullHelpProvider.
+var _ FullHelpProvider = (*removeScreen)(nil)
+
+func TestRemove_FullHelpItems_SelectAssets(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeSelectAssets
+
+	items := m.FullHelpItems()
+
+	hasToggle := false
+	hasEnterConfirm := false
+	for _, item := range items {
+		if item.Key == "x/space" && item.Desc == "toggle" {
+			hasToggle = true
+		}
+		if item.Key == "enter" && item.Desc == "confirm" {
+			hasEnterConfirm = true
+		}
+	}
+	if !hasToggle {
+		t.Errorf("FullHelpItems at selectAssets should include 'x/space toggle'; got: %v", items)
+	}
+	if !hasEnterConfirm {
+		t.Errorf("FullHelpItems at selectAssets should include 'enter confirm'; got: %v", items)
+	}
+}
+
+func TestRemove_FullHelpItems_Confirm(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeConfirm
+
+	items := m.FullHelpItems()
+
+	hasEnterConfirm := false
+	for _, item := range items {
+		if item.Key == "enter" && item.Desc == "confirm" {
+			hasEnterConfirm = true
+		}
+	}
+	if !hasEnterConfirm {
+		t.Errorf("FullHelpItems at confirm should include 'enter confirm'; got: %v", items)
+	}
+}
+
+func TestRemove_FullHelpItems_Result(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeResult
+
+	items := m.FullHelpItems()
+
+	hasEnterReturn := false
+	for _, item := range items {
+		if item.Key == "enter" && item.Desc == "return" {
+			hasEnterReturn = true
+		}
+	}
+	if !hasEnterReturn {
+		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
+	}
+}

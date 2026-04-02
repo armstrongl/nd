@@ -121,6 +121,34 @@ func (ds *deployScreen) InputActive() bool {
 	return ds.step == deployPickType || ds.step == deploySelectAssets
 }
 
+// FullHelpItems returns step-specific help items for the deploy screen.
+// MultiSelect steps show "x/space toggle" instead of the default "enter select".
+func (ds *deployScreen) FullHelpItems() []HelpItem {
+	switch ds.step {
+	case deployPickType:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	case deploySelectAssets:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	default:
+		return []HelpItem{
+			{"esc", "back"},
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	}
+}
+
 // Init initializes the type picker form.
 func (ds *deployScreen) Init() tea.Cmd {
 	return ds.typeForm.Init()

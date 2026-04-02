@@ -84,6 +84,34 @@ func (m *removeScreen) InputActive() bool {
 	return m.step == removeSelectAssets || m.step == removeConfirm
 }
 
+// FullHelpItems returns step-specific help items for the remove screen.
+// MultiSelect steps show "x/space toggle" instead of the default "enter select".
+func (m *removeScreen) FullHelpItems() []HelpItem {
+	switch m.step {
+	case removeSelectAssets:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	case removeConfirm:
+		return []HelpItem{
+			{"esc", "back"},
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	default:
+		return []HelpItem{
+			{"esc", "back"},
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	}
+}
+
 // Init starts async loading of deployed assets.
 func (m *removeScreen) Init() tea.Cmd {
 	svc := m.svc

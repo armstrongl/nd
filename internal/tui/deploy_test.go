@@ -571,3 +571,58 @@ func TestDeploy_DryRunView(t *testing.T) {
 		t.Errorf("dry-run view should list assets; got:\n%s", content)
 	}
 }
+
+// Compile-time assertion: deployScreen satisfies FullHelpProvider.
+var _ FullHelpProvider = (*deployScreen)(nil)
+
+func TestDeploy_FullHelpItems_PickType(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	items := ds.FullHelpItems()
+
+	hasEnterSelect := false
+	for _, item := range items {
+		if item.Key == "enter" && item.Desc == "select" {
+			hasEnterSelect = true
+		}
+	}
+	if !hasEnterSelect {
+		t.Errorf("FullHelpItems at pickType should include 'enter select'; got: %v", items)
+	}
+}
+
+func TestDeploy_FullHelpItems_SelectAssets(t *testing.T) {
+	ds := newTestDeployScreen(deploySelectAssets)
+	items := ds.FullHelpItems()
+
+	hasToggle := false
+	hasEnterConfirm := false
+	for _, item := range items {
+		if item.Key == "x/space" && item.Desc == "toggle" {
+			hasToggle = true
+		}
+		if item.Key == "enter" && item.Desc == "confirm" {
+			hasEnterConfirm = true
+		}
+	}
+	if !hasToggle {
+		t.Errorf("FullHelpItems at selectAssets should include 'x/space toggle'; got: %v", items)
+	}
+	if !hasEnterConfirm {
+		t.Errorf("FullHelpItems at selectAssets should include 'enter confirm'; got: %v", items)
+	}
+}
+
+func TestDeploy_FullHelpItems_Result(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	items := ds.FullHelpItems()
+
+	hasEnterReturn := false
+	for _, item := range items {
+		if item.Key == "enter" && item.Desc == "return" {
+			hasEnterReturn = true
+		}
+	}
+	if !hasEnterReturn {
+		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
+	}
+}
