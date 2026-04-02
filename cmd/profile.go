@@ -616,8 +616,12 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
+			agentAlias := ""
+			if ag, err := app.DefaultAgent(); err == nil {
+				agentAlias = ag.SourceAlias
+			}
 			var names []string
-			for _, a := range summary.Index.All() {
+			for _, a := range summary.Index.FilterByAgent(agentAlias) {
 				name := fmt.Sprintf("%s/%s", a.Type, a.Name)
 				if toComplete == "" || strings.HasPrefix(name, toComplete) || strings.HasPrefix(a.Name, toComplete) {
 					names = append(names, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))

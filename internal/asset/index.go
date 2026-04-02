@@ -93,6 +93,36 @@ func (idx *Index) All() []*Asset {
 	return result
 }
 
+// FilterByAgent returns assets whose GroupDir is empty (flat layout) or matches the given alias.
+// If alias is empty, all assets are returned (no filtering).
+func (idx *Index) FilterByAgent(alias string) []*Asset {
+	if alias == "" {
+		return idx.All()
+	}
+	var result []*Asset
+	for i := range idx.assets {
+		if idx.assets[i].GroupDir == "" || idx.assets[i].GroupDir == alias {
+			result = append(result, &idx.assets[i])
+		}
+	}
+	return result
+}
+
+// ByTypeFiltered returns assets of a given type whose GroupDir is empty or matches the alias.
+// If alias is empty, behaves like ByType.
+func (idx *Index) ByTypeFiltered(t nd.AssetType, alias string) []*Asset {
+	if alias == "" {
+		return idx.ByType(t)
+	}
+	var result []*Asset
+	for _, a := range idx.byType[t] {
+		if a.GroupDir == "" || a.GroupDir == alias {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
 // Conflicts returns all detected duplicate-name conflicts.
 func (idx *Index) Conflicts() []Conflict {
 	return idx.conflicts

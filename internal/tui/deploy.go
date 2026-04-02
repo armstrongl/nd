@@ -256,11 +256,16 @@ func (ds *deployScreen) startScan() tea.Cmd {
 			return scanDoneMsg{err: fmt.Errorf("no asset index available")}
 		}
 
+		agentAlias := ""
+		if ag, err := svc.DefaultAgent(); err == nil {
+			agentAlias = ag.SourceAlias
+		}
+
 		var allAssets []*asset.Asset
 		if typeFilter == "" {
-			allAssets = summary.Index.All()
+			allAssets = summary.Index.FilterByAgent(agentAlias)
 		} else {
-			allAssets = summary.Index.ByType(typeFilter)
+			allAssets = summary.Index.ByTypeFiltered(typeFilter, agentAlias)
 		}
 
 		// Filter to only deployable types

@@ -50,7 +50,11 @@ func newListCmd(app *App) *cobra.Command {
 				}
 			}
 
-			all := index.All()
+			agentAlias := ""
+			if ag, err := app.DefaultAgent(); err == nil {
+				agentAlias = ag.SourceAlias
+			}
+			all := index.FilterByAgent(agentAlias)
 
 			// Apply filters
 			type listEntry struct {
