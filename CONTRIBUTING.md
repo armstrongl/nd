@@ -95,6 +95,38 @@ Examples:
 - Reference the issue number if applicable
 - Keep PRs focused and reviewable
 
+## Releases
+
+Releases are automated with [Release Please](https://github.com/googleapis/release-please) and [GoReleaser](https://goreleaser.com/). You do not need to manually create tags or GitHub releases.
+
+### How it works
+
+1. Every push to `main` triggers the Release Please workflow, which opens or updates a release PR that bumps the version and updates `CHANGELOG.md` based on merged Conventional Commits.
+2. Merging the release PR creates a git tag (e.g. `v1.2.0`), which triggers GoReleaser to build binaries and publish the GitHub Release.
+
+### Commit types and version bumps
+
+| Commit prefix | Version bump |
+|---|---|
+| `fix:` | Patch (`0.0.x`) |
+| `feat:` | Minor (`0.x.0`) — stays minor pre-1.0 due to `bump-minor-pre-major: true` |
+| `feat!:` or `BREAKING CHANGE` | Major |
+| `docs:`, `chore:`, `ci:`, `refactor:` | No bump (included in next release) |
+
+### Shipping a release
+
+```
+feat/fix branch → PR → merge to main
+                         ↓
+              Release Please opens/updates release PR
+                         ↓
+         Review and merge the release PR when ready to ship
+                         ↓
+         Tag created → GoReleaser builds and publishes
+```
+
+The release PR is titled `chore(main): release X.Y.Z` and is created by the `github-actions[bot]`. It is safe to merge as soon as CI passes and the changelog looks correct.
+
 ## Project structure
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed overview of the codebase structure, package responsibilities, and key patterns.
