@@ -49,9 +49,14 @@ func (b *browseScreen) Init() tea.Cmd {
 			return browseLoadedMsg{err: err}
 		}
 
+		agentAlias := ""
+		if ag, err := svc.DefaultAgent(); err == nil {
+			agentAlias = ag.SourceAlias
+		}
+
 		var assets []*asset.Asset
 		if summary != nil && summary.Index != nil {
-			assets = summary.Index.All()
+			assets = summary.Index.FilterByAgent(agentAlias)
 		}
 
 		// Build deployed set by cross-referencing the state store.

@@ -21,6 +21,15 @@ func newStatusCmd(app *App) *cobra.Command {
 				return err
 			}
 
+			// Prune ghost deployments (best-effort)
+			if pruned, pruneErr := eng.Prune(); pruneErr != nil {
+				if !app.Quiet {
+					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
+				}
+			} else if pruned > 0 && !app.Quiet {
+				printHuman(cmd.ErrOrStderr(), "Pruned %d stale deployment(s)\n", pruned)
+			}
+
 			entries, err := eng.Status()
 			if err != nil {
 				return fmt.Errorf("load status: %w", err)

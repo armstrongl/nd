@@ -165,8 +165,12 @@ Multiple assets can be comma-separated or the flag repeated.`,
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		agentAlias := ""
+		if ag, err := app.DefaultAgent(); err == nil {
+			agentAlias = ag.SourceAlias
+		}
 		var names []string
-		for _, a := range summary.Index.All() {
+		for _, a := range summary.Index.FilterByAgent(agentAlias) {
 			if a.Type == nd.AssetPlugin {
 				continue
 			}
@@ -425,7 +429,11 @@ func runExportInteractive(cmd *cobra.Command, app *App, flagName, flagDesc, flag
 	index := summary.Index
 
 	// Build asset choices (exclude plugins)
-	allAssets := index.All()
+	agentAlias := ""
+	if ag, err := app.DefaultAgent(); err == nil {
+		agentAlias = ag.SourceAlias
+	}
+	allAssets := index.FilterByAgent(agentAlias)
 	var choices []huh.Option[string]
 	for _, a := range allAssets {
 		if a.Type == nd.AssetPlugin {

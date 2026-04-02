@@ -29,9 +29,10 @@ func New(cfg config.Config) *Registry {
 
 	agents := []Agent{
 		{
-			Name:       "claude-code",
-			GlobalDir:  filepath.Join(homeDir, ".claude"),
-			ProjectDir: ".claude",
+			Name:        "claude-code",
+			GlobalDir:   filepath.Join(homeDir, ".claude"),
+			ProjectDir:  ".claude",
+			SourceAlias: "claude",
 		},
 	}
 
@@ -43,6 +44,9 @@ func New(cfg config.Config) *Registry {
 				}
 				if override.ProjectDir != "" {
 					agents[i].ProjectDir = override.ProjectDir
+				}
+				if override.SourceAlias != "" {
+					agents[i].SourceAlias = override.SourceAlias
 				}
 			}
 		}

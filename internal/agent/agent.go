@@ -9,11 +9,12 @@ import (
 
 // Agent represents a detected coding agent installation.
 type Agent struct {
-	Name       string `json:"name"`
-	GlobalDir  string `json:"global_dir"`
-	ProjectDir string `json:"project_dir"`
-	Detected   bool   `json:"detected"`
-	InPath     bool   `json:"in_path"`
+	Name        string `json:"name"`
+	GlobalDir   string `json:"global_dir"`
+	ProjectDir  string `json:"project_dir"`
+	SourceAlias string `json:"source_alias,omitempty"`
+	Detected    bool   `json:"detected"`
+	InPath      bool   `json:"in_path"`
 }
 
 // DeployPath computes the full path where an asset's symlink should be created.

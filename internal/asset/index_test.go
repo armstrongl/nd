@@ -68,6 +68,80 @@ func TestIndexBySource(t *testing.T) {
 	}
 }
 
+func TestFilterByAgent(t *testing.T) {
+	assets := []asset.Asset{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "flat-skill"}, GroupDir: ""},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "claude-skill"}, GroupDir: "claude"},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "codex-skill"}, GroupDir: "codex"},
+	}
+	idx := asset.NewIndex(assets)
+
+	// Filter by "claude": should get flat + claude, not codex
+	filtered := idx.FilterByAgent("claude")
+	if len(filtered) != 2 {
+		t.Fatalf("FilterByAgent(claude): got %d, want 2", len(filtered))
+	}
+	names := map[string]bool{}
+	for _, a := range filtered {
+		names[a.Name] = true
+	}
+	if !names["flat-skill"] {
+		t.Error("flat-skill should be included")
+	}
+	if !names["claude-skill"] {
+		t.Error("claude-skill should be included")
+	}
+	if names["codex-skill"] {
+		t.Error("codex-skill should be excluded")
+	}
+}
+
+func TestFilterByAgentEmpty(t *testing.T) {
+	assets := []asset.Asset{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"}, GroupDir: "claude"},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, GroupDir: "codex"},
+	}
+	idx := asset.NewIndex(assets)
+
+	// Empty alias: return all
+	filtered := idx.FilterByAgent("")
+	if len(filtered) != 2 {
+		t.Fatalf("FilterByAgent(''): got %d, want 2", len(filtered))
+	}
+}
+
+func TestByTypeFiltered(t *testing.T) {
+	assets := []asset.Asset{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "claude-skill"}, GroupDir: "claude"},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "codex-skill"}, GroupDir: "codex"},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetAgent, Name: "claude-agent"}, GroupDir: "claude"},
+	}
+	idx := asset.NewIndex(assets)
+
+	// Skills filtered by claude: only claude-skill
+	filtered := idx.ByTypeFiltered(nd.AssetSkill, "claude")
+	if len(filtered) != 1 {
+		t.Fatalf("ByTypeFiltered(skills, claude): got %d, want 1", len(filtered))
+	}
+	if filtered[0].Name != "claude-skill" {
+		t.Errorf("expected claude-skill, got %s", filtered[0].Name)
+	}
+}
+
+func TestByTypeFilteredEmpty(t *testing.T) {
+	assets := []asset.Asset{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"}, GroupDir: "claude"},
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}, GroupDir: "codex"},
+	}
+	idx := asset.NewIndex(assets)
+
+	// Empty alias: return all skills (same as ByType)
+	filtered := idx.ByTypeFiltered(nd.AssetSkill, "")
+	if len(filtered) != 2 {
+		t.Fatalf("ByTypeFiltered(skills, ''): got %d, want 2", len(filtered))
+	}
+}
+
 func TestIndexConflictDetection(t *testing.T) {
 	// Same (type, name) from two sources: first source wins
 	assets := []asset.Asset{

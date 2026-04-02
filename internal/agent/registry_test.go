@@ -243,3 +243,38 @@ func TestDefaultAutoDetectsIfNotCalled(t *testing.T) {
 		t.Errorf("got %q, want %q", a.Name, "claude-code")
 	}
 }
+
+func TestDefaultSourceAlias(t *testing.T) {
+	cfg := config.Config{}
+	r := agent.New(cfg)
+	agents := r.All()
+	if agents[0].SourceAlias != "claude" {
+		t.Errorf("got SourceAlias %q, want %q", agents[0].SourceAlias, "claude")
+	}
+}
+
+func TestSourceAliasConfigOverride(t *testing.T) {
+	cfg := config.Config{
+		Agents: []config.AgentOverride{
+			{Name: "claude-code", SourceAlias: "custom"},
+		},
+	}
+	r := agent.New(cfg)
+	agents := r.All()
+	if agents[0].SourceAlias != "custom" {
+		t.Errorf("got SourceAlias %q, want %q", agents[0].SourceAlias, "custom")
+	}
+}
+
+func TestSourceAliasEmptyOverrideKeepsDefault(t *testing.T) {
+	cfg := config.Config{
+		Agents: []config.AgentOverride{
+			{Name: "claude-code", SourceAlias: ""},
+		},
+	}
+	r := agent.New(cfg)
+	agents := r.All()
+	if agents[0].SourceAlias != "claude" {
+		t.Errorf("got SourceAlias %q, want %q (empty override should preserve default)", agents[0].SourceAlias, "claude")
+	}
+}
