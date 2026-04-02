@@ -536,6 +536,158 @@ paths:
 	}
 }
 
+func TestScanSkipsSymlinksInAssetDir(t *testing.T) {
+	root := t.TempDir()
+
+	// Create output-styles/ with real .md files
+	osDir := filepath.Join(root, "output-styles")
+	os.MkdirAll(osDir, 0o755)
+	os.WriteFile(filepath.Join(osDir, "concise.md"), []byte("# concise"), 0o644)
+	os.WriteFile(filepath.Join(osDir, "verbose.md"), []byte("# verbose"), 0o644)
+
+	// Create a symlink to a real .md file — should be skipped
+	os.Symlink(filepath.Join(osDir, "concise.md"), filepath.Join(osDir, "link-to-concise.md"))
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	// Only real files should be discovered, not the symlink
+	if len(result.Assets) != 2 {
+		t.Errorf("expected 2 assets (concise.md + verbose.md), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	for _, a := range result.Assets {
+		if a.Name == "link-to-concise.md" {
+			t.Error("symlink link-to-concise.md should not be discovered")
+		}
+	}
+}
+
+func TestScanSkipsSymlinkDirectories(t *testing.T) {
+	root := t.TempDir()
+
+	// Create skills/ with a real skill dir
+	realSkill := filepath.Join(root, "skills", "real-skill")
+	os.MkdirAll(realSkill, 0o755)
+	os.WriteFile(filepath.Join(realSkill, "SKILL.md"), []byte("# skill"), 0o644)
+
+	// Create a symlink to the real skill dir — should be skipped
+	os.Symlink(realSkill, filepath.Join(root, "skills", "link-to-skill"))
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 asset (only real-skill), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	for _, a := range result.Assets {
+		if a.Name == "link-to-skill" {
+			t.Error("symlink directory link-to-skill should not be discovered")
+		}
+	}
+}
+
+func TestScanSkipsBrokenSymlinks(t *testing.T) {
+	root := t.TempDir()
+
+	// Create commands/ with a real .md file
+	cmdDir := filepath.Join(root, "commands")
+	os.MkdirAll(cmdDir, 0o755)
+	os.WriteFile(filepath.Join(cmdDir, "build.md"), []byte("# build"), 0o644)
+
+	// Create a broken symlink (target does not exist)
+	os.Symlink("/nonexistent/target.md", filepath.Join(cmdDir, "broken-link.md"))
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 asset (only build.md), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	for _, a := range result.Assets {
+		if a.Name == "broken-link.md" {
+			t.Error("broken symlink broken-link.md should not be discovered")
+		}
+	}
+}
+
+func TestScanContextSkipsSymlinks(t *testing.T) {
+	root := t.TempDir()
+
+	// Create context/ with a real context folder
+	realCtx := filepath.Join(root, "context", "go-rules")
+	os.MkdirAll(realCtx, 0o755)
+	os.WriteFile(filepath.Join(realCtx, "CLAUDE.md"), []byte("# Go rules"), 0o644)
+
+	// Create a symlink to the real context folder — should be skipped
+	os.Symlink(realCtx, filepath.Join(root, "context", "link-to-rules"))
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	if len(result.Assets) != 1 {
+		t.Errorf("expected 1 context asset (only go-rules), got %d", len(result.Assets))
+		for _, a := range result.Assets {
+			t.Logf("  %s/%s", a.Type, a.Name)
+		}
+	}
+	for _, a := range result.Assets {
+		if a.Name == "link-to-rules" {
+			t.Error("symlink directory link-to-rules should not be discovered as context")
+		}
+	}
+}
+
+func TestScanFindContextFileSkipsSymlinks(t *testing.T) {
+	root := t.TempDir()
+
+	// Create context folder with a real .md file
+	ctxFolder := filepath.Join(root, "context", "my-rules")
+	os.MkdirAll(ctxFolder, 0o755)
+	os.WriteFile(filepath.Join(ctxFolder, "CLAUDE.md"), []byte("# Rules"), 0o644)
+
+	// Add a symlink .md file that sorts BEFORE CLAUDE.md alphabetically.
+	// Without the symlink check, findContextFile would return this first.
+	os.Symlink(filepath.Join(ctxFolder, "CLAUDE.md"), filepath.Join(ctxFolder, "AAA-LINK.md"))
+
+	result := sourcemanager.ScanSource("test", root)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 context asset, got %d", len(result.Assets))
+	}
+
+	// The context file chosen should be the real file, not the symlink
+	a := result.Assets[0]
+	if a.ContextFile == nil {
+		t.Fatal("ContextFile should be set")
+	}
+	if a.ContextFile.FileName == "AAA-LINK.md" {
+		t.Error("findContextFile should not select symlink AAA-LINK.md")
+	}
+	if a.ContextFile.FileName != "CLAUDE.md" {
+		t.Errorf("expected CLAUDE.md, got %q", a.ContextFile.FileName)
+	}
+}
+
 func TestScanMixedValidAndGrouping(t *testing.T) {
 	root := t.TempDir()
 

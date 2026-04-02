@@ -35,6 +35,11 @@ var dirToAssetType = map[string]nd.AssetType{
 	"hooks":         nd.AssetHook,
 }
 
+// isSymlink reports whether a directory entry is a symbolic link.
+func isSymlink(entry fs.DirEntry) bool {
+	return entry.Type()&fs.ModeSymlink != 0
+}
+
 // ScanSource scans a single source directory for assets.
 // If nd-source.yaml exists, uses manifest paths. Otherwise uses convention-based discovery.
 func ScanSource(sourceID string, rootPath string) source.ScanResult {
@@ -98,7 +103,7 @@ func scanContextDir(result *source.ScanResult, sourceID string, dirPath string) 
 	}
 
 	for _, folder := range folders {
-		if !folder.IsDir() || strings.HasPrefix(folder.Name(), ".") {
+		if !folder.IsDir() || strings.HasPrefix(folder.Name(), ".") || isSymlink(folder) {
 			continue
 		}
 
@@ -141,7 +146,7 @@ func findContextFile(folderPath string) string {
 		return ""
 	}
 	for _, e := range entries {
-		if e.IsDir() || strings.HasPrefix(e.Name(), "_") {
+		if e.IsDir() || strings.HasPrefix(e.Name(), "_") || isSymlink(e) {
 			continue
 		}
 		// Accept any .md file that isn't _meta.yaml
@@ -232,6 +237,9 @@ func scanAssetDirImpl(result *source.ScanResult, sourceID string, assetType nd.A
 			continue
 		}
 		if excludeSet != nil && excludeSet[name] {
+			continue
+		}
+		if isSymlink(entry) {
 			continue
 		}
 
