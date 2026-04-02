@@ -3,6 +3,7 @@ title: "Create asset sources"
 description: "Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 50
 paths:
   - "internal/sourcemanager/**"
   - "internal/asset/**"
@@ -11,8 +12,6 @@ tags:
   - assets
   - scanning
 ---
-
-# Create asset sources
 
 An asset source is a directory (local or git) containing coding agent assets organized by type. This guide explains how to structure your own.
 

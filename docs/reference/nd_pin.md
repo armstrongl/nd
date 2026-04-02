@@ -1,4 +1,8 @@
-## nd pin
+---
+title: "nd pin"
+description: "Pin an asset to prevent profile switches from removing it"
+weight: 120
+---
 
 Pin an asset to prevent profile switches from removing it
 
@@ -6,16 +10,16 @@ Pin an asset to prevent profile switches from removing it
 nd pin <asset> [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for pin
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +29,6 @@ nd pin <asset> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager

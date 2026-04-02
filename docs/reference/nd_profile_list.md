@@ -1,4 +1,8 @@
-## nd profile list
+---
+title: "nd profile list"
+description: "List all profiles"
+weight: 180
+---
 
 List all profiles
 
@@ -6,16 +10,16 @@ List all profiles
 nd profile list [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for list
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +29,6 @@ nd profile list [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles

@@ -1,19 +1,31 @@
 ---
-title: "nd source list"
-description: "List registered sources"
-weight: 300
+title: "nd completion fish"
+description: "Generate fish completion script"
+weight: 40
 ---
 
-List registered sources
+Generate fish completion script
+
+## Synopsis
+
+Generate fish completion script for nd.
+
+To install completions:
+  nd completion fish --install
+
+Or manually:
+  nd completion fish > ~/.config/fish/completions/nd.fish
 
 ```
-nd source list [flags]
+nd completion fish [flags]
 ```
 
 ## Options
 
 ```
-  -h, --help   help for list
+  -h, --help                 help for fish
+      --install              install to standard location
+      --install-dir string   override install directory
 ```
 
 ## Options inherited from parent commands
@@ -31,4 +43,4 @@ nd source list [flags]
 
 ## Related
 
-- [nd source](nd_source.md) - Manage asset sources
+- [nd completion](nd_completion.md) - Generate shell completion scripts

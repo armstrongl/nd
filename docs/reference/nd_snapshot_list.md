@@ -1,4 +1,8 @@
-## nd snapshot list
+---
+title: "nd snapshot list"
+description: "List all snapshots"
+weight: 250
+---
 
 List all snapshots
 
@@ -6,16 +10,16 @@ List all snapshots
 nd snapshot list [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for list
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -25,6 +29,6 @@ nd snapshot list [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots

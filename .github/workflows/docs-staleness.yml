@@ -50,6 +50,7 @@ jobs:
 
       - name: Create pull request
         if: steps.staleness.outputs.has_stale == 'true'
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
           title: "[agents] staleness report ${{ github.run_id }}"

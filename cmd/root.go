@@ -19,7 +19,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "nd",
 		Version:       version.String(),
-		Short:         "Napoleon Dynamite — coding agent asset manager",
+		Short:         "Napoleon Dynamite - coding agent asset manager",
 		Long:          "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
 		SilenceUsage:  true,
 		SilenceErrors: true,

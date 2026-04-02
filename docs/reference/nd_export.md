@@ -1,8 +1,12 @@
-## nd export
+---
+title: "nd export"
+description: "Export assets as a Claude Code plugin"
+weight: 80
+---
 
 Export assets as a Claude Code plugin
 
-### Synopsis
+## Synopsis
 
 Export one or more nd-managed assets into the Claude Code plugin format.
 
@@ -13,7 +17,7 @@ Multiple assets can be comma-separated or the flag repeated.
 nd export [flags]
 ```
 
-### Options
+## Options
 
 ```
       --assets strings       assets to export (type/name format, comma-separated)
@@ -29,10 +33,10 @@ nd export [flags]
       --version string       plugin version (default "1.0.0")
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -42,7 +46,7 @@ nd export [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd export marketplace](nd_export_marketplace.md) - Generate a Claude Code marketplace from exported plugins

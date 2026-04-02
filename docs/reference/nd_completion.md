@@ -1,19 +1,23 @@
 ---
-title: "nd profile"
-description: "Manage deployment profiles"
-weight: 130
+title: "nd completion"
+description: "Generate shell completion scripts"
+weight: 20
 ---
 
-Manage deployment profiles
+Generate shell completion scripts
 
 ## Synopsis
 
-Create, list, deploy, and switch between named profiles.
+Generate shell completion scripts for nd.
+
+Available shells: bash, zsh, fish
+
+Run "nd completion <shell> --help" for shell-specific instructions.
 
 ## Options
 
 ```
-  -h, --help   help for profile
+  -h, --help   help for completion
 ```
 
 ## Options inherited from parent commands
@@ -32,9 +36,6 @@ Create, list, deploy, and switch between named profiles.
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
-- [nd profile add-asset](nd_profile_add-asset.md) - Add an asset to an existing profile
-- [nd profile create](nd_profile_create.md) - Create a new profile
-- [nd profile delete](nd_profile_delete.md) - Delete a profile
-- [nd profile deploy](nd_profile_deploy.md) - Deploy all assets in a profile
-- [nd profile list](nd_profile_list.md) - List all profiles
-- [nd profile switch](nd_profile_switch.md) - Switch from current profile to another
+- [nd completion bash](nd_completion_bash.md) - Generate bash completion script
+- [nd completion fish](nd_completion_fish.md) - Generate fish completion script
+- [nd completion zsh](nd_completion_zsh.md) - Generate zsh completion script

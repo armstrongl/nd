@@ -1,21 +1,24 @@
-## nd deploy
+---
+title: "nd deploy"
+description: "Deploy assets by creating symlinks"
+weight: 60
+---
 
 Deploy assets by creating symlinks
 
-### Synopsis
+## Synopsis
 
 Deploy one or more assets by creating symlinks from source to agent config.
 
 Asset references can be:
-
-- `name`: Search all types for a matching name.
-- `type/name`: Search a specific type (for example, `skills/greeting`).
+  name Search all types for matching name
+  type/name Search specific type (e.g., skills/greeting)
 
 ```
 nd deploy <asset> [assets...] [flags]
 ```
 
-### Options
+## Options
 
 ```
       --absolute      use absolute symlinks (overrides config)
@@ -24,10 +27,10 @@ nd deploy <asset> [assets...] [flags]
       --type string   asset type filter (skills, commands, rules, etc.)
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -37,6 +40,6 @@ nd deploy <asset> [assets...] [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager

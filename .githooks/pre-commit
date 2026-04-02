@@ -1,30 +1,11 @@
 #!/usr/bin/env bash
-# Pre-commit hook: lint and auto-fix staged Markdown files with rumdl.
+# Pre-commit hook: delegates to pre-commit, which manages rumdl automatically.
 set -euo pipefail
 
-# Get staged .md files, excluding deleted files (null-delimited for safety).
-staged_md=$(git diff --cached --name-only --diff-filter=d -z -- '*.md') || true
-
-if [ -z "$staged_md" ]; then
-  exit 0
-fi
-
-# Skip if rumdl is not installed.
-if ! command -v rumdl &>/dev/null; then
-  echo "rumdl not found — skipping Markdown lint."
-  echo "Install: cargo install rumdl"
-  exit 0
-fi
-
-# Auto-fix staged files (null-delimited for safety).
-git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 rumdl check --fix -- 2>/dev/null || true
-
-# Re-stage fixed files.
-git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 git add --
-
-# Final lint — fail if unfixable issues remain.
-if ! git diff --cached --name-only --diff-filter=d -z -- '*.md' | xargs -0 rumdl check --; then
-  echo ""
-  echo "Markdown lint errors remain after auto-fix. Fix manually or adjust .rumdl.toml."
+if ! command -v pre-commit &>/dev/null; then
+  echo "pre-commit not found. Install with: pip install -r requirements.txt"
   exit 1
 fi
+
+exec pre-commit run
+

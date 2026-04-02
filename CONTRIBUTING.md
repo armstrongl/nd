@@ -8,19 +8,21 @@ Thank you for considering contributing to nd! This guide will help you get start
 - [git](https://git-scm.com/)
 - [golangci-lint](https://golangci-lint.run/) v2: `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`
 - [gofumpt](https://github.com/mvdan/gofumpt): `go install mvdan.cc/gofumpt@latest`
+- Python 3.11+ (for pre-commit and docs scripts)
 
 ## Getting started
 
 ```shell
 git clone https://github.com/armstrongl/nd.git
 cd nd
+pip install -r requirements.txt
 git config core.hooksPath .githooks
 go test ./...
 go build -o nd .
 ./nd version
 ```
 
-The `core.hooksPath` line enables the pre-commit hook that auto-fixes Markdown lint issues on commit.
+`pip install -r requirements.txt` installs pre-commit and the docs tooling. The first commit after setup will automatically download and install rumdl into a pre-commit-managed environment — no separate rumdl install needed. The `core.hooksPath` line tells git to use `.githooks/pre-commit`, which delegates to pre-commit.
 
 ## Development workflow
 
@@ -67,7 +69,7 @@ go tool cover -html=coverage.out
 
 - **Go formatter:** gofumpt (strict superset of gofmt)
 - **Go linter:** golangci-lint v2 with default configuration
-- **Markdown linter:** [rumdl](https://github.com/rvben/rumdl) with `.rumdl.toml` configuration
+- **Markdown linter:** [rumdl](https://github.com/rvben/rumdl) — installed automatically by pre-commit
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) required
 
 ## Commit messages

@@ -3,6 +3,7 @@ title: "How nd works"
 description: "Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments."
 lastValidated: "2026-03-28"
 maxAgeDays: 90
+weight: 20
 paths:
   - "internal/deploy/**"
   - "cmd/deploy.go"
@@ -12,8 +13,6 @@ tags:
   - symlinks
   - scope
 ---
-
-# How nd works
 
 nd doesn't copy files. It creates symlinks.
 

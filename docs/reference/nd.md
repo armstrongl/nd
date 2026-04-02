@@ -1,8 +1,12 @@
-## nd
+---
+title: "nd"
+description: "Napoleon Dynamite - coding agent asset manager"
+weight: 1
+---
 
-Napoleon Dynamite — coding agent asset manager
+Napoleon Dynamite - coding agent asset manager
 
-### Synopsis
+## Synopsis
 
 nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.
 
@@ -10,10 +14,10 @@ nd manages coding agent assets (skills, commands, rules, etc.) via symlink deplo
 nd [flags]
 ```
 
-### Options
+## Options
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
   -h, --help            help for nd
       --json            output in JSON format
@@ -24,7 +28,7 @@ nd [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
 - [nd deploy](nd_deploy.md) - Deploy assets by creating symlinks
 - [nd doctor](nd_doctor.md) - Check nd configuration and deployment health

@@ -1,8 +1,12 @@
-## nd init
+---
+title: "nd init"
+description: "Initialize nd configuration"
+weight: 100
+---
 
 Initialize nd configuration
 
-### Synopsis
+## Synopsis
 
 Interactive walkthrough to set up nd for the first time.
 
@@ -10,16 +14,16 @@ Interactive walkthrough to set up nd for the first time.
 nd init [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help   help for init
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
-      --config string   path to config file (default "/Users/larah/.config/nd/config.yaml")
+      --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
       --no-color        disable colored output
@@ -29,6 +33,6 @@ nd init [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-### SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
