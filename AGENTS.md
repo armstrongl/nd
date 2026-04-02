@@ -14,12 +14,12 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 
 | Doc | When to load | Last validated | Status | Paths |
 |---|---|---|---|---|
-| [Configuration](docs/guide/configuration.md) | Load when modifying config loading, merging, validation, or debugging config file issues. | 2026-03-28 | current | `internal/config/**`<br>`cmd/settings.go`<br>`cmd/init.go` |
-| [Create asset sources](docs/guide/creating-sources.md) | Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention. | 2026-03-28 | current | `internal/sourcemanager/**`<br>`internal/asset/**` |
-| [Get started](docs/guide/getting-started.md) | Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user. | 2026-03-28 | current | `cmd/init.go`<br>`cmd/source.go`<br>`cmd/deploy.go` |
-| [How nd works](docs/guide/how-nd-works.md) | Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments. | 2026-03-28 | current | `internal/deploy/**`<br>`cmd/deploy.go`<br>`cmd/remove.go` |
-| [Profiles and snapshots](docs/guide/profiles-and-snapshots.md) | Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic. | 2026-03-28 | current | `internal/profile/**`<br>`cmd/profile.go`<br>`cmd/snapshot.go`<br>`cmd/pin.go`<br>`cmd/unpin.go` |
-| [User guide](docs/guide/user-guide.md) | Load when modifying CLI commands, interactive pickers, JSON output, scripting flags, or sync/doctor workflows. | 2026-03-28 | current | `cmd/**` |
+| [Configuration](docs/guide/configuration.md) | Load when modifying config loading, merging, validation, or debugging config file issues. | 2026-03-28 | stale (paths) | `internal/config/**`<br>`cmd/settings.go`<br>`cmd/init.go` |
+| [Create asset sources](docs/guide/creating-sources.md) | Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention. | 2026-03-28 | stale (paths) | `internal/sourcemanager/**`<br>`internal/asset/**` |
+| [Get started](docs/guide/getting-started.md) | Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user. | 2026-03-28 | stale (paths) | `cmd/init.go`<br>`cmd/source.go`<br>`cmd/deploy.go` |
+| [How nd works](docs/guide/how-nd-works.md) | Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments. | 2026-03-28 | stale (paths) | `internal/deploy/**`<br>`cmd/deploy.go`<br>`cmd/remove.go` |
+| [Profiles and snapshots](docs/guide/profiles-and-snapshots.md) | Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic. | 2026-03-28 | stale (paths) | `internal/profile/**`<br>`cmd/profile.go`<br>`cmd/snapshot.go`<br>`cmd/pin.go`<br>`cmd/unpin.go` |
+| [User guide](docs/guide/user-guide.md) | Load when modifying CLI commands, interactive pickers, JSON output, scripting flags, or sync/doctor workflows. | 2026-03-28 | stale (paths) | `cmd/**` |
 
 <!-- AGENTS-INDEX-END -->
 
