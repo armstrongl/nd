@@ -626,3 +626,64 @@ func TestDeploy_FullHelpItems_Result(t *testing.T) {
 		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
 	}
 }
+
+func TestDeploy_EscOnPickType_SendsBackMsg(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	_, cmd := ds.updatePickType(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC at pickType, got nil")
+	}
+	if _, ok := cmd().(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", cmd())
+	}
+}
+
+func TestDeploy_EscOnSelectAssets_SendsBackMsg(t *testing.T) {
+	ds := newTestDeployScreen(deploySelectAssets)
+	_, cmd := ds.updateSelectAssets(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC at selectAssets, got nil")
+	}
+	if _, ok := cmd().(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", cmd())
+	}
+}
+
+func TestDeploy_ResultView_ConflictHint(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.failed = []deploy.DeployError{
+		{
+			AssetName: "greeting",
+			AssetType: nd.AssetSkill,
+			Err: &nd.ConflictError{
+				TargetPath:   "/home/.config/claude/skills/greeting",
+				ExistingKind: nd.FileKindForeignSymlink,
+				AssetName:    "greeting",
+			},
+		},
+	}
+
+	content := ds.viewResult()
+	if !strings.Contains(content, "Hint") {
+		t.Errorf("result view should show conflict hint; got:\n%s", content)
+	}
+	if !strings.Contains(content, "greeting") {
+		t.Errorf("result view should mention the failed asset; got:\n%s", content)
+	}
+}
+
+func TestDeploy_ResultView_NoConflictHint_OnGenericError(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.failed = []deploy.DeployError{
+		{
+			AssetName: "greeting",
+			AssetType: nd.AssetSkill,
+			Err:       fmt.Errorf("permission denied"),
+		},
+	}
+
+	content := ds.viewResult()
+	if strings.Contains(content, "Hint") {
+		t.Errorf("result view should not show conflict hint for non-conflict errors; got:\n%s", content)
+	}
+}

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -248,6 +249,9 @@ func (ds *deployScreen) View() tea.View {
 
 // updatePickType delegates to the type picker form and transitions on completion.
 func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
 	// H1: guard against double-fire after form completion
 	if ds.scanning {
 		return ds, nil
@@ -335,6 +339,7 @@ func (ds *deployScreen) buildAssetForm() {
 			huh.NewMultiSelect[string]().
 				Title("Select assets to deploy").
 				Options(opts...).
+				Height(10).
 				Value(&ds.selected),
 		),
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
@@ -342,8 +347,14 @@ func (ds *deployScreen) buildAssetForm() {
 
 // updateSelectAssets delegates to the asset selection form and starts deployment.
 func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// H1: guard against double-fire after form completion
-	if ds.deploying || ds.assetForm == nil {
+	// H1: guard against double-fire after form completion; deploying blocks all input.
+	if ds.deploying {
+		return ds, nil
+	}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+	if ds.assetForm == nil {
 		return ds, nil
 	}
 
@@ -497,9 +508,18 @@ func (ds *deployScreen) viewResult() string {
 	if len(ds.failed) > 0 {
 		fmt.Fprintf(&b, "  %s\n", ds.styles.Danger.Render(
 			fmt.Sprintf("%d failed", len(ds.failed))))
+		var hasConflict bool
 		for _, f := range ds.failed {
 			fmt.Fprintf(&b, "    %s %s/%s: %v\n",
 				GlyphBroken, f.AssetType, f.AssetName, f.Err)
+			var ce *nd.ConflictError
+			if errors.As(f.Err, &ce) {
+				hasConflict = true
+			}
+		}
+		if hasConflict {
+			fmt.Fprintf(&b, "\n  %s\n",
+				ds.styles.Subtle.Render("Hint: a file already exists at the deploy destination. Remove it manually, then deploy again."))
 		}
 		b.WriteString("\n")
 	}

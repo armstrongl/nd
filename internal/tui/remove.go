@@ -47,9 +47,10 @@ type removeScreen struct {
 	step   removeStep
 
 	// selectAssets
-	assetForm   *huh.Form
-	selected    []string           // "sourceID:type/name" keys
-	deployments []state.Deployment // all deployed assets
+	assetForm    *huh.Form
+	selected     []string           // "sourceID:type/name" keys
+	deployments  []state.Deployment // all deployed assets
+	assetsLoaded bool               // true after deploymentsLoadedMsg received
 
 	// confirm
 	confirmForm *huh.Form
@@ -112,19 +113,27 @@ func (m *removeScreen) FullHelpItems() []HelpItem {
 	}
 }
 
-// Init starts async loading of deployed assets.
+// Init starts async loading of deployed assets via the deploy engine,
+// consistent with how statusScreen loads data (uses WithLock for safe reads).
 func (m *removeScreen) Init() tea.Cmd {
 	svc := m.svc
 	return func() tea.Msg {
-		store := svc.StateStore()
-		if store == nil {
-			return deploymentsLoadedMsg{err: fmt.Errorf("state store not available")}
-		}
-		st, _, err := store.Load()
+		eng, err := svc.DeployEngine()
 		if err != nil {
 			return deploymentsLoadedMsg{err: err}
 		}
-		return deploymentsLoadedMsg{deployments: st.Deployments}
+		if eng == nil {
+			return deploymentsLoadedMsg{err: fmt.Errorf("deploy engine not available")}
+		}
+		entries, err := eng.Status()
+		if err != nil {
+			return deploymentsLoadedMsg{err: err}
+		}
+		deps := make([]state.Deployment, len(entries))
+		for i, e := range entries {
+			deps[i] = e.Deployment
+		}
+		return deploymentsLoadedMsg{deployments: deps}
 	}
 }
 
@@ -195,6 +204,7 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 	}
 
 	m.deployments = msg.deployments
+	m.assetsLoaded = true
 
 	if len(m.deployments) == 0 {
 		return m, nil
@@ -212,6 +222,7 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 			huh.NewMultiSelect[string]().
 				Title("Select assets to remove").
 				Options(options...).
+				Height(10).
 				Value(&m.selected),
 		),
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
@@ -220,6 +231,9 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 }
 
 func (m *removeScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return m, func() tea.Msg { return BackMsg{} }
+	}
 	if m.assetForm == nil {
 		return m, nil
 	}
@@ -263,6 +277,9 @@ func (m *removeScreen) transitionToConfirm() (tea.Model, tea.Cmd) {
 }
 
 func (m *removeScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return m, func() tea.Msg { return BackMsg{} }
+	}
 	if m.confirmForm == nil {
 		return m, nil
 	}
@@ -350,6 +367,9 @@ func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 // --- Views ---
 
 func (m *removeScreen) viewSelectAssets() tea.View {
+	if !m.assetsLoaded {
+		return tea.NewView("  Loading deployed assets...")
+	}
 	if len(m.deployments) == 0 {
 		return tea.NewView("  " + NothingDeployed())
 	}

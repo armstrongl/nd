@@ -100,6 +100,35 @@ func TestPopToRootMsg_ClearsStack(t *testing.T) {
 	}
 }
 
+// PopToRootMsg must recreate the main menu so its huh form is fresh.
+// The old instance has navigated=true which blocks all input.
+func TestPopToRootMsg_RecreatesMainMenu(t *testing.T) {
+	m := newTestModel()
+
+	// Exhaust the main menu by marking it navigated.
+	stale := m.screens[0].(*mainMenuScreen)
+	stale.navigated = true
+
+	m.screens = append(m.screens, stubScreen{title: "Deploy"})
+
+	updated, cmd := m.Update(PopToRootMsg{})
+	m2 := updated.(Model)
+
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected 1 screen, got %d", len(m2.screens))
+	}
+	fresh, ok := m2.screens[0].(*mainMenuScreen)
+	if !ok {
+		t.Fatalf("expected *mainMenuScreen at root, got %T", m2.screens[0])
+	}
+	if fresh.navigated {
+		t.Error("recreated main menu should not have navigated=true")
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh main menu")
+	}
+}
+
 func TestRefreshHeaderMsg_UpdatesHeader(t *testing.T) {
 	m := newTestModel()
 	// Header should initially be zero-valued.

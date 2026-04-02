@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -98,6 +100,25 @@ func TestRemove_InitReturnsCmd(t *testing.T) {
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init() returned nil, want a cmd to load deployments")
+	}
+}
+
+// Init() uses DeployEngine — when the engine is unavailable the cmd must
+// return a deploymentsLoadedMsg with a non-nil error (not panic or hang).
+func TestRemove_InitCmd_EngineUnavailable(t *testing.T) {
+	svc := newMockServices()
+	// Default mock: DeployEngine returns nil, nil.
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	cmd := m.Init()
+	msg := cmd()
+
+	loaded, ok := msg.(deploymentsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected deploymentsLoadedMsg, got %T", msg)
+	}
+	if loaded.err == nil {
+		t.Fatal("expected error when deploy engine is nil")
 	}
 }
 
@@ -257,6 +278,51 @@ func TestRemove_ResultView_ShowsErrors(t *testing.T) {
 	}
 	if !strings.Contains(v.Content, "permission denied") {
 		t.Fatalf("result view should contain error message, got %q", v.Content)
+	}
+}
+
+func TestRemove_EscWhileLoading_SendsBackMsg(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	// assetForm is nil (still loading) — ESC must still navigate back.
+	_, cmd := m.updateSelectAssets(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", msg)
+	}
+}
+
+func TestRemove_EscOnConfirm_SendsBackMsg(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeConfirm
+	_, cmd := m.updateConfirm(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", msg)
+	}
+}
+
+func TestRemove_LoadingView_BeforeAssetsLoaded(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+
+	// Before deploymentsLoadedMsg arrives, view must show loading — not "nothing deployed".
+	v := m.View()
+	if strings.Contains(v.Content, NothingDeployed()) {
+		t.Fatalf("expected loading message before assets loaded, got NothingDeployed(): %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "Loading") {
+		t.Fatalf("expected loading message before assets loaded, got %q", v.Content)
 	}
 }
 

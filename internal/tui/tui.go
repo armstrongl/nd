@@ -72,7 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, nil
+		// Fall through to delegate — huh forms need WindowSizeMsg to size their viewports.
 
 	case NavigateMsg:
 		m.screens = append(m.screens, msg.Screen)
@@ -91,8 +91,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for i := 1; i < len(m.screens); i++ {
 			m.screens[i] = nil // release for GC
 		}
-		m.screens = m.screens[:1]
-		return m, nil
+		// Recreate the root screen so its form is fresh and interactive.
+		// The old instance has huh.StateCompleted and navigated=true, which
+		// blocks all input — a stale form cannot be reset in place.
+		fresh := newMainMenuScreen(m.svc, m.styles, m.isDark)
+		m.screens = []Screen{fresh}
+		return m, fresh.Init()
 
 	case RefreshHeaderMsg:
 		m.header = m.header.Refresh(m.svc)
