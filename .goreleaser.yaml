@@ -1,6 +1,10 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
+release:
+  mode: replace
+  replace_existing_artifacts: true
+
 builds:
   - main: .
     binary: nd
