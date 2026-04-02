@@ -70,6 +70,7 @@ jobs:
 
       - name: Create pull request
         if: steps.changed.outputs.skip == 'false'
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
           title: "[agents] sync frontmatter and index"
