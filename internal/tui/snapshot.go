@@ -50,7 +50,7 @@ type snapshotScreen struct {
 	err       error
 
 	// menu
-	menuForm  *huh.Form
+	menuForm   *huh.Form
 	menuChoice string
 	navigated  bool
 
@@ -67,6 +67,11 @@ type snapshotScreen struct {
 
 	// result
 	doneMsg string
+
+	// snapshotList scrolling
+	listLines []string
+	height    int
+	scroll    listScroll
 }
 
 func newSnapshotScreen(svc Services, styles Styles, isDark bool) *snapshotScreen {
@@ -97,6 +102,10 @@ func (s *snapshotScreen) Init() tea.Cmd {
 
 func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.height = msg.Height
+		return s, nil
+
 	case snapshotLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -133,6 +142,8 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch s.step {
 	case snapshotMenu:
 		return s.updateMenu(msg)
+	case snapshotList:
+		return s.updateList(msg)
 	case snapshotSaveName:
 		return s.updateSaveForm(msg)
 	case snapshotRestoreSelect:
@@ -216,6 +227,8 @@ func (s *snapshotScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s.buildRestoreForm()
 		case "list":
 			s.step = snapshotList
+			s.scroll = listScroll{}
+			s.listLines = splitLines(s.buildListContent())
 			return s, nil
 		default:
 			return s, func() tea.Msg { return BackMsg{} }
@@ -398,10 +411,32 @@ func (s *snapshotScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *snapshotScreen) viewList() tea.View {
+func (s *snapshotScreen) contentHeight() int {
+	if s.height == 0 {
+		return listScrollUnlimited
+	}
+	h := s.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+func (s *snapshotScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "j", "down":
+			s.scroll.ScrollDown(len(s.listLines), s.contentHeight())
+		case "k", "up":
+			s.scroll.ScrollUp()
+		}
+	}
+	return s, nil
+}
+
+func (s *snapshotScreen) buildListContent() string {
 	if len(s.snapshots) == 0 {
-		return tea.NewView("  No snapshots saved yet.\n\n  " +
-			s.styles.Subtle.Render("Press esc to go back."))
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Snapshots"))
@@ -411,5 +446,29 @@ func (s *snapshotScreen) viewList() tea.View {
 			s.styles.Subtle.Render(fmt.Sprintf("%d", snap.DeploymentCount)))
 	}
 	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
+	return b.String()
+}
+
+func (s *snapshotScreen) viewList() tea.View {
+	if len(s.snapshots) == 0 {
+		return tea.NewView("  No snapshots saved yet.\n\n  " +
+			s.styles.Subtle.Render("Press esc to go back."))
+	}
+	if len(s.listLines) == 0 {
+		s.listLines = splitLines(s.buildListContent())
+	}
+
+	lines := s.listLines
+	pageSize := s.contentHeight()
+	start, end := s.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := s.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
+	}
 	return tea.NewView(b.String())
 }

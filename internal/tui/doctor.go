@@ -48,6 +48,10 @@ type doctorScreen struct {
 	// done step
 	syncResult *deploy.SyncResult
 	err        error
+
+	// issue list scrolling (confirm step)
+	height int
+	scroll listScroll
 }
 
 func newDoctorScreen(svc Services, styles Styles, isDark bool) *doctorScreen {
@@ -80,6 +84,10 @@ func (d *doctorScreen) Init() tea.Cmd {
 // Update handles messages for each step of the doctor flow.
 func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		d.height = msg.Height
+		return d, nil
+
 	case doctorCheckedMsg:
 		return d.handleChecked(msg)
 
@@ -151,6 +159,22 @@ func (d *doctorScreen) handleChecked(msg doctorCheckedMsg) (tea.Model, tea.Cmd) 
 	return d, d.confirmForm.Init()
 }
 
+// issueListHeight returns the number of issue rows that fit above the confirm form.
+// Reserves 5 lines for the form itself; returns listScrollUnlimited when height is unknown.
+func (d *doctorScreen) issueListHeight() int {
+	if d.height == 0 {
+		return listScrollUnlimited
+	}
+	h := d.height
+	h -= 4 // root chrome: header + 2 blank separators + helpbar
+	h -= 2 // viewConfirm header: "✗ N issue(s) found:" + blank line
+	h -= 5 // huh confirm form: blank + title + yes/no + blank + padding
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
 func (d *doctorScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if d.confirmForm == nil {
 		return d, nil
@@ -159,6 +183,19 @@ func (d *doctorScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Guard against double-fire.
 	if d.fixing {
 		return d, nil
+	}
+
+	// Intercept j/k for issue list scrolling before huh sees the message.
+	// The huh Confirm widget uses h/l (not j/k) for yes/no navigation.
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "j", "down":
+			d.scroll.ScrollDown(len(d.issues), d.issueListHeight())
+			return d, nil
+		case "k", "up":
+			d.scroll.ScrollUp()
+			return d, nil
+		}
 	}
 
 	model, cmd := d.confirmForm.Update(msg)
@@ -218,12 +255,23 @@ func (d *doctorScreen) viewConfirm() tea.View {
 	fmt.Fprintf(&b, "  %s %d issue(s) found:\n\n",
 		d.styles.Warning.Render(GlyphBroken), len(d.issues))
 
-	for _, issue := range d.issues {
+	pageSize := d.issueListHeight()
+	start, end := d.scroll.Window(len(d.issues), pageSize)
+
+	if above := d.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(d.styles, "↑", above))
+	}
+
+	for _, issue := range d.issues[start:end] {
 		glyph := healthGlyph(issue.Status)
 		styled := styleGlyphWith(d.styles, glyph, issue.Status)
 		fmt.Fprintf(&b, "    %s  %-20s  %s\n",
 			styled, issue.Deployment.AssetName,
 			d.styles.Subtle.Render(issue.Detail))
+	}
+
+	if below := d.scroll.MoreBelow(len(d.issues), pageSize); below > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(d.styles, "↓", below))
 	}
 
 	if d.confirmForm != nil {

@@ -436,6 +436,95 @@ func TestBrowseScreen_KeysIgnoredBeforeLoad(t *testing.T) {
 	}
 }
 
+// --- Scroll / windowing tests ---
+
+func TestBrowseScreen_WindowSizeMsgSetsHeight(t *testing.T) {
+	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
+	s.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	if s.height != 30 {
+		t.Fatalf("height = %d, want 30", s.height)
+	}
+}
+
+func TestBrowseScreen_ContentHeightUnknownReturnsUnlimited(t *testing.T) {
+	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
+	// height is 0 (no WindowSizeMsg) → unlimited
+	if got := s.contentHeight(); got != listScrollUnlimited {
+		t.Fatalf("contentHeight() = %d, want listScrollUnlimited", got)
+	}
+}
+
+func TestBrowseScreen_ScrollOffsetAdjustsWhenCursorMovesDown(t *testing.T) {
+	// 10 assets, terminal height 14 → contentHeight = 14-4-2 = 8
+	s := browseSeedAssets(t, 10, nil)
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
+
+	// Press j 8 times to push cursor past the initial 8-row window.
+	for range 8 {
+		s.Update(tea.KeyPressMsg(tea.Key{Code: 'j', Text: "j"}))
+	}
+
+	// cursor should be at 8, offset must have increased so cursor stays visible.
+	if s.cursor != 8 {
+		t.Fatalf("cursor = %d, want 8", s.cursor)
+	}
+	if s.scroll.offset == 0 {
+		t.Fatalf("scroll.offset should have advanced past 0, got 0")
+	}
+}
+
+func TestBrowseScreen_ScrollOffsetAdjustsWhenCursorMovesUp(t *testing.T) {
+	s := browseSeedAssets(t, 10, nil)
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
+
+	// Move cursor to bottom, then back up past top of current window.
+	s.cursor = 9
+	s.scroll.offset = 5
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 8, fine
+	s.scroll.offset = 5                                       // force offset above cursor
+	s.cursor = 3
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 2 < offset 5 → adjust
+
+	if s.scroll.offset > s.cursor {
+		t.Fatalf("offset %d > cursor %d: cursor should be visible", s.scroll.offset, s.cursor)
+	}
+}
+
+func TestBrowseScreen_IndicatorAboveShownWhenScrolled(t *testing.T) {
+	// 10 assets, terminal height 14 → contentHeight = 8
+	s := browseSeedAssets(t, 10, nil)
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
+	s.scroll.offset = 3 // 3 items hidden above
+
+	v := s.View()
+	if !strings.Contains(v.Content, "↑") {
+		t.Errorf("↑ indicator expected when offset>0, got: %q", v.Content)
+	}
+}
+
+func TestBrowseScreen_IndicatorBelowShownWhenItemsHidden(t *testing.T) {
+	// 10 assets, terminal height 14 → contentHeight = 8
+	// offset=0, items 8-9 are below the window
+	s := browseSeedAssets(t, 10, nil)
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 14})
+
+	v := s.View()
+	if !strings.Contains(v.Content, "↓") {
+		t.Errorf("↓ indicator expected when items below window, got: %q", v.Content)
+	}
+}
+
+func TestBrowseScreen_NoIndicatorsWhenAllFit(t *testing.T) {
+	// 2 assets fit within any reasonable page size.
+	s := browseSeedAssets(t, 2, nil)
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 30}) // large terminal
+
+	v := s.View()
+	if strings.Contains(v.Content, "↑") || strings.Contains(v.Content, "↓") {
+		t.Errorf("no indicators expected when list fits, got: %q", v.Content)
+	}
+}
+
 func TestBrowseScreen_TypeAndSourceShown(t *testing.T) {
 	assets := []asset.Asset{
 		{Identity: asset.Identity{SourceID: "my-source", Type: nd.AssetRule, Name: "go-rules"}},

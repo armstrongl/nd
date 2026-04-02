@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/state"
@@ -342,5 +343,94 @@ func TestStatusScreen_TypeCountInHeader(t *testing.T) {
 	// The type header should show the count "(3)".
 	if !strings.Contains(v.Content, "(3)") {
 		t.Errorf("View() should contain count '(3)' for 3 skills, got %q", v.Content)
+	}
+}
+
+// --- Scroll / windowing tests ---
+
+func TestStatusScreen_WindowSizeMsgSetsHeight(t *testing.T) {
+	s := newStatusScreen(newMockServices(), NewStyles(true), true)
+	s.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+	if s.height != 24 {
+		t.Fatalf("height = %d, want 24", s.height)
+	}
+}
+
+func TestStatusScreen_JKScrollsView(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	// Load enough entries to fill more than one screen page.
+	var entries []deploy.StatusEntry
+	for i := range 20 {
+		entries = append(entries, deploy.StatusEntry{
+			Deployment: state.Deployment{
+				AssetType: nd.AssetSkill,
+				AssetName: fmt.Sprintf("skill-%02d", i),
+				SourceID:  "src",
+				Scope:     nd.ScopeGlobal,
+			},
+			Health: state.HealthOK,
+		})
+	}
+	s.Update(statusLoadedMsg{entries: entries})
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 12}) // contentHeight = 12-4 = 8
+
+	initial := s.scroll.offset
+
+	// Scroll down.
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'j', Text: "j"}))
+	if s.scroll.offset <= initial {
+		t.Fatalf("scroll.offset after j = %d, want > %d", s.scroll.offset, initial)
+	}
+
+	// Scroll back up.
+	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"}))
+	if s.scroll.offset != initial {
+		t.Fatalf("scroll.offset after k = %d, want %d", s.scroll.offset, initial)
+	}
+}
+
+func TestStatusScreen_IndicatorShownWhenScrolled(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	var entries []deploy.StatusEntry
+	for i := range 20 {
+		entries = append(entries, deploy.StatusEntry{
+			Deployment: state.Deployment{
+				AssetType: nd.AssetSkill,
+				AssetName: fmt.Sprintf("skill-%02d", i),
+				SourceID:  "src",
+				Scope:     nd.ScopeGlobal,
+			},
+			Health: state.HealthOK,
+		})
+	}
+	s.Update(statusLoadedMsg{entries: entries})
+	s.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+
+	// Small terminal, list doesn't fit — ↓ indicator should appear.
+	v := s.View()
+	if !strings.Contains(v.Content, "↓") {
+		t.Errorf("↓ indicator expected for oversized list, got: %q", v.Content)
+	}
+}
+
+func TestStatusScreen_HelpItemsIncludeScrollKey(t *testing.T) {
+	s := newStatusScreen(newMockServices(), NewStyles(true), true)
+	var keys []string
+	for _, item := range s.HelpItems() {
+		keys = append(keys, item.Key)
+	}
+	found := false
+	for _, k := range keys {
+		if k == "j/k" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("HelpItems() should include j/k scroll key, got: %v", keys)
 	}
 }

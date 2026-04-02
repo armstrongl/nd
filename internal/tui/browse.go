@@ -17,19 +17,24 @@ type browseLoadedMsg struct {
 
 // browseScreen shows all available assets with deployment status markers.
 // It supports a text filter toggled with '/' and cursor navigation with j/k.
+// Long lists are windowed to the terminal height; ↑/↓ indicators appear when
+// items are hidden above or below the viewport.
 type browseScreen struct {
 	svc    Services
 	styles Styles
 	isDark bool
 
-	assets   []*asset.Asset
-	deployed map[string]bool
+	assets    []*asset.Asset
+	deployed  map[string]bool
 	cursor    int
-	filter   string
+	filter    string
 	filtering bool
-	notice   string // transient feedback (e.g. "already deployed")
-	err      error
-	loaded   bool
+	notice    string // transient feedback (e.g. "already deployed")
+	err       error
+	loaded    bool
+
+	height int       // terminal height, updated by tea.WindowSizeMsg
+	scroll listScroll
 }
 
 func newBrowseScreen(svc Services, styles Styles, isDark bool) *browseScreen {
@@ -104,6 +109,11 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		b.clampCursor()
 		return b, nil
 
+	case tea.WindowSizeMsg:
+		b.height = msg.Height
+		b.scroll.EnsureVisible(b.cursor, b.contentHeight())
+		return b, nil
+
 	case tea.KeyPressMsg:
 		return b.handleKey(msg)
 	}
@@ -150,12 +160,14 @@ func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "j", "down":
 		if b.cursor < len(visible)-1 {
 			b.cursor++
+			b.scroll.EnsureVisible(b.cursor, b.contentHeight())
 		}
 		return b, nil
 
 	case "k", "up":
 		if b.cursor > 0 {
 			b.cursor--
+			b.scroll.EnsureVisible(b.cursor, b.contentHeight())
 		}
 		return b, nil
 
@@ -212,9 +224,17 @@ func (b *browseScreen) View() tea.View {
 		return tea.NewView(buf.String())
 	}
 
-	for i, a := range visible {
+	pageSize := b.contentHeight()
+	start, end := b.scroll.Window(len(visible), pageSize)
+
+	if above := b.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, "↑", above))
+	}
+
+	for i, a := range visible[start:end] {
+		absIdx := start + i
 		cursor := "  "
-		if i == b.cursor {
+		if absIdx == b.cursor {
 			cursor = GlyphArrow + " "
 		}
 
@@ -235,6 +255,10 @@ func (b *browseScreen) View() tea.View {
 			cursor, marker, typePart, a.Name, srcPart, description)
 	}
 
+	if below := b.scroll.MoreBelow(len(visible), pageSize); below > 0 {
+		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, "↓", below))
+	}
+
 	// Transient feedback message (e.g. "already deployed").
 	if b.notice != "" {
 		fmt.Fprintf(&buf, "\n  %s", b.styles.Warning.Render(b.notice))
@@ -253,7 +277,30 @@ func (b *browseScreen) View() tea.View {
 	return tea.NewView(buf.String())
 }
 
-// clampCursor ensures the cursor stays within the visible asset list bounds.
+// contentHeight returns the number of list rows that fit in the terminal.
+// When height is unknown (0), it returns listScrollUnlimited so all assets
+// are visible without windowing (matching pre-scroll behaviour in tests).
+func (b *browseScreen) contentHeight() int {
+	if b.height == 0 {
+		return listScrollUnlimited
+	}
+	h := b.height
+	h -= 4 // root chrome: header + 2 blank separators + helpbar
+	h -= 2 // summary footer: blank line + summary line
+	if b.filtering || b.filter != "" {
+		h -= 2 // filter bar + blank line below it
+	}
+	if b.notice != "" {
+		h -= 2 // transient notice + blank line before it
+	}
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// clampCursor ensures the cursor stays within the visible asset list bounds
+// and calls EnsureVisible so the scroll offset tracks it.
 func (b *browseScreen) clampCursor() {
 	visible := b.visibleAssets()
 	if len(visible) == 0 {
@@ -263,6 +310,7 @@ func (b *browseScreen) clampCursor() {
 	if b.cursor >= len(visible) {
 		b.cursor = len(visible) - 1
 	}
+	b.scroll.EnsureVisible(b.cursor, b.contentHeight())
 }
 
 // visibleAssets returns the filtered asset list (or all if no filter set).
