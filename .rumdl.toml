@@ -23,7 +23,7 @@ cache = true
 # MD009/MD027: false positives on Linux x86_64 — rumdl misparses --> in
 # inline HTML comments as a blockquote marker.
 "README.md" = ["MD009", "MD027"]
-"CHANGELOG.md" = ["MD024"]
+"CHANGELOG.md" = ["MD004", "MD012", "MD024", "MD063"]
 ".github/copilot-instructions.md" = ["MD041", "MD063"]
 ".github/agents/**" = ["MD041"]
 "AGENTS.md" = ["MD041"]
