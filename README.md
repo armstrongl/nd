@@ -27,7 +27,7 @@ Manage coding agent assets (skills, agents, commands, rules, and more) across to
 ### Homebrew (macOS/Linux)
 
 ```shell
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 ```
 
 ### Go install
