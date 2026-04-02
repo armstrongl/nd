@@ -28,6 +28,6 @@ nd snapshot restore <name> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots

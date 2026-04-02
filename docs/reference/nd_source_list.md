@@ -28,6 +28,6 @@ nd source list [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd source](nd_source.md) - Manage asset sources

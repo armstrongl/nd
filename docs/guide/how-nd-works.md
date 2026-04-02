@@ -14,8 +14,6 @@ tags:
   - scope
 ---
 
-# How nd works
-
 nd doesn't copy files. It creates symlinks.
 
 When you run `nd deploy skills/greeting`, nd creates a symbolic link from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.

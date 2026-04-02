@@ -28,9 +28,9 @@ Add, remove, and list asset source directories.
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd source add](nd_source_add.md) - Register a new asset source
 - [nd source list](nd_source_list.md) - List registered sources
 - [nd source remove](nd_source_remove.md) - Remove a registered source

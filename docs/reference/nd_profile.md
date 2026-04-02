@@ -28,9 +28,9 @@ Create, list, deploy, and switch between named profiles.
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd profile add-asset](nd_profile_add-asset.md) - Add an asset to an existing profile
 - [nd profile create](nd_profile_create.md) - Create a new profile
 - [nd profile delete](nd_profile_delete.md) - Delete a profile

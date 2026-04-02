@@ -13,8 +13,6 @@ tags:
   - scanning
 ---
 
-# Create asset sources
-
 An asset source is a directory (local or git) containing coding agent assets organized by type. This guide explains how to structure your own.
 
 ## Directory convention

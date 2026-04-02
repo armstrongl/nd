@@ -14,8 +14,6 @@ tags:
   - onboarding
 ---
 
-# Get started
-
 This guide takes you from zero to your first deployed asset in about 5 minutes.
 
 ## 1. Install nd

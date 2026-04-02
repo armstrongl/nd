@@ -3,7 +3,7 @@ title: "nd"
 weight: 1
 ---
 
-Napoleon Dynamite — coding agent asset manager
+Napoleon Dynamite - coding agent asset manager
 
 ## Synopsis
 
@@ -27,7 +27,7 @@ nd [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd deploy](nd_deploy.md) - Deploy assets by creating symlinks
 - [nd doctor](nd_doctor.md) - Check nd configuration and deployment health

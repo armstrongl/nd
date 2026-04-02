@@ -28,6 +28,6 @@ nd profile delete <name> [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles

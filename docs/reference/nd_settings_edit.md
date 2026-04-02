@@ -28,6 +28,6 @@ nd settings edit [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd settings](nd_settings.md) - Manage nd settings

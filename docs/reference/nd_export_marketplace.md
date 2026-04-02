@@ -41,6 +41,6 @@ nd export marketplace [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd export](nd_export.md) - Export assets as a Claude Code plugin

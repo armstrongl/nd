@@ -28,15 +28,18 @@ brew install --cask armstrongl/tap/nd
     title="Symlink-based deployment"
     subtitle="Deploy assets as symlinks. Edit the source, changes show up instantly — no redeploy needed."
     icon="link"
+    link="docs/guide/how-nd-works/"
   >}}
   {{< hextra/feature-card
     title="Profiles & snapshots"
     subtitle="Group assets into named profiles and switch between them. Snapshots let you bookmark and restore any state."
     icon="collection"
+    link="docs/guide/profiles-and-snapshots/"
   >}}
   {{< hextra/feature-card
     title="Multiple sources"
     subtitle="Mix local directories and git repositories. Sync, scan, and manage assets from anywhere."
     icon="database"
+    link="docs/guide/creating-sources/"
   >}}
 {{< /hextra/feature-grid >}}

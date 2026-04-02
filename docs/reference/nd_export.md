@@ -45,7 +45,7 @@ nd export [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd export marketplace](nd_export_marketplace.md) - Generate a Claude Code marketplace from exported plugins

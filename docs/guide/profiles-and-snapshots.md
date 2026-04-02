@@ -16,8 +16,6 @@ tags:
   - pinning
 ---
 
-# Profiles & snapshots
-
 Profiles and snapshots help you manage multiple sets of agent assets and switch between them.
 
 ## What are profiles?

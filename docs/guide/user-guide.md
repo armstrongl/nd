@@ -12,8 +12,6 @@ tags:
   - workflows
 ---
 
-# User guide
-
 This guide covers the core workflows for managing assets with nd.
 
 ## Interactive mode

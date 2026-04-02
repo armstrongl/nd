@@ -44,6 +44,6 @@ nd completion zsh [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd completion](nd_completion.md) - Generate shell completion scripts

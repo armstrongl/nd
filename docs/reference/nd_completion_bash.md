@@ -42,6 +42,6 @@ nd completion bash [flags]
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
 - [nd completion](nd_completion.md) - Generate shell completion scripts

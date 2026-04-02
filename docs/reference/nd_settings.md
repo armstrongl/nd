@@ -24,7 +24,7 @@ Manage nd settings
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd settings edit](nd_settings_edit.md) - Open settings in your editor

@@ -14,8 +14,6 @@ tags:
   - yaml
 ---
 
-# Configuration
-
 nd uses YAML configuration files with a layered merging system.
 
 ## Config file locations

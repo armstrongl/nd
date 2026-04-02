@@ -87,6 +87,10 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 			if strings.HasPrefix(line, "### ") {
 				line = strings.Replace(line, "### ", "## ", 1)
 			}
+			// Rename Cobra's man-page-style heading.
+			if strings.TrimSpace(line) == "## SEE ALSO" {
+				line = "## Related\n"
+			}
 			out = append(out, line)
 		}
 

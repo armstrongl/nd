@@ -32,9 +32,9 @@ Run "nd completion <shell> --help" for shell-specific instructions.
   -y, --yes             skip confirmation prompts
 ```
 
-## SEE ALSO
+## Related
 
-- [nd](nd.md) - Napoleon Dynamite — coding agent asset manager
+- [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd completion bash](nd_completion_bash.md) - Generate bash completion script
 - [nd completion fish](nd_completion_fish.md) - Generate fish completion script
 - [nd completion zsh](nd_completion_zsh.md) - Generate zsh completion script
