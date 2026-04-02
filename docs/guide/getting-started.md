@@ -37,6 +37,18 @@ Verify the installation:
 nd version
 ```
 
+## Update nd
+
+If you installed nd via Homebrew, update it with:
+
+```shell
+brew update && brew upgrade nd
+```
+
+If `brew upgrade nd` installs an older version, your local tap index may be stale. Run `brew update` first to refresh it, then upgrade again.
+
+nd will also notify you when a newer version is available — the message appears after a command completes, once per day.
+
 ## 2. Initialize
 
 Create the nd configuration directory and default config:

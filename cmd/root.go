@@ -11,6 +11,7 @@ import (
 
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/tui"
+	"github.com/armstrongl/nd/internal/updater"
 	"github.com/armstrongl/nd/internal/version"
 )
 
@@ -25,6 +26,9 @@ func NewRootCmd(app *App) *cobra.Command {
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return persistentPreRun(cmd, app)
+		},
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			return persistentPostRun(cmd, app)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Launch TUI when running interactively with no flags that conflict.
@@ -94,7 +98,32 @@ func Execute() int {
 	return nd.ExitSuccess
 }
 
-// persistentPreRun resolves config path and scope before any command runs.
+// persistentPostRun runs after every successful command. It shows an update
+// notice when a newer version is available and the user installed nd via
+// Homebrew, then kicks off a background cache refresh.
+func persistentPostRun(cmd *cobra.Command, app *App) error {
+	if app.Quiet || app.JSON {
+		return nil
+	}
+	if version.Version == "dev" || !updater.IsBrewInstall() {
+		return nil
+	}
+	cacheDir := filepath.Dir(app.ConfigPath)
+	if cacheDir == "" || cacheDir == "." {
+		return nil
+	}
+	latest, _ := updater.CheckCached(cacheDir)
+	if latest != "" && updater.IsNewer(latest, version.Version) {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"\nA new version of nd is available: v%s (you have %s)\nTo update: brew upgrade nd\n\n",
+			latest, version.Version,
+		)
+	}
+	updater.RefreshAsync(cacheDir)
+	return nil
+}
+
+
 func persistentPreRun(cmd *cobra.Command, app *App) error {
 	// Expand ~ in config path
 	if strings.HasPrefix(app.ConfigPath, "~/") {
