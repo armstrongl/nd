@@ -1,5 +1,6 @@
 ---
 title: "nd status"
+description: "Show deployment status and health"
 weight: 320
 ---
 

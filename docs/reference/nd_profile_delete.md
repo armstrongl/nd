@@ -1,5 +1,6 @@
 ---
 title: "nd profile delete"
+description: "Delete a profile"
 weight: 160
 ---
 

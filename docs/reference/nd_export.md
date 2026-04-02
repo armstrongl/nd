@@ -1,5 +1,6 @@
 ---
 title: "nd export"
+description: "Export assets as a Claude Code plugin"
 weight: 80
 ---
 

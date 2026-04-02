@@ -1,5 +1,6 @@
 ---
 title: "nd profile create"
+description: "Create a new profile"
 weight: 150
 ---
 

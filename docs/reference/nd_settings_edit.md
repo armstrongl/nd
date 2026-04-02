@@ -1,5 +1,6 @@
 ---
 title: "nd settings edit"
+description: "Open settings in your editor"
 weight: 220
 ---
 

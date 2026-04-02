@@ -1,5 +1,6 @@
 ---
 title: "nd profile add-asset"
+description: "Add an asset to an existing profile"
 weight: 140
 ---
 

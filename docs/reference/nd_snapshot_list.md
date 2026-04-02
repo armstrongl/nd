@@ -1,5 +1,6 @@
 ---
 title: "nd snapshot list"
+description: "List all snapshots"
 weight: 250
 ---
 

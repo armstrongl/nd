@@ -1,5 +1,6 @@
 ---
 title: "nd source list"
+description: "List registered sources"
 weight: 300
 ---
 

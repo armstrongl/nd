@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: rumdl
+        name: Markdown lint (rumdl)
+        language: python
+        additional_dependencies: [rumdl]
+        entry: rumdl check
+        args: [--fix]
+        types: [markdown]
+        pass_filenames: true

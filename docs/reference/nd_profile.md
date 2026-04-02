@@ -1,5 +1,6 @@
 ---
 title: "nd profile"
+description: "Manage deployment profiles"
 weight: 130
 ---
 

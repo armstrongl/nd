@@ -1,5 +1,6 @@
 ---
 title: "nd unpin"
+description: "Unpin an asset, allowing profile switches to manage it"
 weight: 350
 ---
 

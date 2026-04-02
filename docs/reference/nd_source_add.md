@@ -1,5 +1,6 @@
 ---
 title: "nd source add"
+description: "Register a new asset source"
 weight: 290
 ---
 

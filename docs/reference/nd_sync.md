@@ -1,5 +1,6 @@
 ---
 title: "nd sync"
+description: "Repair symlinks and optionally pull git sources"
 weight: 330
 ---
 

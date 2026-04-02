@@ -1,5 +1,6 @@
 ---
 title: "nd remove"
+description: "Remove deployed assets"
 weight: 200
 ---
 

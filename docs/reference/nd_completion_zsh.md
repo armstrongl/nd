@@ -1,5 +1,6 @@
 ---
 title: "nd completion zsh"
+description: "Generate zsh completion script"
 weight: 50
 ---
 

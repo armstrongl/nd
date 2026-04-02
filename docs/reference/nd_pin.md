@@ -1,5 +1,6 @@
 ---
 title: "nd pin"
+description: "Pin an asset to prevent profile switches from removing it"
 weight: 120
 ---
 

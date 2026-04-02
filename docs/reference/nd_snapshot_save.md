@@ -1,5 +1,6 @@
 ---
 title: "nd snapshot save"
+description: "Save current deployments as a named snapshot"
 weight: 270
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "nd version"
+description: "Print nd version information"
 weight: 360
 ---
 

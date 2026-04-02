@@ -1,5 +1,6 @@
 ---
 title: "nd uninstall"
+description: "Remove all nd-managed symlinks and optionally config"
 weight: 340
 ---
 

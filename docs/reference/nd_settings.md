@@ -1,5 +1,6 @@
 ---
 title: "nd settings"
+description: "Manage nd settings"
 weight: 210
 ---
 

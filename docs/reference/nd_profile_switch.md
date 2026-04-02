@@ -1,5 +1,6 @@
 ---
 title: "nd profile switch"
+description: "Switch from current profile to another"
 weight: 190
 ---
 

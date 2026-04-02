@@ -1,5 +1,6 @@
 ---
 title: "nd init"
+description: "Initialize nd configuration"
 weight: 100
 ---
 

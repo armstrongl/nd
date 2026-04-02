@@ -1,5 +1,6 @@
 ---
 title: "nd snapshot delete"
+description: "Delete a snapshot"
 weight: 240
 ---
 

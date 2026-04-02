@@ -1,5 +1,6 @@
 ---
 title: "nd completion fish"
+description: "Generate fish completion script"
 weight: 40
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "nd export marketplace"
+description: "Generate a Claude Code marketplace from exported plugins"
 weight: 90
 ---
 

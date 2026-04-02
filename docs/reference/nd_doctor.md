@@ -1,5 +1,6 @@
 ---
 title: "nd doctor"
+description: "Check nd configuration and deployment health"
 weight: 70
 ---
 

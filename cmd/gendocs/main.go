@@ -99,7 +99,11 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 			weight = (nameIndex[c.CommandPath()] + 1) * 10
 		}
 
-		frontMatter := fmt.Sprintf("---\ntitle: %q\nweight: %d\n---\n\n", c.CommandPath(), weight)
+		description := c.Short
+		if description == "" {
+			description = c.CommandPath()
+		}
+		frontMatter := fmt.Sprintf("---\ntitle: %q\ndescription: %q\nweight: %d\n---\n\n", c.CommandPath(), description, weight)
 		content := frontMatter + strings.Join(out, "")
 
 		filename := strings.ReplaceAll(c.CommandPath(), " ", "_") + ".md"

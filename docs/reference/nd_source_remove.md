@@ -1,5 +1,6 @@
 ---
 title: "nd source remove"
+description: "Remove a registered source"
 weight: 310
 ---
 

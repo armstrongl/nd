@@ -1,5 +1,6 @@
 ---
 title: "nd profile deploy"
+description: "Deploy all assets in a profile"
 weight: 170
 ---
 

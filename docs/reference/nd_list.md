@@ -1,5 +1,6 @@
 ---
 title: "nd list"
+description: "List available assets from all sources"
 weight: 110
 ---
 

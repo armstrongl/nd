@@ -1,5 +1,6 @@
 ---
 title: "nd"
+description: "Napoleon Dynamite - coding agent asset manager"
 weight: 1
 ---
 

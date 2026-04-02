@@ -1,5 +1,6 @@
 ---
 title: "nd completion"
+description: "Generate shell completion scripts"
 weight: 20
 ---
 

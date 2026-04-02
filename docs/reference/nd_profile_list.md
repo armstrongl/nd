@@ -1,5 +1,6 @@
 ---
 title: "nd profile list"
+description: "List all profiles"
 weight: 180
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "nd deploy"
+description: "Deploy assets by creating symlinks"
 weight: 60
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "nd snapshot"
+description: "Manage deployment snapshots"
 weight: 230
 ---
 

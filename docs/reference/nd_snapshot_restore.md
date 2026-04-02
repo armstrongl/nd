@@ -1,5 +1,6 @@
 ---
 title: "nd snapshot restore"
+description: "Restore deployments from a snapshot"
 weight: 260
 ---
 
