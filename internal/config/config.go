@@ -27,9 +27,10 @@ type SourceEntry struct {
 
 // AgentOverride lets users customize agent config directory paths (FR-033).
 type AgentOverride struct {
-	Name       string `yaml:"name"        json:"name"`
-	GlobalDir  string `yaml:"global_dir"  json:"global_dir"`
-	ProjectDir string `yaml:"project_dir" json:"project_dir"`
+	Name        string `yaml:"name"         json:"name"`
+	GlobalDir   string `yaml:"global_dir"   json:"global_dir"`
+	ProjectDir  string `yaml:"project_dir"  json:"project_dir"`
+	SourceAlias string `yaml:"source_alias" json:"source_alias,omitempty"`
 }
 
 // ProjectConfig represents .nd/config.yaml (project-level overrides).
