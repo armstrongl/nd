@@ -102,6 +102,60 @@ func TestPopToRootMsg_ClearsStack(t *testing.T) {
 
 // PopToRootMsg must recreate the main menu so its huh form is fresh.
 // The old instance has navigated=true which blocks all input.
+// BackMsg returning to root must recreate the main menu so its huh form is fresh.
+func TestBackMsg_RecreatesMainMenu(t *testing.T) {
+	m := newTestModel()
+
+	// Mark the root menu stale (as happens after a selection is made).
+	stale := m.screens[0].(*mainMenuScreen)
+	stale.navigated = true
+
+	// Push a second screen and go back.
+	m.screens = append(m.screens, stubScreen{title: "Deploy"})
+	updated, cmd := m.Update(BackMsg{})
+	m2 := updated.(Model)
+
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected 1 screen after BackMsg, got %d", len(m2.screens))
+	}
+	fresh, ok := m2.screens[0].(*mainMenuScreen)
+	if !ok {
+		t.Fatalf("expected *mainMenuScreen at root, got %T", m2.screens[0])
+	}
+	if fresh.navigated {
+		t.Error("recreated main menu should not have navigated=true")
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh main menu")
+	}
+}
+
+// Esc returning to root must recreate the main menu so its huh form is fresh.
+func TestGlobalKey_Esc_RecreatesMainMenu(t *testing.T) {
+	m := newTestModel()
+
+	stale := m.screens[0].(*mainMenuScreen)
+	stale.navigated = true
+
+	m.screens = append(m.screens, stubScreen{title: "Status"})
+	updated, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	m2 := updated.(Model)
+
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected 1 screen after esc, got %d", len(m2.screens))
+	}
+	fresh, ok := m2.screens[0].(*mainMenuScreen)
+	if !ok {
+		t.Fatalf("expected *mainMenuScreen at root, got %T", m2.screens[0])
+	}
+	if fresh.navigated {
+		t.Error("recreated main menu should not have navigated=true")
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh main menu")
+	}
+}
+
 func TestPopToRootMsg_RecreatesMainMenu(t *testing.T) {
 	m := newTestModel()
 

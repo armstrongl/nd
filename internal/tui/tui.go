@@ -85,18 +85,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		n := len(m.screens)
 		m.screens[n-1] = nil // release for GC
 		m.screens = m.screens[:n-1]
+		if len(m.screens) == 1 {
+			return m.resetRootMenu()
+		}
 		return m, nil
 
 	case PopToRootMsg:
 		for i := 1; i < len(m.screens); i++ {
 			m.screens[i] = nil // release for GC
 		}
-		// Recreate the root screen so its form is fresh and interactive.
-		// The old instance has huh.StateCompleted and navigated=true, which
-		// blocks all input — a stale form cannot be reset in place.
-		fresh := newMainMenuScreen(m.svc, m.styles, m.isDark)
-		m.screens = []Screen{fresh}
-		return m, fresh.Init()
+		m.screens = m.screens[:1]
+		return m.resetRootMenu()
 
 	case RefreshHeaderMsg:
 		m.header = m.header.Refresh(m.svc)
@@ -126,6 +125,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				n := len(m.screens)
 				m.screens[n-1] = nil // release for GC
 				m.screens = m.screens[:n-1]
+				if len(m.screens) == 1 {
+					return m.resetRootMenu()
+				}
 				return m, nil
 			}
 		}
@@ -141,6 +143,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+// resetRootMenu replaces screens[0] with a fresh mainMenuScreen and returns its Init cmd.
+// Called whenever navigation returns to the root so the stale huh form is never shown.
+func (m Model) resetRootMenu() (tea.Model, tea.Cmd) {
+	fresh := newMainMenuScreen(m.svc, m.styles, m.isDark)
+	m.screens[0] = fresh
+	return m, fresh.Init()
 }
 
 // View composes header, current screen content, and help bar vertically.
