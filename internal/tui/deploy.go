@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ const (
 	deployPickType deployStep = iota
 	deploySelectAssets
 	deployRunning
+	deployConflictConfirm
 	deployResult
 )
 
@@ -69,11 +71,26 @@ type deployScreen struct {
 	// result step
 	succeeded []deploy.DeployResult
 	failed    []deploy.DeployError
-	dryRun    bool                 // true when result is a dry-run preview
+	dryRun    bool                   // true when result is a dry-run preview
 	dryReqs   []deploy.DeployRequest // populated for dry-run display
+
+	// conflict resolution (deployConflictConfirm step)
+	reqs             []deploy.DeployRequest // all original requests from startDeploy
+	firstSucceeded   []deploy.DeployResult  // succeeded before conflict resolution
+	firstFailed      []deploy.DeployError   // non-conflict failures before resolution
+	conflictFails    []deploy.DeployError   // failures with ConflictError
+	conflictReqs     []deploy.DeployRequest // same requests re-built with ForceReplace=true
+	conflictForm     *huh.Form
+	conflictConfirmed bool // captured by huh.Confirm
+	conflictAnswered  bool // guards against double-fire
 
 	err  error
 	info string // non-error informational message (e.g. "all deployed")
+
+	// result scrolling
+	height      int
+	scroll      listScroll
+	resultLines []string
 }
 
 // deployDoneMsg signals that the background deploy goroutine completed.
@@ -118,7 +135,7 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 func (ds *deployScreen) Title() string { return "Deploy" }
 
 func (ds *deployScreen) InputActive() bool {
-	return ds.step == deployPickType || ds.step == deploySelectAssets
+	return ds.step == deployPickType || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
 }
 
 // FullHelpItems returns step-specific help items for the deploy screen.
@@ -140,6 +157,12 @@ func (ds *deployScreen) FullHelpItems() []HelpItem {
 			{"enter", "confirm"},
 			{"q", "quit"},
 		}
+	case deployConflictConfirm:
+		return []HelpItem{
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
 	default:
 		return []HelpItem{
 			{"esc", "back"},
@@ -157,25 +180,48 @@ func (ds *deployScreen) Init() tea.Cmd {
 // Update handles messages for each step of the deploy flow.
 func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		ds.height = msg.Height
+		return ds, nil
+
 	case deployDoneMsg:
+		// Second pass (force-replace run): merge with first-run results.
+		if ds.conflictReqs != nil {
+			ds.step = deployResult
+			ds.succeeded = append(ds.firstSucceeded, msg.succeeded...)
+			ds.failed = append(ds.firstFailed, msg.failed...)
+			ds.resultLines = nil
+			ds.logOplog()
+			return ds, func() tea.Msg { return RefreshHeaderMsg{} }
+		}
+
+		// First pass: partition failures into conflicts vs others.
+		var conflictFails, otherFails []deploy.DeployError
+		for _, f := range msg.failed {
+			var ce *nd.ConflictError
+			if errors.As(f.Err, &ce) {
+				conflictFails = append(conflictFails, f)
+			} else {
+				otherFails = append(otherFails, f)
+			}
+		}
+
+		if len(conflictFails) > 0 {
+			// Offer conflict resolution before showing the result.
+			ds.firstSucceeded = msg.succeeded
+			ds.firstFailed = otherFails
+			ds.conflictFails = conflictFails
+			ds.conflictReqs = ds.buildForceRequests(conflictFails)
+			ds.step = deployConflictConfirm
+			return ds, ds.buildConflictForm()
+		}
+
+		// No conflicts — go straight to result.
 		ds.step = deployResult
 		ds.succeeded = msg.succeeded
 		ds.failed = msg.failed
-		// M5: Log operation to oplog
-		if ol := ds.svc.OpLog(); ol != nil {
-			var identities []asset.Identity
-			for _, r := range msg.succeeded {
-				identities = append(identities, r.Deployment.Identity())
-			}
-			_ = ol.Log(oplog.LogEntry{
-				Timestamp: time.Now(),
-				Operation: oplog.OpDeploy,
-				Assets:    identities,
-				Scope:     ds.svc.GetScope(),
-				Succeeded: len(msg.succeeded),
-				Failed:    len(msg.failed),
-			})
-		}
+		ds.resultLines = nil
+		ds.logOplog()
 		return ds, func() tea.Msg { return RefreshHeaderMsg{} }
 
 	case scanDoneMsg:
@@ -204,6 +250,8 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return ds.updatePickType(msg)
 	case deploySelectAssets:
 		return ds.updateSelectAssets(msg)
+	case deployConflictConfirm:
+		return ds.updateConflictConfirm(msg)
 	case deployResult:
 		return ds.updateResult(msg)
 	}
@@ -239,8 +287,11 @@ func (ds *deployScreen) View() tea.View {
 		return tea.NewView(fmt.Sprintf("  %s",
 			ds.styles.Primary.Render("Deploying...")))
 
+	case deployConflictConfirm:
+		return ds.viewConflictConfirm()
+
 	case deployResult:
-		return tea.NewView(ds.viewResult())
+		return ds.viewResult()
 	}
 
 	return tea.NewView("")
@@ -248,6 +299,9 @@ func (ds *deployScreen) View() tea.View {
 
 // updatePickType delegates to the type picker form and transitions on completion.
 func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
 	// H1: guard against double-fire after form completion
 	if ds.scanning {
 		return ds, nil
@@ -335,6 +389,7 @@ func (ds *deployScreen) buildAssetForm() {
 			huh.NewMultiSelect[string]().
 				Title("Select assets to deploy").
 				Options(opts...).
+				Height(10).
 				Value(&ds.selected),
 		),
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
@@ -342,8 +397,14 @@ func (ds *deployScreen) buildAssetForm() {
 
 // updateSelectAssets delegates to the asset selection form and starts deployment.
 func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// H1: guard against double-fire after form completion
-	if ds.deploying || ds.assetForm == nil {
+	// H1: guard against double-fire after form completion; deploying blocks all input.
+	if ds.deploying {
+		return ds, nil
+	}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+	if ds.assetForm == nil {
 		return ds, nil
 	}
 
@@ -403,11 +464,14 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		})
 	}
 
+	ds.reqs = reqs
+
 	// H2: Dry-run mode — show preview without executing
 	if ds.svc.IsDryRun() {
 		ds.step = deployResult
 		ds.dryRun = true
 		ds.dryReqs = reqs
+		ds.resultLines = nil
 		return func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -452,8 +516,19 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 // updateResult handles key presses at the result step.
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Eagerly populate resultLines so scroll keys work before the first render.
+	if len(ds.resultLines) == 0 {
+		ds.resultLines = splitLines(ds.buildResultContent())
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if keyMsg.String() == "enter" {
+		switch keyMsg.String() {
+		case "j", "down":
+			ds.scroll.ScrollDown(len(ds.resultLines), ds.contentHeight())
+			return ds, nil
+		case "k", "up":
+			ds.scroll.ScrollUp()
+			return ds, nil
+		case "enter":
 			// M7: PopToRootMsg (matching remove screen behavior)
 			return ds, tea.Batch(
 				func() tea.Msg { return PopToRootMsg{} },
@@ -464,8 +539,19 @@ func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return ds, nil
 }
 
-// viewResult renders the deployment results.
-func (ds *deployScreen) viewResult() string {
+func (ds *deployScreen) contentHeight() int {
+	if ds.height == 0 {
+		return listScrollUnlimited
+	}
+	h := ds.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// buildResultContent renders the full deployment result as a string.
+func (ds *deployScreen) buildResultContent() string {
 	var b strings.Builder
 
 	// H2: Dry-run preview
@@ -511,6 +597,152 @@ func (ds *deployScreen) viewResult() string {
 	fmt.Fprintf(&b, "  %s", ds.styles.Subtle.Render("Press enter to return."))
 
 	return b.String()
+}
+
+// viewResult renders the result step with j/k scrolling when the list exceeds the terminal height.
+func (ds *deployScreen) viewResult() tea.View {
+	if len(ds.resultLines) == 0 {
+		ds.resultLines = splitLines(ds.buildResultContent())
+	}
+
+	lines := ds.resultLines
+	pageSize := ds.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if ds.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if ds.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	start, end := ds.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := ds.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(ds.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := ds.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(ds.styles, "↓", below))
+	}
+	return tea.NewView(b.String())
+}
+
+// --- Conflict resolution ---
+
+// buildForceRequests rebuilds the requests for failed assets with ForceReplace=true.
+func (ds *deployScreen) buildForceRequests(conflictFails []deploy.DeployError) []deploy.DeployRequest {
+	lookup := make(map[string]deploy.DeployRequest, len(ds.reqs))
+	for _, req := range ds.reqs {
+		lookup[fmt.Sprintf("%s/%s", req.Asset.Type, req.Asset.Name)] = req
+	}
+	reqs := make([]deploy.DeployRequest, 0, len(conflictFails))
+	for _, f := range conflictFails {
+		key := fmt.Sprintf("%s/%s", f.AssetType, f.AssetName)
+		if req, ok := lookup[key]; ok {
+			req.ForceReplace = true
+			reqs = append(reqs, req)
+		}
+	}
+	return reqs
+}
+
+// buildConflictForm initialises the yes/no confirmation form for force-replace.
+func (ds *deployScreen) buildConflictForm() tea.Cmd {
+	ds.conflictAnswered = false
+	ds.conflictConfirmed = false
+	n := len(ds.conflictFails)
+	title := fmt.Sprintf("%d asset(s) conflict with existing files. Replace them?", n)
+	ds.conflictForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title(title).
+				Affirmative("Replace").
+				Negative("Cancel").
+				Value(&ds.conflictConfirmed),
+		),
+	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
+	return ds.conflictForm.Init()
+}
+
+// updateConflictConfirm handles input during the conflict resolution step.
+func (ds *deployScreen) updateConflictConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ds.conflictAnswered || ds.conflictForm == nil {
+		return ds, nil
+	}
+
+	model, cmd := ds.conflictForm.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		ds.conflictForm = f
+	}
+
+	if ds.conflictForm.State == huh.StateCompleted {
+		ds.conflictAnswered = true
+		if !ds.conflictConfirmed {
+			return ds.cancelConflictResolution()
+		}
+		// User said replace: re-run with ForceReplace=true.
+		ds.step = deployRunning
+		eng, err := ds.svc.DeployEngine()
+		if err != nil || eng == nil {
+			ds.err = fmt.Errorf("deploy engine not available")
+			return ds, nil
+		}
+		return ds, deployBulkCmd(eng.DeployBulk, ds.conflictReqs)
+	}
+
+	if ds.conflictForm.State == huh.StateAborted {
+		return ds.cancelConflictResolution()
+	}
+
+	return ds, cmd
+}
+
+// cancelConflictResolution moves to the result step with the first-run outcomes.
+func (ds *deployScreen) cancelConflictResolution() (tea.Model, tea.Cmd) {
+	ds.step = deployResult
+	ds.succeeded = ds.firstSucceeded
+	ds.failed = append(ds.firstFailed, ds.conflictFails...)
+	ds.resultLines = nil
+	ds.logOplog()
+	return ds, func() tea.Msg { return RefreshHeaderMsg{} }
+}
+
+// logOplog writes the completed deploy operation to the oplog using ds.succeeded/failed.
+func (ds *deployScreen) logOplog() {
+	if ol := ds.svc.OpLog(); ol != nil {
+		var identities []asset.Identity
+		for _, r := range ds.succeeded {
+			identities = append(identities, r.Deployment.Identity())
+		}
+		_ = ol.Log(oplog.LogEntry{
+			Timestamp: time.Now(),
+			Operation: oplog.OpDeploy,
+			Assets:    identities,
+			Scope:     ds.svc.GetScope(),
+			Succeeded: len(ds.succeeded),
+			Failed:    len(ds.failed),
+		})
+	}
+}
+
+// viewConflictConfirm renders the conflict list and the replace/cancel form.
+func (ds *deployScreen) viewConflictConfirm() tea.View {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s %d asset(s) already exist at the destination:\n\n",
+		ds.styles.Warning.Render(GlyphBroken), len(ds.conflictFails))
+	for _, f := range ds.conflictFails {
+		fmt.Fprintf(&b, "    %s  %s/%s\n",
+			ds.styles.Warning.Render(GlyphArrow), f.AssetType, f.AssetName)
+	}
+	if ds.conflictForm != nil {
+		b.WriteString("\n")
+		b.WriteString(ds.conflictForm.View())
+	}
+	return tea.NewView(b.String())
 }
 
 // --- helpers ---

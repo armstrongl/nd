@@ -1028,3 +1028,74 @@ func TestAutoSnapshotFailureDoesNotBlockBulk(t *testing.T) {
 		t.Errorf("expected 1 succeeded, got %d", len(result.Succeeded))
 	}
 }
+
+func TestDeployForceReplace_ForeignSymlink(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	removed := ""
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return "/some/other/target", nil
+	})
+	engine.SetRemove(func(name string) error {
+		removed = name
+		return nil
+	})
+	engine.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
+	engine.SetSymlink(func(_, _ string) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+		},
+		Scope:        nd.ScopeGlobal,
+		Origin:       nd.OriginManual,
+		ForceReplace: true,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy with ForceReplace should succeed, got: %v", err)
+	}
+	if removed == "" {
+		t.Error("expected conflicting symlink to be removed before deploying")
+	}
+}
+
+func TestDeployForceReplace_PlainFile(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	removed := ""
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: 0}, nil // plain file
+	})
+	engine.SetRemove(func(name string) error {
+		removed = name
+		return nil
+	})
+	engine.SetMkdirAll(func(_ string, _ os.FileMode) error { return nil })
+	engine.SetSymlink(func(_, _ string) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+		},
+		Scope:        nd.ScopeGlobal,
+		Origin:       nd.OriginManual,
+		ForceReplace: true,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy with ForceReplace on plain file should succeed, got: %v", err)
+	}
+	if removed == "" {
+		t.Error("expected conflicting plain file to be removed before deploying")
+	}
+}

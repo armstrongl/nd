@@ -67,6 +67,11 @@ type profileScreen struct {
 
 	// done
 	doneMsg string
+
+	// profileList scrolling
+	listLines []string
+	height    int
+	scroll    listScroll
 }
 
 func newProfileScreen(svc Services, styles Styles, isDark bool) *profileScreen {
@@ -100,6 +105,10 @@ func (s *profileScreen) Init() tea.Cmd {
 
 func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.height = msg.Height
+		return s, nil
+
 	case profileLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -136,6 +145,8 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch s.step {
 	case profileMenu:
 		return s.updateMenu(msg)
+	case profileList:
+		return s.updateList(msg)
 	case profileSwitch:
 		return s.updateSwitchForm(msg)
 	case profileCreateName:
@@ -217,6 +228,8 @@ func (s *profileScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s.buildCreateForm()
 		case "list":
 			s.step = profileList
+			s.scroll = listScroll{}
+			s.listLines = splitLines(s.buildListContent())
 			return s, nil
 		default:
 			return s, func() tea.Msg { return BackMsg{} }
@@ -365,9 +378,32 @@ func (s *profileScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *profileScreen) viewList() tea.View {
+func (s *profileScreen) contentHeight() int {
+	if s.height == 0 {
+		return listScrollUnlimited
+	}
+	h := s.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+func (s *profileScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "j", "down":
+			s.scroll.ScrollDown(len(s.listLines), s.contentHeight())
+		case "k", "up":
+			s.scroll.ScrollUp()
+		}
+	}
+	return s, nil
+}
+
+func (s *profileScreen) buildListContent() string {
 	if len(s.profiles) == 0 {
-		return tea.NewView("  " + NoProfiles())
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Profiles"))
@@ -381,6 +417,40 @@ func (s *profileScreen) viewList() tea.View {
 			s.styles.Subtle.Render(fmt.Sprintf("%d assets", p.AssetCount)))
 	}
 	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
+	return b.String()
+}
+
+func (s *profileScreen) viewList() tea.View {
+	if len(s.profiles) == 0 {
+		return tea.NewView("  " + NoProfiles())
+	}
+	if len(s.listLines) == 0 {
+		s.listLines = splitLines(s.buildListContent())
+	}
+
+	lines := s.listLines
+	pageSize := s.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if s.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	start, end := s.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := s.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
+	}
 	return tea.NewView(b.String())
 }
 

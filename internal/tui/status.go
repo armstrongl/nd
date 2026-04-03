@@ -12,7 +12,9 @@ import (
 )
 
 // statusScreen shows all deployed assets grouped by type with health indicators.
-// It is a read-only viewport that loads data asynchronously on init.
+// It is a read-only list that loads data asynchronously on init.
+// Long lists are windowed to the terminal height; j/k scroll the view and
+// ↑/↓ indicators appear when rows are hidden above or below the viewport.
 type statusScreen struct {
 	svc     Services
 	styles  Styles
@@ -21,6 +23,10 @@ type statusScreen struct {
 	issues  int
 	err     error
 	loaded  bool
+
+	renderedLines []string  // content lines cached after data loads
+	height        int       // terminal height, updated by tea.WindowSizeMsg
+	scroll        listScroll
 }
 
 // statusLoadedMsg carries the results of loading status data.
@@ -39,6 +45,7 @@ func (s *statusScreen) InputActive() bool { return false }
 // HelpItems returns context-sensitive help items for the status screen.
 func (s *statusScreen) HelpItems() []HelpItem {
 	return []HelpItem{
+		{"j/k", "scroll"},
 		{"d", "deploy"},
 		{"r", "remove"},
 		{"f", "fix"},
@@ -77,11 +84,20 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.issues++
 			}
 		}
+		s.renderedLines = splitLines(s.buildContent())
+		return s, nil
+
+	case tea.WindowSizeMsg:
+		s.height = msg.Height
 		return s, nil
 
 	// M11: Handle shortcut keys shown in help bar
 	case tea.KeyPressMsg:
 		switch msg.String() {
+		case "j", "down":
+			s.scroll.ScrollDown(len(s.renderedLines), s.contentHeight())
+		case "k", "up":
+			s.scroll.ScrollUp()
 		case "d":
 			screen := newDeployScreen(s.svc, s.styles, s.isDark)
 			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
@@ -96,19 +112,22 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *statusScreen) View() tea.View {
-	if !s.loaded {
-		return tea.NewView("  Loading...")
+// contentHeight returns the number of content rows that fit in the terminal.
+// Returns listScrollUnlimited when height is unknown, disabling windowing.
+func (s *statusScreen) contentHeight() int {
+	if s.height == 0 {
+		return listScrollUnlimited
 	}
-	if s.err != nil {
-		return tea.NewView(fmt.Sprintf("  Error: %s\n\n  %s",
-			s.err, s.styles.Subtle.Render("Press esc to go back.")))
+	h := s.height - 4 // root chrome: header + 2 blank separators + helpbar
+	if h < 3 {
+		h = 3
 	}
-	if len(s.entries) == 0 {
-		return tea.NewView("  " + NothingDeployed())
-	}
+	return h
+}
 
-	// Group entries by asset type.
+// buildContent renders the full status list as a string (no windowing).
+// Called once after data loads to populate renderedLines.
+func (s *statusScreen) buildContent() string {
 	grouped := make(map[nd.AssetType][]deploy.StatusEntry)
 	var types []nd.AssetType
 	for _, e := range s.entries {
@@ -132,13 +151,51 @@ func (s *statusScreen) View() tea.View {
 				styled, e.Deployment.AssetName, s.styles.Subtle.Render(scope), s.styles.Subtle.Render(e.Deployment.SourceID))
 		}
 	}
-
-	// Summary line.
 	fmt.Fprintf(&b, "\n  %d deployed", len(s.entries))
 	if s.issues > 0 {
 		fmt.Fprintf(&b, "  %s", s.styles.Danger.Render(fmt.Sprintf("%d issues", s.issues)))
 	}
 	b.WriteString("\n")
+	return b.String()
+}
+
+func (s *statusScreen) View() tea.View {
+	if !s.loaded {
+		return tea.NewView("  Loading...")
+	}
+	if s.err != nil {
+		return tea.NewView(fmt.Sprintf("  Error: %s\n\n  %s",
+			s.err, s.styles.Subtle.Render("Press esc to go back.")))
+	}
+	if len(s.entries) == 0 {
+		return tea.NewView("  " + NothingDeployed())
+	}
+
+	lines := s.renderedLines
+	pageSize := s.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.  MoreAbove depends only on the offset (known
+	// before windowing); MoreBelow is checked after we've already reduced the
+	// budget, so the indicator row itself is accounted for.
+	if s.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	start, end := s.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := s.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
+	}
 
 	return tea.NewView(b.String())
 }

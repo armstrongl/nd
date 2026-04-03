@@ -64,18 +64,23 @@ type sourceScreen struct {
 	navigated  bool
 
 	// add forms
-	addForm    *huh.Form
-	addInput   string
+	addForm  *huh.Form
+	addInput string
 
 	// remove
-	removeForm    *huh.Form
-	removeChoice  string
-	confirmForm   *huh.Form
-	confirmed     bool
-	removing      bool
+	removeForm   *huh.Form
+	removeChoice string
+	confirmForm  *huh.Form
+	confirmed    bool
+	removing     bool
 
 	// done
 	doneMsg string
+
+	// sourceList scrolling
+	listLines []string // cached rendered lines for the list view
+	height    int      // terminal height, updated by tea.WindowSizeMsg
+	scroll    listScroll
 }
 
 func newSourceScreen(svc Services, styles Styles, isDark bool) *sourceScreen {
@@ -104,6 +109,10 @@ func (s *sourceScreen) Init() tea.Cmd {
 
 func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.height = msg.Height
+		return s, nil
+
 	case sourceLoadedMsg:
 		if msg.err != nil {
 			s.err = msg.err
@@ -140,6 +149,8 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch s.step {
 	case sourceMenu:
 		return s.updateMenu(msg)
+	case sourceList:
+		return s.updateList(msg)
 	case sourceAddLocalInput, sourceAddGitInput:
 		return s.updateAddForm(msg)
 	case sourceRemoveSelect, sourceRemoveConfirm:
@@ -224,6 +235,8 @@ func (s *sourceScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch s.menuChoice {
 		case "list":
 			s.step = sourceList
+			s.scroll = listScroll{} // reset scroll on each visit
+			s.listLines = splitLines(s.buildListContent())
 			return s, nil
 		case "add-local":
 			return s.buildAddForm("local")
@@ -443,9 +456,36 @@ func (s *sourceScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-func (s *sourceScreen) viewList() tea.View {
+// contentHeight returns the visible row budget for the list view.
+// Returns listScrollUnlimited when height is unknown, disabling windowing.
+func (s *sourceScreen) contentHeight() int {
+	if s.height == 0 {
+		return listScrollUnlimited
+	}
+	h := s.height - 4 // root chrome: header + 2 blank separators + helpbar
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// updateList handles key input while the source list is visible.
+func (s *sourceScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "j", "down":
+			s.scroll.ScrollDown(len(s.listLines), s.contentHeight())
+		case "k", "up":
+			s.scroll.ScrollUp()
+		}
+	}
+	return s, nil
+}
+
+// buildListContent renders the full source list as a string (no windowing).
+func (s *sourceScreen) buildListContent() string {
 	if len(s.sources) == 0 {
-		return tea.NewView("  " + NoSources())
+		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n\n", s.styles.Bold.Render("Sources"))
@@ -458,6 +498,43 @@ func (s *sourceScreen) viewList() tea.View {
 			src.ID, s.styles.Subtle.Render(loc))
 	}
 	fmt.Fprintf(&b, "\n  %s", s.styles.Subtle.Render("Press esc to go back."))
+	return b.String()
+}
+
+func (s *sourceScreen) viewList() tea.View {
+	if len(s.sources) == 0 {
+		return tea.NewView("  " + NoSources())
+	}
+
+	// Populate lazily in case step was set directly (e.g. in tests).
+	if len(s.listLines) == 0 {
+		s.listLines = splitLines(s.buildListContent())
+	}
+
+	lines := s.listLines
+	pageSize := s.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if s.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	start, end := s.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := s.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
+	}
+
 	return tea.NewView(b.String())
 }
 

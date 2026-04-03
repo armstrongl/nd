@@ -72,7 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, nil
+		// Fall through to delegate — huh forms need WindowSizeMsg to size their viewports.
 
 	case NavigateMsg:
 		m.screens = append(m.screens, msg.Screen)
@@ -85,6 +85,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		n := len(m.screens)
 		m.screens[n-1] = nil // release for GC
 		m.screens = m.screens[:n-1]
+		if len(m.screens) == 1 {
+			return m.resetRootMenu()
+		}
 		return m, nil
 
 	case PopToRootMsg:
@@ -92,7 +95,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screens[i] = nil // release for GC
 		}
 		m.screens = m.screens[:1]
-		return m, nil
+		return m.resetRootMenu()
 
 	case RefreshHeaderMsg:
 		m.header = m.header.Refresh(m.svc)
@@ -122,6 +125,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				n := len(m.screens)
 				m.screens[n-1] = nil // release for GC
 				m.screens = m.screens[:n-1]
+				if len(m.screens) == 1 {
+					return m.resetRootMenu()
+				}
 				return m, nil
 			}
 		}
@@ -137,6 +143,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+// resetRootMenu replaces screens[0] with a fresh mainMenuScreen and returns its Init cmd.
+// Called whenever navigation returns to the root so the stale huh form is never shown.
+func (m Model) resetRootMenu() (tea.Model, tea.Cmd) {
+	fresh := newMainMenuScreen(m.svc, m.styles, m.isDark)
+	m.screens[0] = fresh
+	return m, fresh.Init()
 }
 
 // View composes header, current screen content, and help bar vertically.

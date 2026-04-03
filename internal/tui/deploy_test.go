@@ -433,6 +433,25 @@ func TestDeploy_FilterUndeployed_NoneDeployed(t *testing.T) {
 	}
 }
 
+// Regression: j/k scroll must work before the first View() call.
+// resultLines was only lazily populated in viewResult(), so pressing j before
+// the first render left resultLines empty and ScrollDown became a no-op.
+func TestDeploy_ScrollBeforeFirstRender(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	// Do NOT call ds.View() — simulate user pressing j as the very first action.
+	if len(ds.resultLines) != 0 {
+		t.Fatal("precondition: resultLines should be empty before any render")
+	}
+
+	msg := tea.KeyPressMsg(tea.Key{Code: 'j', Text: "j"})
+	updated, _ := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if len(ds2.resultLines) == 0 {
+		t.Fatal("resultLines should be populated after j is pressed, even without a prior View() call")
+	}
+}
+
 // M7: Enter at result emits PopToRootMsg (not BackMsg)
 func TestDeploy_EnterFromResult(t *testing.T) {
 	ds := newTestDeployScreen(deployResult)
@@ -624,5 +643,153 @@ func TestDeploy_FullHelpItems_Result(t *testing.T) {
 	}
 	if !hasEnterReturn {
 		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
+	}
+}
+
+func TestDeploy_EscOnPickType_SendsBackMsg(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	_, cmd := ds.updatePickType(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC at pickType, got nil")
+	}
+	if _, ok := cmd().(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", cmd())
+	}
+}
+
+func TestDeploy_EscOnSelectAssets_SendsBackMsg(t *testing.T) {
+	ds := newTestDeployScreen(deploySelectAssets)
+	_, cmd := ds.updateSelectAssets(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC at selectAssets, got nil")
+	}
+	if _, ok := cmd().(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", cmd())
+	}
+}
+
+// --- Conflict resolution tests ---
+
+func makeConflictError(assetName, path string) *nd.ConflictError {
+	return &nd.ConflictError{
+		TargetPath:   path,
+		ExistingKind: nd.FileKindForeignSymlink,
+		AssetName:    assetName,
+	}
+}
+
+func TestDeploy_ConflictFails_MovesToConflictConfirm(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	// Populate original requests so buildForceRequests can look them up.
+	ds.reqs = []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "greeting"}}},
+	}
+
+	msg := deployDoneMsg{
+		failed: []deploy.DeployError{
+			{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+		},
+	}
+	updated, cmd := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployConflictConfirm {
+		t.Fatalf("step = %d, want deployConflictConfirm (%d)", ds2.step, deployConflictConfirm)
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd for conflict form")
+	}
+	if ds2.conflictForm == nil {
+		t.Fatal("conflictForm should be set")
+	}
+	if len(ds2.conflictReqs) != 1 || !ds2.conflictReqs[0].ForceReplace {
+		t.Fatal("conflictReqs should contain one request with ForceReplace=true")
+	}
+}
+
+func TestDeploy_ConflictConfirm_ViewShowsAssetNames(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.step = deployConflictConfirm
+	ds.conflictFails = []deploy.DeployError{
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+	}
+	ds.buildConflictForm()
+
+	content := ds.viewConflictConfirm().Content
+	if !strings.Contains(content, "greeting") {
+		t.Errorf("viewConflictConfirm() should mention 'greeting', got:\n%s", content)
+	}
+	if !strings.Contains(content, "1 asset") {
+		t.Errorf("viewConflictConfirm() should mention asset count, got:\n%s", content)
+	}
+}
+
+func TestDeploy_ConflictCancel_MovesToResultWithAllFailures(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.firstSucceeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "ok-skill", AssetType: nd.AssetSkill}},
+	}
+	ds.firstFailed = []deploy.DeployError{
+		{AssetName: "perm-fail", AssetType: nd.AssetRule, Err: fmt.Errorf("permission denied")},
+	}
+	ds.conflictFails = []deploy.DeployError{
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+	}
+	ds.conflictReqs = []deploy.DeployRequest{{ForceReplace: true}}
+
+	updated, _ := ds.cancelConflictResolution()
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployResult {
+		t.Fatalf("step = %d, want deployResult", ds2.step)
+	}
+	if len(ds2.succeeded) != 1 || ds2.succeeded[0].Deployment.AssetName != "ok-skill" {
+		t.Errorf("succeeded should contain the first-run success, got %v", ds2.succeeded)
+	}
+	// Both the non-conflict failure and the conflict failure should appear.
+	if len(ds2.failed) != 2 {
+		t.Fatalf("failed = %d, want 2 (perm-fail + greeting)", len(ds2.failed))
+	}
+}
+
+func TestDeploy_SecondPass_MergesResults(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	// Simulate state after first pass + user confirmed.
+	ds.conflictReqs = []deploy.DeployRequest{{ForceReplace: true}} // non-nil = second pass
+	ds.firstSucceeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "first-ok", AssetType: nd.AssetSkill}},
+	}
+	ds.firstFailed = nil
+
+	msg := deployDoneMsg{
+		succeeded: []deploy.DeployResult{
+			{Deployment: state.Deployment{AssetName: "greeting", AssetType: nd.AssetSkill}},
+		},
+	}
+	updated, _ := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployResult {
+		t.Fatalf("step = %d, want deployResult", ds2.step)
+	}
+	if len(ds2.succeeded) != 2 {
+		t.Fatalf("merged succeeded = %d, want 2", len(ds2.succeeded))
+	}
+}
+
+func TestDeploy_ResultView_NoManualRemoveHint(t *testing.T) {
+	// Conflicts that reach the result view (after cancelling resolution) should not
+	// show the old "remove manually" hint — it was replaced by interactive resolution.
+	ds := newTestDeployScreen(deployResult)
+	ds.failed = []deploy.DeployError{
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+	}
+
+	content := ds.viewResult().Content
+	if strings.Contains(content, "manually") {
+		t.Errorf("result view should not tell user to remove manually; got:\n%s", content)
+	}
+	if !strings.Contains(content, "greeting") {
+		t.Errorf("result view should still mention the failed asset; got:\n%s", content)
 	}
 }

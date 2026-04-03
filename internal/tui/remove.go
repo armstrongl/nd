@@ -47,9 +47,10 @@ type removeScreen struct {
 	step   removeStep
 
 	// selectAssets
-	assetForm   *huh.Form
-	selected    []string           // "sourceID:type/name" keys
-	deployments []state.Deployment // all deployed assets
+	assetForm    *huh.Form
+	selected     []string           // "sourceID:type/name" keys
+	deployments  []state.Deployment // all deployed assets
+	assetsLoaded bool               // true after deploymentsLoadedMsg received
 
 	// confirm
 	confirmForm *huh.Form
@@ -65,6 +66,11 @@ type removeScreen struct {
 	dryReqs   []deploy.RemoveRequest // populated for dry-run display
 
 	err error
+
+	// result scrolling
+	height      int
+	scroll      listScroll
+	resultLines []string
 }
 
 func newRemoveScreen(svc Services, styles Styles, isDark bool) *removeScreen {
@@ -112,25 +118,37 @@ func (m *removeScreen) FullHelpItems() []HelpItem {
 	}
 }
 
-// Init starts async loading of deployed assets.
+// Init starts async loading of deployed assets via the deploy engine,
+// consistent with how statusScreen loads data (uses WithLock for safe reads).
 func (m *removeScreen) Init() tea.Cmd {
 	svc := m.svc
 	return func() tea.Msg {
-		store := svc.StateStore()
-		if store == nil {
-			return deploymentsLoadedMsg{err: fmt.Errorf("state store not available")}
-		}
-		st, _, err := store.Load()
+		eng, err := svc.DeployEngine()
 		if err != nil {
 			return deploymentsLoadedMsg{err: err}
 		}
-		return deploymentsLoadedMsg{deployments: st.Deployments}
+		if eng == nil {
+			return deploymentsLoadedMsg{err: fmt.Errorf("deploy engine not available")}
+		}
+		entries, err := eng.Status()
+		if err != nil {
+			return deploymentsLoadedMsg{err: err}
+		}
+		deps := make([]state.Deployment, len(entries))
+		for i, e := range entries {
+			deps[i] = e.Deployment
+		}
+		return deploymentsLoadedMsg{deployments: deps}
 	}
 }
 
 // Update handles messages for each step of the remove flow.
 func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		return m, nil
+
 	case deploymentsLoadedMsg:
 		return m.handleDeploymentsLoaded(msg)
 
@@ -138,6 +156,7 @@ func (m *removeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.step = removeResult
 		m.succeeded = msg.succeeded
 		m.failed = msg.failed
+		m.resultLines = nil
 		// M5: Log operation to oplog
 		if ol := m.svc.OpLog(); ol != nil {
 			_ = ol.Log(oplog.LogEntry{
@@ -195,6 +214,7 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 	}
 
 	m.deployments = msg.deployments
+	m.assetsLoaded = true
 
 	if len(m.deployments) == 0 {
 		return m, nil
@@ -212,6 +232,7 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 			huh.NewMultiSelect[string]().
 				Title("Select assets to remove").
 				Options(options...).
+				Height(10).
 				Value(&m.selected),
 		),
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
@@ -220,6 +241,9 @@ func (m *removeScreen) handleDeploymentsLoaded(msg deploymentsLoadedMsg) (tea.Mo
 }
 
 func (m *removeScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return m, func() tea.Msg { return BackMsg{} }
+	}
 	if m.assetForm == nil {
 		return m, nil
 	}
@@ -263,6 +287,9 @@ func (m *removeScreen) transitionToConfirm() (tea.Model, tea.Cmd) {
 }
 
 func (m *removeScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return m, func() tea.Msg { return BackMsg{} }
+	}
 	if m.confirmForm == nil {
 		return m, nil
 	}
@@ -295,6 +322,7 @@ func (m *removeScreen) transitionToRunning() (tea.Model, tea.Cmd) {
 		m.step = removeResult
 		m.dryRun = true
 		m.dryReqs = reqs
+		m.resultLines = nil
 		return m, func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -336,8 +364,18 @@ func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
 }
 
 func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if len(m.resultLines) == 0 {
+		m.resultLines = splitLines(m.buildResultContent())
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if keyMsg.String() == "enter" {
+		switch keyMsg.String() {
+		case "j", "down":
+			m.scroll.ScrollDown(len(m.resultLines), m.contentHeight())
+			return m, nil
+		case "k", "up":
+			m.scroll.ScrollUp()
+			return m, nil
+		case "enter":
 			return m, tea.Batch(
 				func() tea.Msg { return PopToRootMsg{} },
 				func() tea.Msg { return RefreshHeaderMsg{} },
@@ -347,9 +385,23 @@ func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *removeScreen) contentHeight() int {
+	if m.height == 0 {
+		return listScrollUnlimited
+	}
+	h := m.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
 // --- Views ---
 
 func (m *removeScreen) viewSelectAssets() tea.View {
+	if !m.assetsLoaded {
+		return tea.NewView("  Loading deployed assets...")
+	}
 	if len(m.deployments) == 0 {
 		return tea.NewView("  " + NothingDeployed())
 	}
@@ -371,7 +423,8 @@ func (m *removeScreen) viewRunning() tea.View {
 		m.styles.Primary.Render("Removing...")))
 }
 
-func (m *removeScreen) viewResult() tea.View {
+// buildResultContent renders the full remove result as a string.
+func (m *removeScreen) buildResultContent() string {
 	var b strings.Builder
 
 	// H2: Dry-run preview
@@ -383,7 +436,7 @@ func (m *removeScreen) viewResult() tea.View {
 				GlyphArrow, req.Identity.Type, req.Identity.Name)
 		}
 		fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
-		return tea.NewView(b.String())
+		return b.String()
 	}
 
 	if m.succeeded > 0 {
@@ -402,6 +455,38 @@ func (m *removeScreen) viewResult() tea.View {
 
 	fmt.Fprintf(&b, "\n  %s", m.styles.Subtle.Render("Press enter to return."))
 
+	return b.String()
+}
+
+// viewResult renders the result step with j/k scrolling when the list exceeds the terminal height.
+func (m *removeScreen) viewResult() tea.View {
+	if len(m.resultLines) == 0 {
+		m.resultLines = splitLines(m.buildResultContent())
+	}
+
+	lines := m.resultLines
+	pageSize := m.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if m.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if m.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	start, end := m.scroll.Window(len(lines), pageSize)
+
+	var b strings.Builder
+	if above := m.scroll.MoreAbove(); above > 0 {
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(m.styles, "↑", above))
+	}
+	b.WriteString(strings.Join(lines[start:end], "\n"))
+	if below := m.scroll.MoreBelow(len(lines), pageSize); below > 0 {
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(m.styles, "↓", below))
+	}
 	return tea.NewView(b.String())
 }
 
