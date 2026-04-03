@@ -516,6 +516,10 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 // updateResult handles key presses at the result step.
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Eagerly populate resultLines so scroll keys work before the first render.
+	if len(ds.resultLines) == 0 {
+		ds.resultLines = splitLines(ds.buildResultContent())
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case "j", "down":
@@ -603,6 +607,17 @@ func (ds *deployScreen) viewResult() tea.View {
 
 	lines := ds.resultLines
 	pageSize := ds.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if ds.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if ds.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
 	start, end := ds.scroll.Window(len(lines), pageSize)
 
 	var b strings.Builder

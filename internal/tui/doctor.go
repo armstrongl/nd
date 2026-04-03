@@ -143,6 +143,7 @@ func (d *doctorScreen) handleChecked(msg doctorCheckedMsg) (tea.Model, tea.Cmd) 
 	}
 
 	d.issues = msg.issues
+	d.scroll = listScroll{}
 	d.step = doctorConfirm
 
 	title := fmt.Sprintf("Found %d issue(s). Fix all?", len(d.issues))
@@ -256,6 +257,17 @@ func (d *doctorScreen) viewConfirm() tea.View {
 		d.styles.Warning.Render(GlyphBroken), len(d.issues))
 
 	pageSize := d.issueListHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if d.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if d.scroll.MoreBelow(len(d.issues), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
 	start, end := d.scroll.Window(len(d.issues), pageSize)
 
 	if above := d.scroll.MoreAbove(); above > 0 {

@@ -364,6 +364,9 @@ func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
 }
 
 func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if len(m.resultLines) == 0 {
+		m.resultLines = splitLines(m.buildResultContent())
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case "j", "down":
@@ -463,6 +466,17 @@ func (m *removeScreen) viewResult() tea.View {
 
 	lines := m.resultLines
 	pageSize := m.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if m.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if m.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
 	start, end := m.scroll.Window(len(lines), pageSize)
 
 	var b strings.Builder

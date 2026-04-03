@@ -81,10 +81,88 @@ func TestListScroll_Window_ReturnsCorrectBounds(t *testing.T) {
 }
 
 func TestListScroll_Window_ClampsEndAtTotal(t *testing.T) {
+	// offset=5 is the maximum valid start for pageSize=5, total=10.
+	// 5+5=10 == total, so end clamps to 10.
+	s := listScroll{offset: 5}
+	start, end := s.Window(10, 5)
+	if start != 5 || end != 10 {
+		t.Fatalf("Window() = (%d, %d), want (5, 10)", start, end)
+	}
+}
+
+// Window clamping — offset > total-pageSize (e.g. after a terminal resize
+// that grows the page or shrinks the list).
+func TestListScroll_Window_ClampsOffsetWhenOffsetExceedsMax(t *testing.T) {
+	// offset=8, but with total=10 and pageSize=6 the max valid offset is 4.
 	s := listScroll{offset: 8}
-	start, end := s.Window(10, 5) // 8+5=13 > 10 → end=10
-	if start != 8 || end != 10 {
-		t.Fatalf("Window() = (%d, %d), want (8, 10)", start, end)
+	start, end := s.Window(10, 6)
+	if start != 4 || end != 10 {
+		t.Fatalf("Window() = (%d, %d), want (4, 10)", start, end)
+	}
+	// Stored offset must be clamped too so MoreAbove/MoreBelow stay consistent.
+	if s.offset != 4 {
+		t.Fatalf("offset after Window() = %d, want 4 (clamped)", s.offset)
+	}
+}
+
+func TestListScroll_Window_ClampsOffsetWhenOffsetExceedsTotal(t *testing.T) {
+	// offset is larger than total itself — pathological but must not panic or
+	// produce start > end.
+	s := listScroll{offset: 15}
+	start, end := s.Window(10, 3)
+	if start > end {
+		t.Fatalf("Window() start %d > end %d — invalid slice bounds", start, end)
+	}
+	// max = 10-3 = 7; offset should be clamped to 7.
+	if start != 7 || end != 10 {
+		t.Fatalf("Window() = (%d, %d), want (7, 10)", start, end)
+	}
+	if s.offset != 7 {
+		t.Fatalf("offset after Window() = %d, want 7 (clamped)", s.offset)
+	}
+}
+
+func TestListScroll_Window_ClampsOffsetToZeroWhenTotalZero(t *testing.T) {
+	// Empty list: total=0, pageSize=anything. offset must collapse to 0.
+	s := listScroll{offset: 5}
+	start, end := s.Window(0, 10)
+	if start != 0 || end != 0 {
+		t.Fatalf("Window() = (%d, %d), want (0, 0) for empty list", start, end)
+	}
+	if s.offset != 0 {
+		t.Fatalf("offset after Window() = %d, want 0 for empty list", s.offset)
+	}
+}
+
+func TestListScroll_Window_ClampsOffset_MoreAboveConsistent(t *testing.T) {
+	// After Window() clamps the offset, MoreAbove() must reflect the new value.
+	s := listScroll{offset: 10}
+	s.Window(8, 4) // max = 8-4 = 4; offset clamped to 4
+	if got := s.MoreAbove(); got != 4 {
+		t.Fatalf("MoreAbove() after clamp = %d, want 4", got)
+	}
+}
+
+func TestListScroll_Window_ClampsOffset_MoreBelowConsistent(t *testing.T) {
+	// After Window() clamps the offset, MoreBelow() must return 0 (at bottom).
+	s := listScroll{offset: 10}
+	s.Window(8, 4) // max = 4; offset clamped to 4; 4+4=8 == total → 0 below
+	if got := s.MoreBelow(8, 4); got != 0 {
+		t.Fatalf("MoreBelow() after clamp = %d, want 0", got)
+	}
+}
+
+func TestListScroll_Window_ResizeScenario(t *testing.T) {
+	// Simulate a user scrolled to offset 7 (valid for pageSize=3, total=10),
+	// then the terminal is resized so pageSize becomes 8. The max valid offset
+	// is now 10-8=2, so Window() must clamp offset to 2.
+	s := listScroll{offset: 7}
+	start, end := s.Window(10, 8)
+	if start != 2 || end != 10 {
+		t.Fatalf("Window() = (%d, %d), want (2, 10) after resize", start, end)
+	}
+	if s.offset != 2 {
+		t.Fatalf("offset after resize clamp = %d, want 2", s.offset)
 	}
 }
 

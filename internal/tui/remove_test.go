@@ -459,6 +459,30 @@ func TestRemove_RunningView(t *testing.T) {
 	}
 }
 
+// TestRemove_ScrollBeforeFirstRender verifies that pressing j/k on the result
+// screen works even when View() has never been called (resultLines not yet
+// populated by the lazy initialisation in viewResult).
+func TestRemove_ScrollBeforeFirstRender(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeResult
+	m.succeeded = 3
+	m.height = 40
+
+	// Ensure resultLines is nil — simulating a j keypress before first render.
+	if m.resultLines != nil {
+		t.Fatal("precondition: resultLines should be nil before any Update/View")
+	}
+
+	updated, _ := m.updateResult(tea.KeyPressMsg(tea.Key{Code: 'j', Text: "j"}))
+	rm := updated.(*removeScreen)
+
+	if len(rm.resultLines) == 0 {
+		t.Fatal("resultLines should be populated after updateResult, not remain empty")
+	}
+}
+
 // mockBulkRemoveEngine is a test double for the bulkRemover interface.
 type mockBulkRemoveEngine struct {
 	removeBulkFn func([]deploy.RemoveRequest) (*deploy.BulkRemoveResult, error)

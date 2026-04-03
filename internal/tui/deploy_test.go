@@ -433,6 +433,25 @@ func TestDeploy_FilterUndeployed_NoneDeployed(t *testing.T) {
 	}
 }
 
+// Regression: j/k scroll must work before the first View() call.
+// resultLines was only lazily populated in viewResult(), so pressing j before
+// the first render left resultLines empty and ScrollDown became a no-op.
+func TestDeploy_ScrollBeforeFirstRender(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	// Do NOT call ds.View() — simulate user pressing j as the very first action.
+	if len(ds.resultLines) != 0 {
+		t.Fatal("precondition: resultLines should be empty before any render")
+	}
+
+	msg := tea.KeyPressMsg(tea.Key{Code: 'j', Text: "j"})
+	updated, _ := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if len(ds2.resultLines) == 0 {
+		t.Fatal("resultLines should be populated after j is pressed, even without a prior View() call")
+	}
+}
+
 // M7: Enter at result emits PopToRootMsg (not BackMsg)
 func TestDeploy_EnterFromResult(t *testing.T) {
 	ds := newTestDeployScreen(deployResult)

@@ -100,8 +100,6 @@ func TestPopToRootMsg_ClearsStack(t *testing.T) {
 	}
 }
 
-// PopToRootMsg must recreate the main menu so its huh form is fresh.
-// The old instance has navigated=true which blocks all input.
 // BackMsg returning to root must recreate the main menu so its huh form is fresh.
 func TestBackMsg_RecreatesMainMenu(t *testing.T) {
 	m := newTestModel()
@@ -156,6 +154,8 @@ func TestGlobalKey_Esc_RecreatesMainMenu(t *testing.T) {
 	}
 }
 
+// PopToRootMsg must recreate the main menu so its huh form is fresh.
+// The old instance has navigated=true which blocks all input.
 func TestPopToRootMsg_RecreatesMainMenu(t *testing.T) {
 	m := newTestModel()
 

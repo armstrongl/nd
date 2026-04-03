@@ -430,6 +430,17 @@ func (s *profileScreen) viewList() tea.View {
 
 	lines := s.listLines
 	pageSize := s.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if s.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
 	start, end := s.scroll.Window(len(lines), pageSize)
 
 	var b strings.Builder

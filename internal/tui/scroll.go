@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ type listScroll struct {
 
 // listScrollUnlimited is a page size that effectively disables windowing.
 // Use it when the terminal height is not yet known (height == 0).
-const listScrollUnlimited = 1<<31 - 1
+const listScrollUnlimited = math.MaxInt
 
 // ScrollDown advances the viewport down by one row.
 // total is the total number of items; pageSize is the visible row budget.
@@ -52,7 +53,22 @@ func (s *listScroll) EnsureVisible(cursor, pageSize int) {
 }
 
 // Window returns [start, end) slice bounds for the currently visible items.
+// It also clamps the stored offset to a valid range for the given total and
+// pageSize, so that a terminal resize (which can shrink pageSize or total)
+// never leaves the offset pointing past the end of the list.
 func (s *listScroll) Window(total, pageSize int) (start, end int) {
+	// Clamp offset so that the viewport cannot start beyond the last page.
+	max := total - pageSize
+	if max < 0 {
+		max = 0
+	}
+	if s.offset > max {
+		s.offset = max
+	}
+	if s.offset < 0 {
+		s.offset = 0
+	}
+
 	start = s.offset
 	end = s.offset + pageSize
 	if end > total {

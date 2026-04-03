@@ -225,6 +225,17 @@ func (b *browseScreen) View() tea.View {
 	}
 
 	pageSize := b.contentHeight()
+	// Reserve rows for scroll indicators so they don't push content past the
+	// terminal height budget.
+	if b.scroll.MoreAbove() > 0 {
+		pageSize--
+	}
+	if b.scroll.MoreBelow(len(visible), pageSize) > 0 {
+		pageSize--
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
 	start, end := b.scroll.Window(len(visible), pageSize)
 
 	if above := b.scroll.MoreAbove(); above > 0 {
