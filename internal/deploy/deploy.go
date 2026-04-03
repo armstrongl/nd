@@ -98,11 +98,12 @@ func (e *Engine) autoSnapshot(deployments []state.Deployment) {
 
 // DeployRequest describes a single asset deployment.
 type DeployRequest struct {
-	Asset       asset.Asset
-	Scope       nd.Scope
-	ProjectRoot string
-	Origin      nd.DeployOrigin
-	Strategy    nd.SymlinkStrategy
+	Asset        asset.Asset
+	Scope        nd.Scope
+	ProjectRoot  string
+	Origin       nd.DeployOrigin
+	Strategy     nd.SymlinkStrategy
+	ForceReplace bool // remove a conflicting foreign file/symlink before deploying
 }
 
 // DeployResult describes the outcome of a single deployment.
@@ -298,6 +299,12 @@ func (e *Engine) handleConflict(linkPath string, req DeployRequest, st *state.De
 			backed, w := e.backupAndWarn(linkPath, nd.FileKindForeignSymlink, target)
 			return backed, w, false, nil
 		}
+		if req.ForceReplace {
+			if err := e.remove(linkPath); err != nil {
+				return "", nil, false, fmt.Errorf("remove conflicting symlink at %s: %w", linkPath, err)
+			}
+			return "", nil, false, nil
+		}
 		return "", nil, false, &nd.ConflictError{
 			TargetPath:   linkPath,
 			ExistingKind: nd.FileKindForeignSymlink,
@@ -309,6 +316,12 @@ func (e *Engine) handleConflict(linkPath string, req DeployRequest, st *state.De
 	if req.Asset.Type == nd.AssetContext {
 		backed, w := e.backupAndWarn(linkPath, nd.FileKindPlainFile, "")
 		return backed, w, false, nil
+	}
+	if req.ForceReplace {
+		if err := e.remove(linkPath); err != nil {
+			return "", nil, false, fmt.Errorf("remove conflicting file at %s: %w", linkPath, err)
+		}
+		return "", nil, false, nil
 	}
 	return "", nil, false, &nd.ConflictError{
 		TargetPath:   linkPath,

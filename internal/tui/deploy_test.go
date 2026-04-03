@@ -649,41 +649,128 @@ func TestDeploy_EscOnSelectAssets_SendsBackMsg(t *testing.T) {
 	}
 }
 
-func TestDeploy_ResultView_ConflictHint(t *testing.T) {
-	ds := newTestDeployScreen(deployResult)
-	ds.failed = []deploy.DeployError{
-		{
-			AssetName: "greeting",
-			AssetType: nd.AssetSkill,
-			Err: &nd.ConflictError{
-				TargetPath:   "/home/.config/claude/skills/greeting",
-				ExistingKind: nd.FileKindForeignSymlink,
-				AssetName:    "greeting",
-			},
-		},
-	}
+// --- Conflict resolution tests ---
 
-	content := ds.viewResult().Content
-	if !strings.Contains(content, "Hint") {
-		t.Errorf("result view should show conflict hint; got:\n%s", content)
-	}
-	if !strings.Contains(content, "greeting") {
-		t.Errorf("result view should mention the failed asset; got:\n%s", content)
+func makeConflictError(assetName, path string) *nd.ConflictError {
+	return &nd.ConflictError{
+		TargetPath:   path,
+		ExistingKind: nd.FileKindForeignSymlink,
+		AssetName:    assetName,
 	}
 }
 
-func TestDeploy_ResultView_NoConflictHint_OnGenericError(t *testing.T) {
+func TestDeploy_ConflictFails_MovesToConflictConfirm(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	// Populate original requests so buildForceRequests can look them up.
+	ds.reqs = []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "greeting"}}},
+	}
+
+	msg := deployDoneMsg{
+		failed: []deploy.DeployError{
+			{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+		},
+	}
+	updated, cmd := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployConflictConfirm {
+		t.Fatalf("step = %d, want deployConflictConfirm (%d)", ds2.step, deployConflictConfirm)
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd for conflict form")
+	}
+	if ds2.conflictForm == nil {
+		t.Fatal("conflictForm should be set")
+	}
+	if len(ds2.conflictReqs) != 1 || !ds2.conflictReqs[0].ForceReplace {
+		t.Fatal("conflictReqs should contain one request with ForceReplace=true")
+	}
+}
+
+func TestDeploy_ConflictConfirm_ViewShowsAssetNames(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.step = deployConflictConfirm
+	ds.conflictFails = []deploy.DeployError{
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+	}
+	ds.buildConflictForm()
+
+	content := ds.viewConflictConfirm().Content
+	if !strings.Contains(content, "greeting") {
+		t.Errorf("viewConflictConfirm() should mention 'greeting', got:\n%s", content)
+	}
+	if !strings.Contains(content, "1 asset") {
+		t.Errorf("viewConflictConfirm() should mention asset count, got:\n%s", content)
+	}
+}
+
+func TestDeploy_ConflictCancel_MovesToResultWithAllFailures(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.firstSucceeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "ok-skill", AssetType: nd.AssetSkill}},
+	}
+	ds.firstFailed = []deploy.DeployError{
+		{AssetName: "perm-fail", AssetType: nd.AssetRule, Err: fmt.Errorf("permission denied")},
+	}
+	ds.conflictFails = []deploy.DeployError{
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
+	}
+	ds.conflictReqs = []deploy.DeployRequest{{ForceReplace: true}}
+
+	updated, _ := ds.cancelConflictResolution()
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployResult {
+		t.Fatalf("step = %d, want deployResult", ds2.step)
+	}
+	if len(ds2.succeeded) != 1 || ds2.succeeded[0].Deployment.AssetName != "ok-skill" {
+		t.Errorf("succeeded should contain the first-run success, got %v", ds2.succeeded)
+	}
+	// Both the non-conflict failure and the conflict failure should appear.
+	if len(ds2.failed) != 2 {
+		t.Fatalf("failed = %d, want 2 (perm-fail + greeting)", len(ds2.failed))
+	}
+}
+
+func TestDeploy_SecondPass_MergesResults(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	// Simulate state after first pass + user confirmed.
+	ds.conflictReqs = []deploy.DeployRequest{{ForceReplace: true}} // non-nil = second pass
+	ds.firstSucceeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "first-ok", AssetType: nd.AssetSkill}},
+	}
+	ds.firstFailed = nil
+
+	msg := deployDoneMsg{
+		succeeded: []deploy.DeployResult{
+			{Deployment: state.Deployment{AssetName: "greeting", AssetType: nd.AssetSkill}},
+		},
+	}
+	updated, _ := ds.Update(msg)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployResult {
+		t.Fatalf("step = %d, want deployResult", ds2.step)
+	}
+	if len(ds2.succeeded) != 2 {
+		t.Fatalf("merged succeeded = %d, want 2", len(ds2.succeeded))
+	}
+}
+
+func TestDeploy_ResultView_NoManualRemoveHint(t *testing.T) {
+	// Conflicts that reach the result view (after cancelling resolution) should not
+	// show the old "remove manually" hint — it was replaced by interactive resolution.
 	ds := newTestDeployScreen(deployResult)
 	ds.failed = []deploy.DeployError{
-		{
-			AssetName: "greeting",
-			AssetType: nd.AssetSkill,
-			Err:       fmt.Errorf("permission denied"),
-		},
+		{AssetName: "greeting", AssetType: nd.AssetSkill, Err: makeConflictError("greeting", "/p")},
 	}
 
 	content := ds.viewResult().Content
-	if strings.Contains(content, "Hint") {
-		t.Errorf("result view should not show conflict hint for non-conflict errors; got:\n%s", content)
+	if strings.Contains(content, "manually") {
+		t.Errorf("result view should not tell user to remove manually; got:\n%s", content)
+	}
+	if !strings.Contains(content, "greeting") {
+		t.Errorf("result view should still mention the failed asset; got:\n%s", content)
 	}
 }
