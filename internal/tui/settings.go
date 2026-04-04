@@ -85,10 +85,19 @@ func (s *settingsScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s.handleAction(msg.action)
 
 	case settingsScopeSelectedMsg:
+		// Project scope requires a project root.
+		if msg.scope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
+			s.result = "Cannot switch to project scope: no project root detected."
+			s.step = settingsShowResult
+			return s, nil
+		}
 		s.svc.ResetForScope(msg.scope, s.svc.GetProjectRoot())
 		s.result = fmt.Sprintf("Scope switched to %q.", msg.scope)
 		s.step = settingsShowResult
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		return s, tea.Batch(
+			func() tea.Msg { return ScopeSwitchedMsg{} },
+			func() tea.Msg { return RefreshHeaderMsg{} },
+		)
 	}
 
 	switch s.step {

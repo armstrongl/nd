@@ -4,6 +4,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Model is the root Bubble Tea model. It manages a stack of screens,
@@ -26,7 +27,12 @@ func Run(svc Services) error {
 	isDark := true
 	styles := NewStyles(isDark)
 
-	initial := Screen(newMainMenuScreen(svc, styles, isDark))
+	var initial Screen
+	if hasUserSources(svc) {
+		initial = newMainMenuScreen(svc, styles, isDark)
+	} else {
+		initial = newFirstRunScreen(svc, styles, isDark)
+	}
 
 	m := Model{
 		svc:     svc,
@@ -129,6 +135,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m.resetRootMenu()
 				}
 				return m, nil
+			case "ctrl+s":
+				return m.toggleScope()
 			}
 		}
 	}
@@ -143,6 +151,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+// toggleScope switches between global and project scope inline.
+func (m Model) toggleScope() (tea.Model, tea.Cmd) {
+	current := m.svc.GetScope()
+	var newScope nd.Scope
+	if current == nd.ScopeProject {
+		newScope = nd.ScopeGlobal
+	} else {
+		newScope = nd.ScopeProject
+	}
+
+	// Project scope requires a project root.
+	if newScope == nd.ScopeProject && m.svc.GetProjectRoot() == "" {
+		return m, nil
+	}
+
+	m.svc.ResetForScope(newScope, m.svc.GetProjectRoot())
+	return m, tea.Batch(
+		func() tea.Msg { return ScopeSwitchedMsg{} },
+		func() tea.Msg { return RefreshHeaderMsg{} },
+	)
 }
 
 // resetRootMenu replaces screens[0] with a fresh mainMenuScreen and returns its Init cmd.

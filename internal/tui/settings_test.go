@@ -107,6 +107,28 @@ func TestSettingsScreen_ScopeSwitchStep_FormNotNil(t *testing.T) {
 	}
 }
 
+func TestSettingsScreen_ScopeSwitch_ProjectWithNoRootShowsError(t *testing.T) {
+	svc := newMockServices()
+	// GetProjectRoot defaults to "" — no project root
+	s := newSettingsScreen(svc, NewStyles(true), true)
+
+	s.Update(settingsActionMsg{action: "scope"})
+	s.Update(settingsScopeSelectedMsg{scope: "project"})
+
+	// Should NOT call ResetForScope.
+	if len(svc.resetCalls) != 0 {
+		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+
+	// Should show an error message in the result step.
+	if s.step != settingsShowResult {
+		t.Fatalf("step should be settingsShowResult, got %d", s.step)
+	}
+	if !strings.Contains(s.result, "Cannot switch") {
+		t.Errorf("result should contain guard message, got %q", s.result)
+	}
+}
+
 func TestSettingsScreen_ScopeSwitch_CallsResetForScope(t *testing.T) {
 	svc := newMockServices()
 	s := newSettingsScreen(svc, NewStyles(true), true)

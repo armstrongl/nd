@@ -5,6 +5,13 @@ import (
 	"charm.land/huh/v2"
 )
 
+// Sentinel values for menu group separator options.
+// These are not selectable — handleSelection returns nil for them.
+const (
+	menuSepManage = "__sep_manage__"
+	menuSepSystem = "__sep_system__"
+)
+
 type mainMenuScreen struct {
 	svc       Services
 	form      *huh.Form
@@ -26,16 +33,22 @@ func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen
 			huh.NewSelect[string]().
 				Title("nd").
 				Options(
+					// ── Actions (first group, no header — first option must be real)
 					huh.NewOption("Deploy assets", "deploy"),
 					huh.NewOption("Remove assets", "remove"),
 					huh.NewOption("Browse assets", "browse"),
 					huh.NewOption("View status", "status"),
 					huh.NewOption("Run doctor", "doctor"),
+					// ── Manage
+					huh.NewOption("── Manage ──", menuSepManage),
 					huh.NewOption("Switch profile", "profile"),
 					huh.NewOption("Manage snapshots", "snapshot"),
 					huh.NewOption("Pin/Unpin assets", "pin"),
 					huh.NewOption("Manage sources", "source"),
 					huh.NewOption("Export plugin", "export"),
+					// ── System
+					huh.NewOption("── System ──", menuSepSystem),
+					huh.NewOption("Switch scope", "scope"),
 					huh.NewOption("Settings", "settings"),
 					huh.NewOption("Quit", "quit"),
 				).
@@ -101,6 +114,8 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 		screen = newPinScreen(m.svc, m.styles, m.isDark)
 	case "source":
 		screen = newSourceScreen(m.svc, m.styles, m.isDark)
+	case "scope":
+		screen = newScopeScreen(m.svc, m.styles, m.isDark)
 	case "settings":
 		screen = newSettingsScreen(m.svc, m.styles, m.isDark)
 	case "quit":

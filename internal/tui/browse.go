@@ -101,6 +101,16 @@ func (b *browseScreen) Init() tea.Cmd {
 // Update handles messages and filter key input.
 func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScopeSwitchedMsg:
+		b.loaded = false
+		b.assets = nil
+		b.deployed = nil
+		b.filter = ""
+		b.filtering = false
+		b.cursor = 0
+		b.scroll = listScroll{}
+		return b, b.Init()
+
 	case browseLoadedMsg:
 		b.loaded = true
 		b.assets = msg.assets

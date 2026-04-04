@@ -192,6 +192,31 @@ func TestDoctorScreen_HealthGlyphs_InIssuesList(t *testing.T) {
 	}
 }
 
+func TestDoctorScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	// Put in a non-loading state with stale data.
+	s.step = doctorDone
+	s.issues = []state.HealthCheck{
+		{Deployment: state.Deployment{AssetName: "stale"}, Status: state.HealthBroken},
+	}
+	s.err = fmt.Errorf("old error")
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.step != doctorLoading {
+		t.Errorf("step should be doctorLoading after ScopeSwitchedMsg, got %d", s.step)
+	}
+	if s.issues != nil {
+		t.Error("issues should be nil after ScopeSwitchedMsg")
+	}
+	if s.err != nil {
+		t.Errorf("err should be nil after ScopeSwitchedMsg, got %v", s.err)
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
 func TestDoctorScreen_RefreshHeaderEmittedAfterSync(t *testing.T) {
 	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
 

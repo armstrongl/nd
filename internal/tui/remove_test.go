@@ -640,3 +640,16 @@ func TestRemove_FullHelpItems_Result(t *testing.T) {
 		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
 	}
 }
+
+func TestRemove_RunningViewShowsAssetCount(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newRemoveScreen(svc, s, true)
+	m.step = removeRunning
+	m.selected = []string{"s:skills/a", "s:skills/b"}
+
+	v := m.viewRunning()
+	if !strings.Contains(v.Content, "2 asset(s)") {
+		t.Errorf("running view should show asset count, got: %q", v.Content)
+	}
+}

@@ -434,3 +434,228 @@ func TestStatusScreen_HelpItemsIncludeScrollKey(t *testing.T) {
 		t.Errorf("HelpItems() should include j/k scroll key, got: %v", keys)
 	}
 }
+
+func TestStatusScreen_SlashEntersFilterMode(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+
+	s.Update(tea.KeyPressMsg(tea.Key{Code: '/'}))
+
+	if !s.filtering {
+		t.Fatal("expected filtering=true after pressing /")
+	}
+	if !s.InputActive() {
+		t.Fatal("expected InputActive()=true while filtering")
+	}
+}
+
+func TestStatusScreen_FilterMatchesAssetName(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+
+	s.filter = "greeting"
+	filtered := s.filteredEntries()
+	if len(filtered) != 1 {
+		t.Fatalf("expected 1 match for 'greeting', got %d", len(filtered))
+	}
+	if filtered[0].Deployment.AssetName != "greeting" {
+		t.Fatalf("expected match 'greeting', got %q", filtered[0].Deployment.AssetName)
+	}
+}
+
+func TestStatusScreen_FilterMatchesSourceID(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+
+	s.filter = "dotfiles"
+	filtered := s.filteredEntries()
+	// All test entries have source "dotfiles"
+	if len(filtered) != len(s.entries) {
+		t.Fatalf("expected all entries to match 'dotfiles', got %d/%d", len(filtered), len(s.entries))
+	}
+}
+
+func TestStatusScreen_FilterIsCaseInsensitive(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+
+	s.filter = "GREETING"
+	filtered := s.filteredEntries()
+	if len(filtered) != 1 {
+		t.Fatalf("expected 1 match for 'GREETING' (case-insensitive), got %d", len(filtered))
+	}
+}
+
+func TestStatusScreen_EscClearsFilter(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+	s.filtering = true
+	s.filter = "test"
+
+	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+
+	if s.filtering {
+		t.Fatal("expected filtering=false after esc")
+	}
+	if s.filter != "" {
+		t.Fatalf("expected filter cleared, got %q", s.filter)
+	}
+}
+
+func TestStatusScreen_ViewShowsFilterInputWhenFiltering(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+	s.filtering = true
+	s.filter = "test"
+
+	v := s.View()
+	if !strings.Contains(v.Content, "filter: test") {
+		t.Error("expected view to show filter input")
+	}
+}
+
+func TestStatusScreen_HelpShowsFilterHintWhenNotFiltering(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	items := s.HelpItems()
+	found := false
+	for _, item := range items {
+		if item.Key == "/" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected / filter in help items when not filtering")
+	}
+}
+
+func TestStatusScreen_EnterConfirmsFilter(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+	s.filtering = true
+	s.filter = "greeting"
+
+	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+
+	if s.filtering {
+		t.Fatal("expected filtering=false after enter (confirm)")
+	}
+	if s.filter != "greeting" {
+		t.Fatalf("enter should preserve filter text, got %q", s.filter)
+	}
+}
+
+func TestStatusScreen_BackspaceOnEmptyFilterDoesNothing(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.loaded = true
+	s.entries = testStatusEntries()
+	s.renderedLines = splitLines(s.buildContent())
+	s.filtering = true
+	s.filter = ""
+
+	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyBackspace}))
+
+	if s.filter != "" {
+		t.Fatalf("backspace on empty filter should leave it empty, got %q", s.filter)
+	}
+	// Should still be filtering (backspace doesn't exit filter mode).
+	if !s.filtering {
+		t.Fatal("backspace on empty should not exit filter mode")
+	}
+}
+
+func TestStatusScreen_HelpShowsEscWhenFiltering(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+	s.filtering = true
+	items := s.HelpItems()
+	found := false
+	for _, item := range items {
+		if item.Key == "esc" && item.Desc == "clear filter" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'esc clear filter' in help items when filtering")
+	}
+}
+
+func TestStatusScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	// Load some data first.
+	s.Update(statusLoadedMsg{entries: testStatusEntries()})
+	if !s.loaded {
+		t.Fatal("precondition: should be loaded")
+	}
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.loaded {
+		t.Error("loaded should be false after ScopeSwitchedMsg")
+	}
+	if s.entries != nil {
+		t.Error("entries should be nil after ScopeSwitchedMsg")
+	}
+	if s.renderedLines != nil {
+		t.Error("renderedLines should be nil after ScopeSwitchedMsg")
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
+func testStatusEntries() []deploy.StatusEntry {
+	return []deploy.StatusEntry{
+		{
+			Deployment: state.Deployment{
+				AssetName: "greeting",
+				AssetType: nd.AssetType("skills"),
+				SourceID:  "dotfiles",
+				Scope:     nd.ScopeGlobal,
+			},
+			Health: state.HealthOK,
+		},
+		{
+			Deployment: state.Deployment{
+				AssetName: "review",
+				AssetType: nd.AssetType("skills"),
+				SourceID:  "dotfiles",
+				Scope:     nd.ScopeGlobal,
+			},
+			Health: state.HealthOK,
+		},
+		{
+			Deployment: state.Deployment{
+				AssetName: "debug-agent",
+				AssetType: nd.AssetType("agents"),
+				SourceID:  "dotfiles",
+				Scope:     nd.ScopeGlobal,
+			},
+			Health: state.HealthBroken,
+		},
+	}
+}

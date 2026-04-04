@@ -525,6 +525,41 @@ func TestBrowseScreen_NoIndicatorsWhenAllFit(t *testing.T) {
 	}
 }
 
+func TestBrowseScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+	s.filtering = true
+	s.filter = "test"
+	s.cursor = 2
+
+	if !s.loaded {
+		t.Fatal("precondition: should be loaded")
+	}
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.loaded {
+		t.Error("loaded should be false after ScopeSwitchedMsg")
+	}
+	if s.assets != nil {
+		t.Error("assets should be nil after ScopeSwitchedMsg")
+	}
+	if s.deployed != nil {
+		t.Error("deployed should be nil after ScopeSwitchedMsg")
+	}
+	if s.filter != "" {
+		t.Errorf("filter should be empty, got %q", s.filter)
+	}
+	if s.filtering {
+		t.Error("filtering should be false after ScopeSwitchedMsg")
+	}
+	if s.cursor != 0 {
+		t.Errorf("cursor should be 0, got %d", s.cursor)
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
 func TestBrowseScreen_TypeAndSourceShown(t *testing.T) {
 	assets := []asset.Asset{
 		{Identity: asset.Identity{SourceID: "my-source", Type: nd.AssetRule, Name: "go-rules"}},

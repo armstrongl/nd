@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -106,7 +107,7 @@ func TestMainMenu_HandleSelectionWiredScreens(t *testing.T) {
 	// These choices are wired to real screens and should return NavigateMsg.
 	wiredChoices := []string{
 		"deploy", "remove", "status", "browse", "doctor",
-		"profile", "snapshot", "pin", "source", "settings",
+		"profile", "snapshot", "pin", "source", "scope", "settings",
 	}
 	for _, choice := range wiredChoices {
 		m.choice = choice
@@ -165,3 +166,45 @@ func TestMainMenu_StylesPreserved(t *testing.T) {
 		t.Fatal("styles.Bold should have bold attribute set")
 	}
 }
+
+func TestMainMenu_HasGroupSeparators(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+	m.Init() // huh form needs Init before View renders options
+
+	// The menu should contain group separator options with sentinel values.
+	// Separators appear between logical groups, not before the first item.
+	v := m.View()
+	content := v.Content
+
+	// Group headers should appear in rendered output.
+	for _, header := range []string{"Manage", "System"} {
+		if !strings.Contains(content, header) {
+			t.Errorf("View() does not contain group header %q", header)
+		}
+	}
+}
+
+func TestMainMenu_SeparatorsAreNoOp(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+
+	// Separator sentinel values should return nil from handleSelection.
+	for _, sep := range []string{menuSepManage, menuSepSystem} {
+		m.choice = sep
+		cmd := m.handleSelection()
+		if cmd != nil {
+			t.Errorf("handleSelection() for separator %q returned non-nil, want nil", sep)
+		}
+	}
+}
+
+func TestMainMenu_FirstOptionIsDeployNotSeparator(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+	// huh auto-selects option 0. It must be "deploy", not a separator.
+	if m.choice != "deploy" {
+		t.Fatalf("choice = %q after construction, want %q (first option must be a real item, not separator)", m.choice, "deploy")
+	}
+}
+

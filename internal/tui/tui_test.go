@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // newTestModel creates a Model with a mock services and a main menu screen.
@@ -338,5 +339,102 @@ func TestInit_ReturnsCmd(t *testing.T) {
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd from Init")
+	}
+}
+
+func TestGlobalKey_CtrlS_TogglesScopeWhenProjectRootExists(t *testing.T) {
+	svc := newMockServices()
+	svc.getProjectRootFn = func() string { return "/some/project" }
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s scope toggle")
+	}
+
+	// Verify ResetForScope was called.
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != "project" {
+		t.Errorf("expected scope 'project', got %q", svc.resetCalls[0].Scope)
+	}
+}
+
+func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
+	svc := newMockServices()
+	// GetProjectRoot defaults to "" — no project root
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd != nil {
+		t.Fatal("expected nil cmd from ctrl+s when no project root")
+	}
+
+	if len(svc.resetCalls) != 0 {
+		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+}
+
+func TestGlobalKey_CtrlS_ReverseToggle_ProjectToGlobal(t *testing.T) {
+	svc := newMockServices()
+	svc.getScopeFn = func() nd.Scope { return nd.ScopeProject }
+	svc.getProjectRootFn = func() string { return "/some/project" }
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s reverse toggle")
+	}
+
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != nd.ScopeGlobal {
+		t.Errorf("expected scope %q, got %q", nd.ScopeGlobal, svc.resetCalls[0].Scope)
+	}
+}
+
+func TestGlobalKey_CtrlS_SuppressedWhenInputActive(t *testing.T) {
+	svc := newMockServices()
+	svc.getProjectRootFn = func() string { return "/some/project" }
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{stubScreen{title: "Source Add", inputActive: true}},
+		width:   80,
+		height:  24,
+	}
+
+	m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+
+	if len(svc.resetCalls) != 0 {
+		t.Fatalf("expected 0 ResetForScope calls when InputActive, got %d", len(svc.resetCalls))
 	}
 }

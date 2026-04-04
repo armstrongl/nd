@@ -84,6 +84,13 @@ func (d *doctorScreen) Init() tea.Cmd {
 // Update handles messages for each step of the doctor flow.
 func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScopeSwitchedMsg:
+		d.step = doctorLoading
+		d.issues = nil
+		d.err = nil
+		d.scroll = listScroll{}
+		return d, d.Init()
+
 	case tea.WindowSizeMsg:
 		d.height = msg.Height
 		return d, nil

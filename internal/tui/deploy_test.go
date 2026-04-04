@@ -793,3 +793,17 @@ func TestDeploy_ResultView_NoManualRemoveHint(t *testing.T) {
 		t.Errorf("result view should still mention the failed asset; got:\n%s", content)
 	}
 }
+
+func TestDeploy_RunningViewShowsAssetCount(t *testing.T) {
+	ds := newTestDeployScreen(deployRunning)
+	ds.reqs = []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"}}},
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "b"}}},
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "c"}}},
+	}
+
+	v := ds.View()
+	if !strings.Contains(v.Content, "3 asset(s)") {
+		t.Errorf("running view should show asset count, got: %q", v.Content)
+	}
+}
