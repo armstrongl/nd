@@ -7,7 +7,7 @@ weight: -1
 
 ## How it works
 
-nd creates symlinks from your agent's config directory to asset sources (local directories or git repositories). Edit the source, and the change shows up instantly in the deployed location. No redeploy needed.
+nd creates symlinks from your agent's config directory to asset sources (local directories or git sources). Edit the source, and the change shows up instantly in the deployed location. No redeploy needed.
 
 ## Links
 

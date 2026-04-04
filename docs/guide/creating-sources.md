@@ -13,7 +13,7 @@ tags:
   - scanning
 ---
 
-An asset source is a directory containing coding agent assets organized by type. nd supports three source types: **local** (a directory on disk), **git** (a cloned repository), and **builtin** (embedded in the nd binary). This guide explains how to structure your own local or git source.
+An asset source is a directory that organizes coding agent assets by type. nd supports three source types: **local** (a directory on disk), **git** (a cloned repository), and **builtin** (embedded in the nd binary). This guide explains how to structure your own local or git source.
 
 ## Directory convention
 
@@ -65,7 +65,7 @@ Context files have special deployment rules:
 
 - **Global scope:** Deployed to the agent's global directory (e.g., `~/.claude/CLAUDE.md`)
 - **Project scope:** Deployed to the project root directly (e.g., `./CLAUDE.md`), not inside `.claude/`
-- **Local files** (`*.local.md`): Can only be deployed at project scope
+- **Local files** (`*.local.md`): Deploy only at project scope
 
 ### _meta.yaml
 
@@ -92,7 +92,7 @@ exclude:
   - vendor/
 ```
 
-When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. Convention-based discovery only happens if no manifest is found.
+When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. nd falls back to convention-based discovery only when no manifest exists.
 
 ## Publish your source
 
@@ -115,4 +115,4 @@ nd source add you/my-assets
 nd source add https://github.com/you/my-assets.git
 ```
 
-Git sources are cloned to `~/.config/nd/sources/` and can be synced with `nd sync --source <id>`.
+nd clones git sources to `~/.config/nd/sources/`. Sync them with `nd sync --source <id>`.

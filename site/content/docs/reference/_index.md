@@ -1,11 +1,11 @@
 ---
-title: Command Reference
+title: "Command reference"
 weight: 2
 sidebar:
   open: true
 ---
 
-Complete reference for every nd command, including flags, options, and usage examples.
+Reference for every nd command, including flags and options.
 
 ## Core commands
 

@@ -24,7 +24,7 @@ nd uses YAML configuration files with a layered merging system.
 | Project | `.nd/config.yaml` | Project-specific overrides |
 | CLI flag | `--config <path>` | One-time override |
 
-The global config is created by `nd init`. Project-level config is optional.
+`nd init` creates the global config. Project-level config is optional.
 
 ## Data directories
 
@@ -105,12 +105,12 @@ agents:
 
 nd merges configuration from multiple sources in this order (later overrides earlier):
 
-1. **Built-in defaults:** Sensible defaults for all settings
+1. **Built-in defaults:** Default values for all settings
 2. **Global config:** `~/.config/nd/config.yaml`
 3. **Project config:** `.nd/config.yaml` (if present)
-4. **CLI flags:** `--scope`, `--config`, etc.
+4. **CLI flags:** `--scope`, `--config`, and others
 
-For sources, global sources appear first (higher priority), followed by project sources. The built-in source always has the lowest priority. This means if the same asset exists in both a user source and the builtin source, the user source wins.
+For sources, global sources appear first (higher priority), followed by project sources. The built-in source always has the lowest priority. If the same asset exists in both a user source and the builtin source, the user source takes priority.
 
 ## Project-level config
 
@@ -139,7 +139,7 @@ Use cases:
 | `$VISUAL` | `nd settings edit` | Visual editor (fallback if `$EDITOR` not set) |
 | `$NO_COLOR` | All commands | Disable colored output (equivalent to `--no-color` flag) |
 
-If neither `$EDITOR` nor `$VISUAL` is set, `nd settings edit` falls back to `vi`.
+If you have not set `$EDITOR` or `$VISUAL`, `nd settings edit` uses `vi`.
 
 ## Edit config
 
@@ -155,6 +155,6 @@ After editing, validate your config:
 nd doctor
 ```
 
-The doctor command checks config validity as its first step.
+`nd doctor` checks config validity as its first step.
 
-If your config file contains invalid YAML, nd commands will report a parse error with the line number. Fix the syntax and retry.
+If your config file contains invalid YAML, nd commands report a parse error with the line number. Fix the syntax and retry.

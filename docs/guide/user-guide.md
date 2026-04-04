@@ -16,14 +16,14 @@ This guide covers the core workflows for managing assets with nd.
 
 ## Interactive mode
 
-Many nd commands support running without arguments to get an interactive picker. This works for:
+Run many nd commands without arguments to get an interactive picker:
 
 - `nd deploy`: pick assets to deploy
 - `nd remove`: pick deployed assets to remove
 - `nd profile delete` / `switch` / `deploy`: pick a profile
 - `nd snapshot delete` / `restore`: pick a snapshot
 
-Interactive mode is automatically disabled in non-TTY environments (pipes, scripts) and when `--json` is set. In those cases, nd returns an error with a helpful message.
+nd automatically disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set. In those cases, nd returns an error describing the required arguments.
 
 ## Global flags for scripting
 
@@ -33,7 +33,7 @@ These flags work with every command:
 |------|-------------|
 | `--json` | Output structured JSON for piping and parsing |
 | `--yes` / `-y` | Skip confirmation prompts (essential for scripts) |
-| `--dry-run` | Preview what would happen without making changes |
+| `--dry-run` | Preview changes without applying them |
 | `--verbose` / `-v` | Show detailed output on stderr |
 | `--quiet` / `-q` | Suppress non-error output |
 | `--scope` / `-s` | Set deployment scope: `global` or `project` |
@@ -70,7 +70,7 @@ nd source add https://github.com/owner/repo.git
 nd source add git@github.com:owner/repo.git
 ```
 
-Git sources are cloned to `~/.config/nd/sources/` and can be synced later.
+nd clones git sources to `~/.config/nd/sources/`. Sync them later with `nd sync`.
 
 ### List sources
 
@@ -88,7 +88,7 @@ Pull the latest changes from a git source:
 nd sync --source <source-id>
 ```
 
-This runs `git pull --ff-only` and then repairs any broken symlinks.
+nd runs `git pull --ff-only` and then repairs any broken symlinks.
 
 ### Remove a source
 
@@ -96,7 +96,7 @@ This runs `git pull --ff-only` and then repairs any broken symlinks.
 nd source remove <source-id>
 ```
 
-If assets from this source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. The `builtin` source cannot be removed.
+If assets from this source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. nd prevents removal of the `builtin` source.
 
 ## Deploy assets
 
@@ -108,7 +108,7 @@ For a visual walkthrough of what deploy does on disk, see [How nd works](how-nd-
 nd deploy skills/greeting
 ```
 
-Asset references use the format `type/name`. If the name is unique across types, you can omit the type: `nd deploy greeting`. If a name is ambiguous (exists in multiple types), nd reports the conflict and asks you to qualify with the type prefix.
+Asset references use the format `type/name`. If the name is unique across types, omit the type: `nd deploy greeting`. If a name is ambiguous (exists in multiple types), nd reports the conflict and asks you to qualify with the type prefix.
 
 ### Filter by type
 
@@ -122,7 +122,7 @@ nd deploy --type skills greeting
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
-Bulk operations continue on per-asset failure and report a summary.
+nd continues on per-asset failure and reports a summary.
 
 ### Scopes
 
@@ -142,7 +142,7 @@ nd deploy skills/greeting --scope project
 nd deploy skills/greeting --relative
 ```
 
-The default strategy can be changed in your config file (`symlink_strategy: relative`).
+Change the default strategy in your config file (`symlink_strategy: relative`).
 
 ## Remove assets
 
@@ -270,11 +270,11 @@ cat ~/.config/nd/logs/operations.log | jq -r '.operation' | sort | uniq -c | sor
 | `scope` | Deployment scope (`global` or `project`) |
 | `succeeded` | Number of successful operations |
 | `failed` | Number of failed operations |
-| `detail` | Additional context (profile name, source ID, etc.) |
+| `detail` | Additional context (profile name, source ID, snapshot name) |
 
 ### Log rotation
 
-The log file rotates automatically when it exceeds 1 MB. The previous log is preserved as `operations.log.1`. Only one rotated backup is kept.
+nd rotates the log file automatically when it exceeds 1 MB. nd preserves the previous log as `operations.log.1` and keeps only one rotated backup.
 
 Dry-run operations (`--dry-run`) do not write log entries.
 

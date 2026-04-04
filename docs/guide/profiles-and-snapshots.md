@@ -16,11 +16,11 @@ tags:
   - pinning
 ---
 
-Profiles and snapshots help you manage multiple sets of agent assets and switch between them.
+Use profiles and snapshots to manage multiple sets of agent assets and switch between them.
 
 ## What are profiles?
 
-A **profile** is a named collection of assets: like browser profiles for your coding agent. You might have a "work" profile with enterprise-focused skills and a "personal" profile with hobby project tools.
+A **profile** is a named collection of assets: like browser profiles for your coding agent. For example, a "work" profile holds enterprise-focused skills and a "personal" profile holds hobby project tools.
 
 ## Create profiles
 
@@ -61,7 +61,7 @@ nd profile add-asset work commands/deploy-staging
 nd profile list
 ```
 
-The active profile is marked with `*`.
+nd marks the active profile with `*`.
 
 ## Deploy a profile
 
@@ -71,7 +71,7 @@ Deploy all assets from a profile:
 nd profile deploy work
 ```
 
-This resolves each asset reference from your registered sources and creates symlinks. Missing assets are reported as warnings.
+This resolves each asset reference from your registered sources and creates symlinks. nd reports missing assets as warnings.
 
 Preview first:
 
@@ -87,7 +87,7 @@ Switch from the current active profile to another:
 nd profile switch personal
 ```
 
-This shows a diff preview of what will change:
+This shows a diff preview of what changes:
 
 - **Remove:** Assets from the current profile (origin: `profile:<current>`)
 - **Deploy:** Assets from the new profile
@@ -115,7 +115,7 @@ nd pin skills/greeting
 nd unpin skills/greeting
 ```
 
-When switching profiles, nd skips pinned assets entirely: they are neither removed nor redeployed.
+When switching profiles, nd skips pinned assets entirely: nd neither removes nor redeploys them.
 
 ## Snapshots
 
@@ -133,7 +133,7 @@ nd snapshot save before-experiment
 nd snapshot list
 ```
 
-Both user-created and auto-created snapshots are shown. Auto-snapshots (created before destructive operations) are tagged with `(auto)`.
+The list shows both user-created and auto-created snapshots. nd tags auto-snapshots (created before destructive operations) with `(auto)`.
 
 ### Restore a snapshot
 
@@ -153,7 +153,7 @@ nd snapshot delete old-snapshot
 
 ### Auto-snapshots
 
-nd automatically saves snapshots before destructive operations like profile switching and snapshot restoring. The 5 most recent auto-snapshots are retained; older ones are cleaned up.
+nd automatically saves snapshots before destructive operations like profile switching and snapshot restoring. nd retains the 5 most recent auto-snapshots and cleans up older ones.
 
 ## Workflow example
 

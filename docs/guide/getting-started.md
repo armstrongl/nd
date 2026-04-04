@@ -37,7 +37,7 @@ Verify the installation:
 nd version
 ```
 
-## Update nd
+### Update nd
 
 If you installed nd via Homebrew, update it with:
 
@@ -47,7 +47,7 @@ brew update && brew upgrade nd
 
 If `brew upgrade nd` installs an older version, your local tap index may be stale. Run `brew update` first to refresh it, then upgrade again.
 
-nd will also notify you when a newer version is available — the message appears after a command completes, once per day.
+nd also notifies you when a newer version is available — the message appears after a command completes, once per day.
 
 ## 2. Initialize
 
@@ -57,9 +57,10 @@ Create the nd configuration directory and default config:
 nd init
 ```
 
-This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. It also deploys nd's built-in assets (skills, commands, and an agent) so you have something to work with immediately.
+This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
+It also deploys nd's built-in assets (skills, commands, and an agent) so you have something to work with immediately.
 
-You can browse the built-in assets right away:
+Browse the built-in assets:
 
 ```shell
 nd list
@@ -80,7 +81,7 @@ nd source add owner/repo
 nd source add https://github.com/owner/repo.git
 ```
 
-nd scans the source for assets organized in convention-based directories (`skills/`, `agents/`, `commands/`, etc.). See [Creating sources](creating-sources.md) for how to structure your own.
+nd scans the source for assets organized in convention-based directories (`skills/`, `agents/`, `commands/`, and others). See [Creating sources](creating-sources.md) for how to structure your own.
 
 ## 4. Browse available assets
 
@@ -114,7 +115,7 @@ nd deploy skills/greeting commands/hello agents/researcher
 
 Or run `nd deploy` with no arguments to get an interactive picker.
 
-nd created a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 ## 6. Verify
 
@@ -124,9 +125,9 @@ Check that everything is healthy:
 nd status
 ```
 
-You should see your deployed assets with health indicators (checkmarks for healthy symlinks).
+The output shows your deployed assets with health indicators (checkmarks for healthy symlinks).
 
-For a deeper health check of your entire setup:
+For a full health check:
 
 ```shell
 nd doctor
@@ -149,7 +150,7 @@ nd completion zsh --install
 nd completion fish --install
 ```
 
-For zsh, you may need to add this to your `~/.zshrc` if not already present:
+For zsh, add this to your `~/.zshrc` if not already present:
 
 ```shell
 fpath+=~/.zfunc
@@ -167,7 +168,7 @@ nd settings edit
 ## Next steps
 
 - **[How nd works](how-nd-works.md):** What happens on disk when you deploy
-- **[User guide](user-guide.md):** Learn about managing sources, scopes, syncing, and more
+- **[User guide](user-guide.md):** Learn about managing sources, scopes, and syncing
 - **[Profiles & snapshots](profiles-and-snapshots.md):** Group assets into profiles and switch between them
 - **[Configuration](configuration.md):** Customize nd behavior
 - **[Creating sources](creating-sources.md):** Build and share your own asset libraries
