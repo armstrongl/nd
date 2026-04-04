@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/armstrongl/nd/compare/v0.3.0...v0.4.0) (2026-04-03)
+
+
+### Features
+
+* **deploy:** offer force-replace when deploying a conflicting asset ([e8cff9b](https://github.com/armstrongl/nd/commit/e8cff9b9b85d06d5de3eaeb400acb420a165bed3))
+* **tui:** add scrollable windowing to all list views ([d43504c](https://github.com/armstrongl/nd/commit/d43504c77c449c136c53cd86e2913486e9354500))
+* **tui:** add scrollable windowing to all list views ([4385277](https://github.com/armstrongl/nd/commit/4385277e1e2cf46d119d789831acde830ad14ce6))
+* **updater:** show brew update notice when a newer version is available ([20640a7](https://github.com/armstrongl/nd/commit/20640a7b6543d8029e48ca85fecf6fedb2dcbc85))
+* **updater:** show brew update notice when a newer version is available ([aedbcc4](https://github.com/armstrongl/nd/commit/aedbcc4e52775665cdc877ffb7f59617784b00db))
+
+
+### Bug Fixes
+
+* **tui:** add scrolling to deploy and remove result views ([2ec2121](https://github.com/armstrongl/nd/commit/2ec2121130debc866f3e957ad57f8b8c92c7178c))
+* **tui:** address PR review feedback on scroll windowing ([a4d35b3](https://github.com/armstrongl/nd/commit/a4d35b3fc1b66c8b439646c712b3aecfaec8c16e))
+* **tui:** recreate main menu when navigating back from any screen ([15236f2](https://github.com/armstrongl/nd/commit/15236f2743b849c164d5ce99793cdc74bea02a8a))
+* **tui:** restore home screen after action and fix remove asset listing ([6037133](https://github.com/armstrongl/nd/commit/603713375bf8b5a8c7856e404c68c6929c07b68c))
+
 ## [0.3.0](https://github.com/armstrongl/nd/compare/v0.2.0...v0.3.0) (2026-04-02)
 
 
