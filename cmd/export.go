@@ -44,7 +44,7 @@ Multiple assets can be comma-separated or the flag repeated.`,
   # Generate a marketplace from plugins
   nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,creating-sources",
+			"docs.guides": "getting-started,creating-sources,asset-types/plugins",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

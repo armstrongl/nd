@@ -73,3 +73,4 @@ nd deploy <asset> [assets...] [flags]
 
 - [Getting started](../guide/getting-started.md)
 - [How nd works](../guide/how-nd-works.md)
+- [Context files](../guide/asset-types/context.md)

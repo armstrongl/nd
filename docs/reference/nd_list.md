@@ -58,3 +58,7 @@ nd list [flags]
 ## Guides
 
 - [Getting started](../guide/getting-started.md)
+- [Skills](../guide/asset-types/skills.md)
+- [Agents](../guide/asset-types/agents.md)
+- [Commands](../guide/asset-types/commands.md)
+- [Rules](../guide/asset-types/rules.md)

@@ -60,7 +60,12 @@ nd init
 ```
 
 This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
-It also deploys nd's built-in assets (skills, commands, and an agent) so you have something to work with immediately.
+
+`nd init` then prompts you to deploy nd's built-in assets (skills, commands, and an agent). Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with `nd deploy --source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
+
+If nd cannot detect your coding agent (e.g., Claude Code is not installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install your agent and run `nd deploy --source builtin` afterward.
+
+If a config file already exists, `nd init` exits with an error. Use `nd settings edit` to modify an existing configuration.
 
 Browse the built-in assets:
 
@@ -119,7 +124,7 @@ Or run `nd deploy` with no arguments to get an interactive picker. Many nd comma
 
 nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
-**Filter by type:**
+**Deploy by type:**
 
 ```shell
 nd deploy --type skills greeting
@@ -196,6 +201,16 @@ Open your config file in your default editor:
 ```shell
 nd settings edit
 ```
+
+## Uninstall
+
+To remove all nd-managed symlinks from your agent's config directory:
+
+```shell
+nd uninstall
+```
+
+This does not delete your sources, config, profiles, or snapshots — it only removes the deployed symlinks. Pass `--yes` to skip the confirmation prompt.
 
 ## Next steps
 

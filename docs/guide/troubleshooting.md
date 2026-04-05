@@ -183,6 +183,77 @@ mkdir -p ~/.claude
 nd settings edit
 ```
 
+## Ambiguous asset name
+
+**Symptoms:** `nd deploy greeting` fails with `ambiguous asset "greeting" — matches: ...`
+
+**Cause:** Multiple assets share the same name across different types or sources (e.g., `skills/greeting` and `commands/greeting`).
+
+**Fix:** Use the `type/name` format to disambiguate:
+
+```shell
+nd deploy skills/greeting
+```
+
+Or use the `--type` flag:
+
+```shell
+nd deploy --type skills greeting
+```
+
+## Non-TTY confirmation error
+
+**Symptoms:** A command fails with `confirmation required but stdin is not a terminal (use --yes to skip)`.
+
+**Cause:** nd requires interactive confirmation for destructive operations (remove, uninstall, profile switch). In non-TTY environments (pipes, scripts, CI), there is no terminal to prompt.
+
+**Fix:** Pass `--yes` to skip the confirmation:
+
+```shell
+nd source remove my-assets --yes
+```
+
+## Config already exists
+
+**Symptoms:** `nd init` fails with `config already exists at ~/.config/nd/config.yaml; edit with 'nd settings edit'`.
+
+**Cause:** nd has already been initialized. `nd init` refuses to overwrite an existing config to prevent accidental data loss.
+
+**Fix:** Use `nd settings edit` to modify your existing config. If you need to start fresh, delete the config first:
+
+```shell
+rm ~/.config/nd/config.yaml && nd init
+```
+
+## No active profile
+
+**Symptoms:** `nd profile deploy` (with no name argument) fails with `no active profile; use 'nd profile deploy <name>' instead`.
+
+**Cause:** You ran `nd profile deploy` without specifying a profile name, and no profile is currently active. nd only knows which profile to redeploy if one was previously activated.
+
+**Fix:** Specify the profile name explicitly:
+
+```shell
+nd profile deploy my-setup
+```
+
+Or switch to a profile first with `nd profile switch my-setup`.
+
+## Deploy conflict
+
+**Symptoms:** `nd deploy` fails with `conflict at <path>: existing <kind> blocks deployment of <asset>`.
+
+**Cause:** A file or symlink that nd does not manage already exists at the target location. This happens when you have manually created a file where nd wants to place a symlink (e.g., a hand-written `CLAUDE.md` at `~/.claude/CLAUDE.md`).
+
+**Fix:** Move or remove the conflicting file, then retry the deploy:
+
+```shell
+mv ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak
+nd deploy context/my-rules
+```
+
+For context files specifically, nd automatically backs up the existing file to `~/.config/nd/backups/` and replaces it. Conflicts only block deployment for non-context asset types.
+
 ## Git not found
 
 **Symptoms:** `nd doctor` reports git is not available. `nd sync` cannot pull git sources.

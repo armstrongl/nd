@@ -26,7 +26,7 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 		Example: `  # Open config in your default editor
   nd settings edit`,
 		Annotations: map[string]string{
-			"docs.guides": "configuration",
+			"docs.guides": "configuration,asset-types/hooks,asset-types/output-styles",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

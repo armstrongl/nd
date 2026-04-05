@@ -43,3 +43,5 @@ nd settings edit [flags]
 ## Guides
 
 - [Configuration](../guide/configuration.md)
+- [Hooks](../guide/asset-types/hooks.md)
+- [Output styles](../guide/asset-types/output-styles.md)

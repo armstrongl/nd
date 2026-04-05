@@ -65,3 +65,4 @@ nd export [flags]
 
 - [Getting started](../guide/getting-started.md)
 - [Create sources](../guide/creating-sources.md)
+- [Plugins](../guide/asset-types/plugins.md)
