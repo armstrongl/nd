@@ -104,6 +104,20 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 			description = c.CommandPath()
 		}
 		frontMatter := fmt.Sprintf("---\ntitle: %q\ndescription: %q\nweight: %d\n---\n\n", c.CommandPath(), description, weight)
+		// Append guide cross-links from Annotations["docs.guides"].
+		if guides, ok := c.Annotations["docs.guides"]; ok && guides != "" {
+			out = append(out, "## Guides\n\n")
+			for _, slug := range strings.Split(guides, ",") {
+				slug = strings.TrimSpace(slug)
+				title := guideTitles[slug]
+				if title == "" {
+					title = slug
+				}
+				out = append(out, fmt.Sprintf("* [%s](../guide/%s.md)\n", title, slug))
+			}
+			out = append(out, "\n")
+		}
+
 		content := frontMatter + strings.Join(out, "")
 
 		filename := strings.ReplaceAll(c.CommandPath(), " ", "_") + ".md"
@@ -114,6 +128,25 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 	}
 
 	return nil
+}
+
+// guideTitles maps guide file slugs to display titles for cross-links.
+var guideTitles = map[string]string{
+	"getting-started":        "Getting started",
+	"how-nd-works":           "How nd works",
+	"configuration":          "Configuration",
+	"creating-sources":       "Create sources",
+	"profiles-and-snapshots": "Profiles and snapshots",
+	"glossary":               "Glossary",
+	"troubleshooting":        "Troubleshoot",
+	"asset-types/skills":     "Skills",
+	"asset-types/agents":     "Agents",
+	"asset-types/commands":   "Commands",
+	"asset-types/rules":      "Rules",
+	"asset-types/context":    "Context files",
+	"asset-types/hooks":      "Hooks",
+	"asset-types/plugins":    "Plugins",
+	"asset-types/output-styles": "Output styles",
 }
 
 // allCommands returns cmd and all its descendants, depth-first.
