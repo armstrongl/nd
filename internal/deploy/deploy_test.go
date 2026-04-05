@@ -61,10 +61,16 @@ func (m *mockStore) WithLock(fn func() error) error {
 
 func testAgent() *agent.Agent {
 	return &agent.Agent{
-		Name:       "claude-code",
-		GlobalDir:  "/home/user/.claude",
-		ProjectDir: ".claude",
-		Detected:   true,
+		Name:                "claude-code",
+		GlobalDir:           "/home/user/.claude",
+		ProjectDir:          ".claude",
+		Binary:              "claude",
+		SupportedTypes:      nd.DeployableAssetTypes(),
+		DefaultContextFile:  "",
+		ContextInProjectDir: false,
+		VersionPattern:      `(?i)claude`,
+		Detected:            true,
+		InPath:              true,
 	}
 }
 
@@ -136,6 +142,9 @@ func TestDeploySimpleSkill(t *testing.T) {
 	}
 	if store.saved == nil || len(store.saved.Deployments) != 1 {
 		t.Error("state should have 1 deployment after deploy")
+	}
+	if store.saved != nil && store.saved.Deployments[0].Agent != "claude-code" {
+		t.Errorf("deployment Agent: got %q, want %q", store.saved.Deployments[0].Agent, "claude-code")
 	}
 }
 

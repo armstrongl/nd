@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/armstrongl/nd/internal/config"
+	"github.com/armstrongl/nd/internal/nd"
 )
 
 // Registry manages agent detection, lookup, and config override application.
@@ -29,10 +30,26 @@ func New(cfg config.Config) *Registry {
 
 	agents := []Agent{
 		{
-			Name:        "claude-code",
-			GlobalDir:   filepath.Join(homeDir, ".claude"),
-			ProjectDir:  ".claude",
-			SourceAlias: "claude",
+			Name:                "claude-code",
+			GlobalDir:           filepath.Join(homeDir, ".claude"),
+			ProjectDir:          ".claude",
+			SourceAlias:         "claude",
+			Binary:              "claude",
+			SupportedTypes:      nd.DeployableAssetTypes(),
+			DefaultContextFile:  "",
+			ContextInProjectDir: false,
+			VersionPattern:      `(?i)claude`,
+		},
+		{
+			Name:                "copilot",
+			GlobalDir:           filepath.Join(homeDir, ".copilot"),
+			ProjectDir:          ".github",
+			SourceAlias:         "copilot",
+			Binary:              "copilot",
+			SupportedTypes:      []nd.AssetType{nd.AssetSkill, nd.AssetAgent, nd.AssetContext},
+			DefaultContextFile:  "copilot-instructions.md",
+			ContextInProjectDir: true,
+			VersionPattern:      `(?i)copilot|github\.copilot`,
 		},
 	}
 
@@ -80,6 +97,7 @@ func (r *Registry) All() []Agent {
 // agentBinaries maps agent names to their expected binary names in PATH.
 var agentBinaries = map[string]string{
 	"claude-code": "claude",
+	"copilot":     "copilot",
 }
 
 // Detect probes the system for installed agents (PATH + config dir).

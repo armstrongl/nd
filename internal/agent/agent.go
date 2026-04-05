@@ -9,12 +9,27 @@ import (
 
 // Agent represents a detected coding agent installation.
 type Agent struct {
-	Name        string `json:"name"`
-	GlobalDir   string `json:"global_dir"`
-	ProjectDir  string `json:"project_dir"`
-	SourceAlias string `json:"source_alias,omitempty"`
-	Detected    bool   `json:"detected"`
-	InPath      bool   `json:"in_path"`
+	Name                string         `json:"name"`
+	GlobalDir           string         `json:"global_dir"`
+	ProjectDir          string         `json:"project_dir"`
+	SourceAlias         string         `json:"source_alias,omitempty"`
+	Binary              string         `json:"binary"`
+	SupportedTypes      []nd.AssetType `json:"supported_types"`
+	DefaultContextFile  string         `json:"default_context_file,omitempty"`
+	ContextInProjectDir bool           `json:"context_in_project_dir"`
+	VersionPattern      string         `json:"version_pattern"`
+	Detected            bool           `json:"detected"`
+	InPath              bool           `json:"in_path"`
+}
+
+// SupportsType returns true if this agent supports deploying the given asset type.
+func (a *Agent) SupportsType(t nd.AssetType) bool {
+	for _, st := range a.SupportedTypes {
+		if st == t {
+			return true
+		}
+	}
+	return false
 }
 
 // DeployPath computes the full path where an asset's symlink should be created.
@@ -51,7 +66,13 @@ func (a *Agent) contextDeployPath(scope nd.Scope, projectRoot, contextFile strin
 	}
 
 	if scope == nd.ScopeProject {
-		// Context files deploy to the project root, not inside .claude/
+		if a.ContextInProjectDir {
+			// Agents like copilot deploy context inside their project dir
+			// e.g., .github/copilot-instructions.md
+			return filepath.Join(projectRoot, a.ProjectDir, contextFile), nil
+		}
+		// Agents like claude-code deploy context to the project root
+		// e.g., /project/CLAUDE.md
 		return filepath.Join(projectRoot, contextFile), nil
 	}
 

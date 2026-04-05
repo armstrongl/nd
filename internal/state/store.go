@@ -50,11 +50,24 @@ func (s *Store) Load() (*DeploymentState, []string, error) {
 		)
 	}
 	if st.Version < nd.SchemaVersion {
-		// Future: migrate here. For now, version is 1 so no migration needed.
-		st.Version = nd.SchemaVersion
+		s.migrate(&st)
 	}
 
 	return &st, nil, nil
+}
+
+// migrate applies in-memory schema migrations. Does NOT persist to disk —
+// the caller's next Save() will write the migrated state. This keeps Load() read-only.
+func (s *Store) migrate(st *DeploymentState) {
+	// v1 → v2: backfill Agent="claude-code" on all deployments missing an agent.
+	if st.Version < 2 {
+		for i := range st.Deployments {
+			if st.Deployments[i].Agent == "" {
+				st.Deployments[i].Agent = "claude-code"
+			}
+		}
+		st.Version = 2
+	}
 }
 
 // handleCorrupt renames a corrupt state file and returns empty state with warning.

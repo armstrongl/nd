@@ -136,6 +136,7 @@ type RemoveRequest struct {
 	Identity    asset.Identity
 	Scope       nd.Scope
 	ProjectRoot string
+	Agent       string // if non-empty, only remove deployments for this agent
 }
 
 // RemoveError describes a failed removal within a bulk operation.
@@ -244,6 +245,7 @@ func (e *Engine) deployOne(req DeployRequest, st *state.DeploymentState) (*Deplo
 		Scope:       req.Scope,
 		ProjectPath: req.ProjectRoot,
 		Origin:      req.Origin,
+		Agent:       e.agent.Name,
 		Strategy:    req.Strategy,
 		DeployedAt:  e.now(),
 	}
@@ -509,6 +511,11 @@ func (e *Engine) removeOne(req RemoveRequest, st *state.DeploymentState) error {
 			d.AssetName == req.Identity.Name &&
 			d.Scope == req.Scope {
 			if req.Scope == nd.ScopeProject && d.ProjectPath != req.ProjectRoot {
+				continue
+			}
+			// Agent filtering: if req.Agent is set, only match that agent's deployments.
+			// Empty req.Agent matches any (backward compat until callers thread agent through).
+			if req.Agent != "" && d.Agent != req.Agent {
 				continue
 			}
 			idx = i
