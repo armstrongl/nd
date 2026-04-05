@@ -175,10 +175,17 @@ func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 	)
 }
 
-// resetRootMenu replaces screens[0] with a fresh mainMenuScreen and returns its Init cmd.
+// resetRootMenu replaces screens[0] with a fresh root screen and returns its Init cmd.
 // Called whenever navigation returns to the root so the stale huh form is never shown.
+// If no user sources exist the first-run screen is shown instead of the main menu,
+// preventing users from bypassing source setup via esc.
 func (m Model) resetRootMenu() (tea.Model, tea.Cmd) {
-	fresh := newMainMenuScreen(m.svc, m.styles, m.isDark)
+	var fresh Screen
+	if hasUserSources(m.svc) {
+		fresh = newMainMenuScreen(m.svc, m.styles, m.isDark)
+	} else {
+		fresh = newFirstRunScreen(m.svc, m.styles, m.isDark)
+	}
 	m.screens[0] = fresh
 	return m, fresh.Init()
 }

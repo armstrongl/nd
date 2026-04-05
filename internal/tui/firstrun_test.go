@@ -90,6 +90,37 @@ func TestFirstRun_QuitReturnsQuitMsg(t *testing.T) {
 	}
 }
 
+// ISSUE-005: When the huh form is aborted (e.g., via esc producing StateAborted),
+// the firstRunScreen must emit tea.Quit instead of entering a dead state.
+func TestFirstRun_StateAborted_Quits(t *testing.T) {
+	s := NewStyles(true)
+	m := newFirstRunScreen(newMockServices(), s, true)
+	m.form.State = huh.StateAborted
+
+	_, cmd := m.Update(nil)
+	if cmd == nil {
+		t.Fatal("Update() returned nil cmd on StateAborted, expected tea.Quit")
+	}
+
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Fatalf("expected tea.QuitMsg on StateAborted, got %T", msg)
+	}
+}
+
+// ISSUE-005: After StateAborted, navigated must be true so further updates are no-ops.
+func TestFirstRun_StateAborted_SetsNavigated(t *testing.T) {
+	s := NewStyles(true)
+	m := newFirstRunScreen(newMockServices(), s, true)
+	m.form.State = huh.StateAborted
+
+	updated, _ := m.Update(nil)
+	f := updated.(*firstRunScreen)
+	if !f.navigated {
+		t.Fatal("expected navigated=true after StateAborted")
+	}
+}
+
 func TestHasUserSources_FalseWhenNilManager(t *testing.T) {
 	svc := newMockServices()
 	// Default mock returns nil, nil for SourceManager

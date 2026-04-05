@@ -27,6 +27,10 @@ type statusScreen struct {
 	filter    string
 	filtering bool
 
+	// generation is incremented on every ScopeSwitchedMsg so that stale
+	// statusLoadedMsg results from a previous scope's goroutine are discarded.
+	generation uint64
+
 	renderedLines []string  // content lines cached after data loads
 	height        int       // terminal height, updated by tea.WindowSizeMsg
 	scroll        listScroll
@@ -34,8 +38,9 @@ type statusScreen struct {
 
 // statusLoadedMsg carries the results of loading status data.
 type statusLoadedMsg struct {
-	entries []deploy.StatusEntry
-	err     error
+	entries    []deploy.StatusEntry
+	err        error
+	generation uint64
 }
 
 func newStatusScreen(svc Services, styles Styles, isDark bool) *statusScreen {
@@ -65,26 +70,28 @@ func (s *statusScreen) HelpItems() []HelpItem {
 func (s *statusScreen) Init() tea.Cmd {
 	// M10: capture svc in local to avoid capturing mutable receiver in goroutine
 	svc := s.svc
+	gen := s.generation
 	return func() tea.Msg {
-		return loadStatus(svc)
+		return loadStatus(svc, gen)
 	}
 }
 
-func loadStatus(svc Services) statusLoadedMsg {
+func loadStatus(svc Services, gen uint64) statusLoadedMsg {
 	eng, err := svc.DeployEngine()
 	if err != nil {
-		return statusLoadedMsg{err: err}
+		return statusLoadedMsg{err: err, generation: gen}
 	}
 	if eng == nil {
-		return statusLoadedMsg{err: fmt.Errorf("deploy engine not available")}
+		return statusLoadedMsg{err: fmt.Errorf("deploy engine not available"), generation: gen}
 	}
 	entries, err := eng.Status()
-	return statusLoadedMsg{entries: entries, err: err}
+	return statusLoadedMsg{entries: entries, err: err, generation: gen}
 }
 
 func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ScopeSwitchedMsg:
+		s.generation++
 		s.loaded = false
 		s.entries = nil
 		s.renderedLines = nil
@@ -92,6 +99,9 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, s.Init()
 
 	case statusLoadedMsg:
+		if msg.generation != s.generation {
+			return s, nil // stale result from a previous scope; discard
+		}
 		s.loaded = true
 		s.entries = msg.entries
 		s.err = msg.err

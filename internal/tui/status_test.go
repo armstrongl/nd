@@ -270,7 +270,7 @@ func TestStatusScreen_LoadStatusReturnsMsg(t *testing.T) {
 
 	// Default mockServices.DeployEngine() returns (nil, nil), which should
 	// produce an error in loadStatus since engine is nil.
-	loaded := loadStatus(svc)
+	loaded := loadStatus(svc, 0)
 	if loaded.err == nil {
 		t.Fatal("loadStatus() with nil engine should return an error")
 	}
@@ -625,6 +625,77 @@ func TestStatusScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
+// --- Generation counter (stale message guard) tests ---
+
+func TestStatusScreen_ScopeSwitchedMsg_IncrementsGeneration(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	// Load initial data so the screen is in a non-trivial state.
+	s.Update(statusLoadedMsg{entries: testStatusEntries()})
+	before := s.generation
+
+	s.Update(ScopeSwitchedMsg{})
+
+	if s.generation != before+1 {
+		t.Fatalf("generation = %d, want %d", s.generation, before+1)
+	}
+}
+
+func TestStatusScreen_StaleLoadedMsgDiscarded(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	// Load initial data, then scope-switch (generation goes from 0 to 1).
+	s.Update(statusLoadedMsg{entries: testStatusEntries()})
+	s.Update(ScopeSwitchedMsg{})
+
+	if s.generation != 1 {
+		t.Fatalf("precondition: generation = %d, want 1", s.generation)
+	}
+
+	// Simulate a stale loaded message arriving from the old scope (generation 0).
+	staleEntries := []deploy.StatusEntry{
+		{
+			Deployment: state.Deployment{AssetName: "stale", AssetType: nd.AssetSkill, SourceID: "old", Scope: nd.ScopeGlobal},
+			Health:     state.HealthOK,
+		},
+	}
+	s.Update(statusLoadedMsg{entries: staleEntries, generation: 0})
+
+	// The stale message should be discarded.
+	if s.loaded {
+		t.Error("loaded should remain false after stale statusLoadedMsg")
+	}
+	if s.entries != nil {
+		t.Error("entries should remain nil after stale statusLoadedMsg")
+	}
+}
+
+func TestStatusScreen_FreshLoadedMsgAccepted(t *testing.T) {
+	svc := newMockServices()
+	s := newStatusScreen(svc, NewStyles(true), true)
+
+	// Scope switch increments generation to 1.
+	s.Update(ScopeSwitchedMsg{})
+
+	// Fresh message with matching generation should be accepted.
+	freshEntries := []deploy.StatusEntry{
+		{
+			Deployment: state.Deployment{AssetName: "fresh", AssetType: nd.AssetSkill, SourceID: "new", Scope: nd.ScopeGlobal},
+			Health:     state.HealthOK,
+		},
+	}
+	s.Update(statusLoadedMsg{entries: freshEntries, generation: 1})
+
+	if !s.loaded {
+		t.Error("loaded should be true after fresh statusLoadedMsg")
+	}
+	if len(s.entries) != 1 || s.entries[0].Deployment.AssetName != "fresh" {
+		t.Errorf("entries should contain fresh data, got %v", s.entries)
 	}
 }
 

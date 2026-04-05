@@ -10,9 +10,10 @@ import (
 
 // browseLoadedMsg carries the results of the async asset load.
 type browseLoadedMsg struct {
-	assets   []*asset.Asset
-	deployed map[string]bool // identity.String() -> true
-	err      error
+	assets     []*asset.Asset
+	deployed   map[string]bool // identity.String() -> true
+	err        error
+	generation uint64
 }
 
 // browseScreen shows all available assets with deployment status markers.
@@ -32,6 +33,10 @@ type browseScreen struct {
 	notice    string // transient feedback (e.g. "already deployed")
 	err       error
 	loaded    bool
+
+	// generation is incremented on every ScopeSwitchedMsg so that stale
+	// browseLoadedMsg results from a previous scope's goroutine are discarded.
+	generation uint64
 
 	height int       // terminal height, updated by tea.WindowSizeMsg
 	scroll listScroll
@@ -68,10 +73,11 @@ func (b *browseScreen) FullHelpItems() []HelpItem {
 // Init starts async loading of all assets and deployed state.
 func (b *browseScreen) Init() tea.Cmd {
 	svc := b.svc
+	gen := b.generation
 	return func() tea.Msg {
 		summary, err := svc.ScanIndex()
 		if err != nil {
-			return browseLoadedMsg{err: err}
+			return browseLoadedMsg{err: err, generation: gen}
 		}
 
 		agentAlias := ""
@@ -94,7 +100,7 @@ func (b *browseScreen) Init() tea.Cmd {
 			}
 		}
 
-		return browseLoadedMsg{assets: assets, deployed: deployed}
+		return browseLoadedMsg{assets: assets, deployed: deployed, generation: gen}
 	}
 }
 
@@ -102,6 +108,7 @@ func (b *browseScreen) Init() tea.Cmd {
 func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ScopeSwitchedMsg:
+		b.generation++
 		b.loaded = false
 		b.assets = nil
 		b.deployed = nil
@@ -112,6 +119,9 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return b, b.Init()
 
 	case browseLoadedMsg:
+		if msg.generation != b.generation {
+			return b, nil // stale result from a previous scope; discard
+		}
 		b.loaded = true
 		b.assets = msg.assets
 		b.deployed = msg.deployed

@@ -22,14 +22,16 @@ const (
 
 // doctorCheckedMsg carries the results of the async health check.
 type doctorCheckedMsg struct {
-	issues []state.HealthCheck
-	err    error
+	issues     []state.HealthCheck
+	err        error
+	generation uint64
 }
 
 // doctorSyncedMsg carries the results of the async sync/repair operation.
 type doctorSyncedMsg struct {
-	result *deploy.SyncResult
-	err    error
+	result     *deploy.SyncResult
+	err        error
+	generation uint64
 }
 
 // doctorScreen implements the doctor flow: scan -> confirm -> fix -> result.
@@ -38,6 +40,11 @@ type doctorScreen struct {
 	styles Styles
 	isDark bool
 	step   doctorStep
+
+	// generation is incremented on every ScopeSwitchedMsg so that stale
+	// doctorCheckedMsg/doctorSyncedMsg results from a previous scope's
+	// goroutine are discarded.
+	generation uint64
 
 	// confirm step
 	issues      []state.HealthCheck
@@ -68,16 +75,17 @@ func (d *doctorScreen) InputActive() bool {
 // Init starts an async health check.
 func (d *doctorScreen) Init() tea.Cmd {
 	svc := d.svc
+	gen := d.generation
 	return func() tea.Msg {
 		eng, err := svc.DeployEngine()
 		if err != nil {
-			return doctorCheckedMsg{err: err}
+			return doctorCheckedMsg{err: err, generation: gen}
 		}
 		if eng == nil {
-			return doctorCheckedMsg{err: fmt.Errorf("deploy engine not available")}
+			return doctorCheckedMsg{err: fmt.Errorf("deploy engine not available"), generation: gen}
 		}
 		issues, err := eng.Check()
-		return doctorCheckedMsg{issues: issues, err: err}
+		return doctorCheckedMsg{issues: issues, err: err, generation: gen}
 	}
 }
 
@@ -85,10 +93,13 @@ func (d *doctorScreen) Init() tea.Cmd {
 func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ScopeSwitchedMsg:
+		d.generation++
 		d.step = doctorLoading
 		d.issues = nil
 		d.err = nil
 		d.scroll = listScroll{}
+		d.fixing = false
+		d.confirmed = false
 		return d, d.Init()
 
 	case tea.WindowSizeMsg:
@@ -96,9 +107,15 @@ func (d *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return d, nil
 
 	case doctorCheckedMsg:
+		if msg.generation != d.generation {
+			return d, nil // stale result from a previous scope; discard
+		}
 		return d.handleChecked(msg)
 
 	case doctorSyncedMsg:
+		if msg.generation != d.generation {
+			return d, nil // stale result from a previous scope; discard
+		}
 		d.step = doctorDone
 		d.syncResult = msg.result
 		d.err = msg.err
@@ -242,16 +259,17 @@ func (d *doctorScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 // runSync fires the async Sync operation.
 func (d *doctorScreen) runSync() tea.Cmd {
 	svc := d.svc
+	gen := d.generation
 	return func() tea.Msg {
 		eng, err := svc.DeployEngine()
 		if err != nil {
-			return doctorSyncedMsg{err: err}
+			return doctorSyncedMsg{err: err, generation: gen}
 		}
 		if eng == nil {
-			return doctorSyncedMsg{err: fmt.Errorf("deploy engine not available")}
+			return doctorSyncedMsg{err: fmt.Errorf("deploy engine not available"), generation: gen}
 		}
 		result, err := eng.Sync()
-		return doctorSyncedMsg{result: result, err: err}
+		return doctorSyncedMsg{result: result, err: err, generation: gen}
 	}
 }
 

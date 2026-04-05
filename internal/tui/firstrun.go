@@ -77,6 +77,11 @@ func (f *firstRunScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, f.handleSelection()
 	}
 
+	if f.form.State == huh.StateAborted {
+		f.navigated = true
+		return f, tea.Quit
+	}
+
 	return f, cmd
 }
 

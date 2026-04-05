@@ -81,7 +81,13 @@ func (m *mainMenuScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.form.State == huh.StateCompleted {
 		m.navigated = true
-		return m, m.handleSelection()
+		if cmd := m.handleSelection(); cmd != nil {
+			return m, cmd
+		}
+		// handleSelection returned nil (separator or unknown value).
+		// Reset navigated so the menu stays responsive.
+		m.navigated = false
+		return m, nil
 	}
 
 	return m, cmd
@@ -118,6 +124,9 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 		screen = newScopeScreen(m.svc, m.styles, m.isDark)
 	case "settings":
 		screen = newSettingsScreen(m.svc, m.styles, m.isDark)
+	case "export":
+		// Export has no TUI screen yet — return to the main menu.
+		return func() tea.Msg { return BackMsg{} }
 	case "quit":
 		return tea.Quit
 	default:

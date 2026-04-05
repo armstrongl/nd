@@ -1,11 +1,14 @@
 package tui
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 // newTestModel creates a Model with a mock services and a main menu screen.
@@ -20,6 +23,55 @@ func newTestModel() Model {
 		width:   80,
 		height:  24,
 	}
+}
+
+// newTestModelWithSources creates a Model backed by a mock that has user sources configured,
+// so hasUserSources returns true and resetRootMenu creates a mainMenuScreen.
+func newTestModelWithSources(t *testing.T) Model {
+	t.Helper()
+	svc := newMockServicesWithSources(t)
+	styles := NewStyles(true)
+	return Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
+	}
+}
+
+// newMockServicesWithSources creates a mockServices whose SourceManager returns
+// a real SourceManager with at least one user (non-builtin) source.
+func newMockServicesWithSources(t *testing.T) *mockServices {
+	t.Helper()
+	dir := t.TempDir()
+	configPath := dir + "/config.yaml"
+	srcDir := dir + "/my-source"
+	if err := os.Mkdir(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgYAML := fmt.Sprintf(`version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: user-src
+    type: local
+    path: %s
+`, srcDir)
+	if err := os.WriteFile(configPath, []byte(cfgYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("sourcemanager.New: %v", err)
+	}
+	svc := newMockServices()
+	svc.sourceManagerFn = func() (*sourcemanager.SourceManager, error) {
+		return sm, nil
+	}
+	return svc
 }
 
 // newTestModelWithScreen creates a Model with the given screen on the stack.
@@ -103,7 +155,7 @@ func TestPopToRootMsg_ClearsStack(t *testing.T) {
 
 // BackMsg returning to root must recreate the main menu so its huh form is fresh.
 func TestBackMsg_RecreatesMainMenu(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// Mark the root menu stale (as happens after a selection is made).
 	stale := m.screens[0].(*mainMenuScreen)
@@ -131,7 +183,7 @@ func TestBackMsg_RecreatesMainMenu(t *testing.T) {
 
 // Esc returning to root must recreate the main menu so its huh form is fresh.
 func TestGlobalKey_Esc_RecreatesMainMenu(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	stale := m.screens[0].(*mainMenuScreen)
 	stale.navigated = true
@@ -158,7 +210,7 @@ func TestGlobalKey_Esc_RecreatesMainMenu(t *testing.T) {
 // PopToRootMsg must recreate the main menu so its huh form is fresh.
 // The old instance has navigated=true which blocks all input.
 func TestPopToRootMsg_RecreatesMainMenu(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// Exhaust the main menu by marking it navigated.
 	stale := m.screens[0].(*mainMenuScreen)
@@ -416,6 +468,140 @@ func TestGlobalKey_CtrlS_ReverseToggle_ProjectToGlobal(t *testing.T) {
 	}
 	if svc.resetCalls[0].Scope != nd.ScopeGlobal {
 		t.Errorf("expected scope %q, got %q", nd.ScopeGlobal, svc.resetCalls[0].Scope)
+	}
+}
+
+// ISSUE-004: resetRootMenu must return firstRunScreen when no user sources exist,
+// preventing bypass of the first-run setup flow via esc/back navigation.
+func TestResetRootMenu_ReturnsFirstRunWhenNoSources(t *testing.T) {
+	svc := newMockServices()
+	// Default mock returns nil SourceManager → hasUserSources == false
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{stubScreen{title: "placeholder"}},
+		width:   80,
+		height:  24,
+	}
+
+	updated, cmd := m.resetRootMenu()
+	m2 := updated.(Model)
+
+	if _, ok := m2.screens[0].(*firstRunScreen); !ok {
+		t.Fatalf("expected *firstRunScreen at root when no sources, got %T", m2.screens[0])
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh first-run screen")
+	}
+}
+
+// ISSUE-004: resetRootMenu must return mainMenuScreen when user sources exist.
+func TestResetRootMenu_ReturnsMainMenuWhenSourcesExist(t *testing.T) {
+	svc := newMockServices()
+	// Provide a real SourceManager with a user source so hasUserSources == true.
+	dir := t.TempDir()
+	configPath := dir + "/config.yaml"
+	srcDir := dir + "/my-source"
+	if err := os.Mkdir(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgYAML := fmt.Sprintf(`version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: user-src
+    type: local
+    path: %s
+`, srcDir)
+	if err := os.WriteFile(configPath, []byte(cfgYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("sourcemanager.New: %v", err)
+	}
+	svc.sourceManagerFn = func() (*sourcemanager.SourceManager, error) {
+		return sm, nil
+	}
+
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{stubScreen{title: "placeholder"}},
+		width:   80,
+		height:  24,
+	}
+
+	updated, cmd := m.resetRootMenu()
+	m2 := updated.(Model)
+
+	if _, ok := m2.screens[0].(*mainMenuScreen); !ok {
+		t.Fatalf("expected *mainMenuScreen at root when sources exist, got %T", m2.screens[0])
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh main menu")
+	}
+}
+
+// ISSUE-004: navigating back from source screen to root without adding a source
+// must land on firstRunScreen, not mainMenuScreen.
+func TestBackMsg_ReturnsFirstRunWhenNoSources(t *testing.T) {
+	svc := newMockServices()
+	// No sources configured (default mock)
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newFirstRunScreen(svc, styles, true), stubScreen{title: "Source"}},
+		width:   80,
+		height:  24,
+	}
+
+	updated, cmd := m.Update(BackMsg{})
+	m2 := updated.(Model)
+
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected 1 screen after BackMsg, got %d", len(m2.screens))
+	}
+	if _, ok := m2.screens[0].(*firstRunScreen); !ok {
+		t.Fatalf("expected *firstRunScreen at root after back with no sources, got %T", m2.screens[0])
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh first-run screen")
+	}
+}
+
+// ISSUE-004: esc from source screen to root without adding a source
+// must land on firstRunScreen, not mainMenuScreen.
+func TestEsc_ReturnsFirstRunWhenNoSources(t *testing.T) {
+	svc := newMockServices()
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newFirstRunScreen(svc, styles, true), stubScreen{title: "Source"}},
+		width:   80,
+		height:  24,
+	}
+
+	updated, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	m2 := updated.(Model)
+
+	if len(m2.screens) != 1 {
+		t.Fatalf("expected 1 screen after esc, got %d", len(m2.screens))
+	}
+	if _, ok := m2.screens[0].(*firstRunScreen); !ok {
+		t.Fatalf("expected *firstRunScreen at root after esc with no sources, got %T", m2.screens[0])
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd from fresh first-run screen")
 	}
 }
 

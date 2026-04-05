@@ -560,6 +560,60 @@ func TestBrowseScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
 	}
 }
 
+// --- Generation counter (stale message guard) tests ---
+
+func TestBrowseScreen_ScopeSwitchedMsg_IncrementsGeneration(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+	before := s.generation
+
+	s.Update(ScopeSwitchedMsg{})
+
+	if s.generation != before+1 {
+		t.Fatalf("generation = %d, want %d", s.generation, before+1)
+	}
+}
+
+func TestBrowseScreen_StaleLoadedMsgDiscarded(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+
+	// Simulate a scope switch (generation goes from 0 to 1).
+	s.Update(ScopeSwitchedMsg{})
+	if s.generation != 1 {
+		t.Fatalf("precondition: generation = %d, want 1", s.generation)
+	}
+
+	// Simulate a stale loaded message arriving from the old scope (generation 0).
+	staleAssets := []*asset.Asset{{Identity: asset.Identity{SourceID: "old", Type: nd.AssetSkill, Name: "stale-asset"}}}
+	s.Update(browseLoadedMsg{assets: staleAssets, generation: 0})
+
+	// The stale message should have been discarded: loaded should remain false,
+	// assets should remain nil (reset by ScopeSwitchedMsg).
+	if s.loaded {
+		t.Error("loaded should remain false after stale browseLoadedMsg")
+	}
+	if s.assets != nil {
+		t.Error("assets should remain nil after stale browseLoadedMsg")
+	}
+}
+
+func TestBrowseScreen_FreshLoadedMsgAccepted(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+
+	// Scope switch increments generation to 1.
+	s.Update(ScopeSwitchedMsg{})
+
+	// Fresh message with matching generation should be accepted.
+	freshAssets := []*asset.Asset{{Identity: asset.Identity{SourceID: "new", Type: nd.AssetSkill, Name: "fresh-asset"}}}
+	s.Update(browseLoadedMsg{assets: freshAssets, generation: 1})
+
+	if !s.loaded {
+		t.Error("loaded should be true after fresh browseLoadedMsg")
+	}
+	if len(s.assets) != 1 || s.assets[0].Name != "fresh-asset" {
+		t.Errorf("assets should contain fresh data, got %v", s.assets)
+	}
+}
+
 func TestBrowseScreen_TypeAndSourceShown(t *testing.T) {
 	assets := []asset.Asset{
 		{Identity: asset.Identity{SourceID: "my-source", Type: nd.AssetRule, Name: "go-rules"}},

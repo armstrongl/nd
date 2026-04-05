@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -144,7 +145,7 @@ func TestScope_HandleSelectionCallsResetForScope(t *testing.T) {
 	}
 }
 
-func TestScope_NoProjectRootReturnsPopToRoot(t *testing.T) {
+func TestScope_NoProjectRootShowsError(t *testing.T) {
 	svc := newMockServices()
 	// GetProjectRoot defaults to "" in mock — no project root available
 	s := NewStyles(true)
@@ -152,18 +153,76 @@ func TestScope_NoProjectRootReturnsPopToRoot(t *testing.T) {
 
 	m.choice = "project"
 	cmd := m.handleScopeSelection()
-	if cmd == nil {
-		t.Fatal("handleScopeSelection() returned nil for project with no root")
+
+	// handleScopeSelection returns nil cmd and transitions to error step.
+	if cmd != nil {
+		t.Fatal("handleScopeSelection() should return nil cmd on missing project root")
+	}
+	if m.step != scopeShowError {
+		t.Fatalf("step = %d, want scopeShowError (%d)", m.step, scopeShowError)
+	}
+	wantMsg := "Cannot switch to project scope: no project root detected."
+	if m.errorMsg != wantMsg {
+		t.Fatalf("errorMsg = %q, want %q", m.errorMsg, wantMsg)
 	}
 
-	// Should emit PopToRootMsg without calling ResetForScope.
+	// Should NOT call ResetForScope.
 	if len(svc.resetCalls) != 0 {
 		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+}
+
+func TestScope_NoProjectRootViewShowsErrorMessage(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newScopeScreen(svc, s, true)
+
+	m.choice = "project"
+	m.handleScopeSelection()
+
+	v := m.View()
+	if !strings.Contains(v.Content, "Cannot switch to project scope: no project root detected.") {
+		t.Fatalf("View() should contain error message, got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "Press enter to return.") {
+		t.Fatalf("View() should contain 'Press enter to return.' hint, got:\n%s", v.Content)
+	}
+}
+
+func TestScope_NoProjectRootEnterEmitsPopToRoot(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newScopeScreen(svc, s, true)
+
+	// Trigger the error state.
+	m.choice = "project"
+	m.handleScopeSelection()
+	if m.step != scopeShowError {
+		t.Fatalf("expected scopeShowError step, got %d", m.step)
+	}
+
+	// Pressing enter on the error screen should emit PopToRootMsg.
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("Update(enter) should return a cmd on error screen")
 	}
 
 	msg := cmd()
 	if _, ok := msg.(PopToRootMsg); !ok {
 		t.Fatalf("expected PopToRootMsg, got %T", msg)
+	}
+}
+
+func TestScope_NoProjectRootInputActiveIsFalse(t *testing.T) {
+	svc := newMockServices()
+	s := NewStyles(true)
+	m := newScopeScreen(svc, s, true)
+
+	m.choice = "project"
+	m.handleScopeSelection()
+
+	if m.InputActive() {
+		t.Fatal("InputActive() should be false during error step")
 	}
 }
 

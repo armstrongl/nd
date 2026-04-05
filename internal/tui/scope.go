@@ -1,9 +1,18 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"github.com/armstrongl/nd/internal/nd"
+)
+
+type scopeStep int
+
+const (
+	scopeFormStep scopeStep = iota
+	scopeShowError
 )
 
 type scopeScreen struct {
@@ -13,6 +22,8 @@ type scopeScreen struct {
 	styles    Styles
 	isDark    bool
 	navigated bool
+	step      scopeStep
+	errorMsg  string
 }
 
 func newScopeScreen(svc Services, styles Styles, isDark bool) *scopeScreen {
@@ -41,32 +52,50 @@ func newScopeScreen(svc Services, styles Styles, isDark bool) *scopeScreen {
 }
 
 func (s *scopeScreen) Title() string    { return "Switch Scope" }
-func (s *scopeScreen) InputActive() bool { return !s.navigated }
+func (s *scopeScreen) InputActive() bool { return s.step == scopeFormStep && !s.navigated }
 
 func (s *scopeScreen) Init() tea.Cmd {
 	return s.form.Init()
 }
 
 func (s *scopeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if s.navigated {
+	switch s.step {
+	case scopeShowError:
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+			if keyMsg.String() == "enter" {
+				return s, func() tea.Msg { return PopToRootMsg{} }
+			}
+		}
 		return s, nil
-	}
 
-	model, cmd := s.form.Update(msg)
-	if f, ok := model.(*huh.Form); ok {
-		s.form = f
-	}
+	default: // scopeFormStep
+		if s.navigated {
+			return s, nil
+		}
 
-	if s.form.State == huh.StateCompleted {
-		s.navigated = true
-		return s, s.handleScopeSelection()
-	}
+		model, cmd := s.form.Update(msg)
+		if f, ok := model.(*huh.Form); ok {
+			s.form = f
+		}
 
-	return s, cmd
+		if s.form.State == huh.StateCompleted {
+			s.navigated = true
+			return s, s.handleScopeSelection()
+		}
+
+		return s, cmd
+	}
 }
 
 func (s *scopeScreen) View() tea.View {
-	return tea.NewView(s.form.View())
+	switch s.step {
+	case scopeShowError:
+		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
+			s.errorMsg,
+			s.styles.Subtle.Render("Press enter to return.")))
+	default:
+		return tea.NewView(s.form.View())
+	}
 }
 
 func (s *scopeScreen) handleScopeSelection() tea.Cmd {
@@ -74,7 +103,9 @@ func (s *scopeScreen) handleScopeSelection() tea.Cmd {
 
 	// Project scope requires a project root.
 	if newScope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
-		return func() tea.Msg { return PopToRootMsg{} }
+		s.errorMsg = "Cannot switch to project scope: no project root detected."
+		s.step = scopeShowError
+		return nil
 	}
 
 	projectRoot := s.svc.GetProjectRoot()
