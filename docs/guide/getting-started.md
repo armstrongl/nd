@@ -1,7 +1,7 @@
 ---
 title: "Get started"
 description: "Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user."
-lastValidated: "2026-03-28"
+lastValidated: "2026-04-05"
 maxAgeDays: 90
 weight: 10
 paths:

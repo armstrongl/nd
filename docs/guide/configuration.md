@@ -1,7 +1,7 @@
 ---
 title: "Configuration"
 description: "Load when modifying config loading, merging, validation, or debugging config file issues."
-lastValidated: "2026-03-28"
+lastValidated: "2026-04-05"
 maxAgeDays: 90
 weight: 40
 paths:

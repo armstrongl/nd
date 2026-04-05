@@ -1,7 +1,7 @@
 ---
 title: "How nd works"
 description: "Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments."
-lastValidated: "2026-03-28"
+lastValidated: "2026-04-05"
 maxAgeDays: 90
 weight: 20
 paths:
