@@ -69,7 +69,7 @@ func newListCmd(app *App) *cobra.Command {
 			}
 
 			agentAlias := ""
-			if ag, err := app.DefaultAgent(); err == nil {
+			if ag, err := app.ActiveAgent(); err == nil {
 				agentAlias = ag.SourceAlias
 			}
 			all := index.FilterByAgent(agentAlias)

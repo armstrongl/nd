@@ -68,7 +68,7 @@ Asset references can be:
 					return fmt.Errorf("scan sources: %w", err)
 				}
 				agentAlias := ""
-				if ag, err := app.DefaultAgent(); err == nil {
+				if ag, err := app.ActiveAgent(); err == nil {
 					agentAlias = ag.SourceAlias
 				}
 				var completions []string
@@ -255,7 +255,7 @@ Asset references can be:
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		agentAlias := ""
-		if ag, err := app.DefaultAgent(); err == nil {
+		if ag, err := app.ActiveAgent(); err == nil {
 			agentAlias = ag.SourceAlias
 		}
 		var names []string

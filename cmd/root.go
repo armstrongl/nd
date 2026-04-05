@@ -54,6 +54,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	pf := rootCmd.PersistentFlags()
 	pf.StringVarP(&app.ConfigPath, "config", "", defaultConfigPath(), "path to config file")
 	pf.StringVarP((*string)(&app.Scope), "scope", "s", string(nd.ScopeGlobal), "deployment scope (global|project)")
+	pf.StringVar(&app.AgentFlag, "agent", "", "target agent (e.g., claude-code, copilot)")
 	pf.BoolVar(&app.DryRun, "dry-run", false, "show what would happen without making changes")
 	pf.BoolVarP(&app.Verbose, "verbose", "v", false, "verbose output to stderr")
 	pf.BoolVarP(&app.Quiet, "quiet", "q", false, "suppress non-error output")
