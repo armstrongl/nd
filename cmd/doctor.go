@@ -17,6 +17,14 @@ func newDoctorCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
 		Short: "Check nd configuration and deployment health",
+		Example: `  # Run a full health check
+  nd doctor
+
+  # Output as JSON for CI
+  nd doctor --json`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,troubleshooting",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

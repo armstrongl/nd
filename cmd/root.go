@@ -22,6 +22,17 @@ func NewRootCmd(app *App) *cobra.Command {
 		Version:       version.String(),
 		Short:         "Napoleon Dynamite - coding agent asset manager",
 		Long:          "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
+		Example: `  # Deploy an asset
+  nd deploy skills/greeting
+
+  # List available assets
+  nd list --type skills
+
+  # Check deployment health
+  nd doctor
+
+  # Open the TUI
+  nd`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

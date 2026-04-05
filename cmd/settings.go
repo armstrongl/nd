@@ -10,8 +10,9 @@ import (
 
 func newSettingsCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "settings",
-		Short: "Manage nd settings",
+		Use:     "settings",
+		Short:   "Manage nd settings",
+		Example: `  nd settings edit`,
 	}
 
 	cmd.AddCommand(newSettingsEditCmd(app))
@@ -22,6 +23,11 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "edit",
 		Short: "Open settings in your editor",
+		Example: `  # Open config in your default editor
+  nd settings edit`,
+		Annotations: map[string]string{
+			"docs.guides": "configuration",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

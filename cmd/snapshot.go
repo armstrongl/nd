@@ -16,6 +16,12 @@ func newSnapshotCmd(app *App) *cobra.Command {
 		Use:   "snapshot",
 		Short: "Manage deployment snapshots",
 		Long:  "Save, restore, list, and delete point-in-time deployment snapshots.",
+		Example: `  nd snapshot save before-update
+  nd snapshot list
+  nd snapshot restore before-update`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 	}
 
 	cmd.AddCommand(
@@ -32,6 +38,11 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "save <name>",
 		Short: "Save current deployments as a named snapshot",
+		Example: `  # Save current deployments as a snapshot
+  nd snapshot save before-update`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -83,6 +94,14 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore <name>",
 		Short: "Restore deployments from a snapshot",
+		Example: `  # Restore deployments from a snapshot
+  nd snapshot restore before-update
+
+  # Preview what would change
+  nd snapshot restore before-update --dry-run`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -214,6 +233,14 @@ func newSnapshotListCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all snapshots",
+		Example: `  # List all snapshots
+  nd snapshot list
+
+  # Output as JSON
+  nd snapshot list --json`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -255,6 +282,14 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a snapshot",
+		Example: `  # Delete a snapshot
+  nd snapshot delete before-update
+
+  # Delete without confirmation
+  nd snapshot delete before-update --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

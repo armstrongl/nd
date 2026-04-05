@@ -18,6 +18,9 @@ func newCompletionCmd(app *App) *cobra.Command {
 Available shells: bash, zsh, fish
 
 Run "nd completion <shell> --help" for shell-specific instructions.`,
+		Example: `  nd completion bash
+  nd completion zsh --install
+  nd completion fish`,
 		Hidden: true,
 	}
 
@@ -46,6 +49,11 @@ Or manually:
   nd completion bash > ~/.local/share/bash-completion/completions/nd
 
 Then restart your shell or source the file.`,
+		Example: `  # Print bash completion script
+  nd completion bash
+
+  # Auto-install to standard location
+  nd completion bash --install`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCmd := cmd.Root()
@@ -84,6 +92,14 @@ Or manually:
 Then add to ~/.zshrc (if not already present):
   fpath+=~/.zfunc
   autoload -Uz compinit && compinit`,
+		Example: `  # Print zsh completion script
+  nd completion zsh
+
+  # Auto-install to ~/.zfunc
+  nd completion zsh --install
+
+  # Install to custom directory
+  nd completion zsh --install-dir ~/.my-completions`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCmd := cmd.Root()
@@ -118,6 +134,11 @@ To install completions:
 
 Or manually:
   nd completion fish > ~/.config/fish/completions/nd.fish`,
+		Example: `  # Print fish completion script
+  nd completion fish
+
+  # Auto-install to standard location
+  nd completion fish --install`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCmd := cmd.Root()

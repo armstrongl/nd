@@ -14,7 +14,18 @@ func newSyncCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Repair symlinks and optionally pull git sources",
-		Args:  cobra.NoArgs,
+		Example: `  # Repair all broken symlinks
+  nd sync
+
+  # Pull and repair a specific git source
+  nd sync --source my-git-source
+
+  # Preview what would be repaired
+  nd sync --dry-run`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,creating-sources,troubleshooting",
+		},
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

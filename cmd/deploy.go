@@ -27,6 +27,29 @@ func newDeployCmd(app *App) *cobra.Command {
 Asset references can be:
   name           Search all types for matching name
   type/name      Search specific type (e.g., skills/greeting)`,
+		Example: `  # Deploy a single asset
+  nd deploy skills/greeting
+
+  # Deploy by name (if unique across types)
+  nd deploy greeting
+
+  # Deploy multiple assets at once
+  nd deploy skills/greeting commands/hello agents/researcher
+
+  # Filter by type
+  nd deploy --type skills greeting
+
+  # Deploy to project scope
+  nd deploy skills/greeting --scope project
+
+  # Use relative symlinks
+  nd deploy skills/greeting --relative
+
+  # Script-friendly: skip prompts, output JSON
+  nd deploy skills/greeting --yes --json`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,how-nd-works",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
