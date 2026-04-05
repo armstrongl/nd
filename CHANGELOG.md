@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/armstrongl/nd/compare/v0.4.0...v0.5.0) (2026-04-05)
+
+
+### Features
+
+* **staleness:** auto-resolve trivial staleness via commit-type triage ([#48](https://github.com/armstrongl/nd/issues/48)) ([9944250](https://github.com/armstrongl/nd/commit/9944250e2842f929276d183c9a4faa47bea29c2d))
+* **tui:** add Phase 7 polish — first-run, scope, settings, status filter ([c41fde1](https://github.com/armstrongl/nd/commit/c41fde1e9c4447d28c4885eb01731d0504f07227))
+* **tui:** Phase 7 polish — first-run, scope, settings, status filter ([642ee46](https://github.com/armstrongl/nd/commit/642ee460cc8e1e0c5229c913ff93a182eed10ca6))
+
+
+### Bug Fixes
+
+* **tui:** resolve 8 post-audit bugs across menu, doctor, firstrun, settings, scope, and async screens ([3481629](https://github.com/armstrongl/nd/commit/34816292224136db163674396e5b9c72520e1751))
+
 ## [0.4.0](https://github.com/armstrongl/nd/compare/v0.3.0...v0.4.0) (2026-04-03)
 
 
