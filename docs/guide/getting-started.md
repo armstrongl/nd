@@ -113,9 +113,35 @@ Deploy multiple assets at once:
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
-Or run `nd deploy` with no arguments to get an interactive picker.
+Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — `nd remove`, `nd profile switch`, `nd snapshot restore`, and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
 nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+
+**Filter by type:**
+
+```shell
+nd deploy --type skills greeting
+```
+
+**Scopes:**
+
+- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/`)
+- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` in the project root)
+
+```shell
+nd deploy skills/greeting --scope project
+```
+
+**Symlink strategy:**
+
+- **Absolute** (default): Symlinks use absolute paths
+- **Relative** (`--relative`): Symlinks use relative paths (better for portable setups)
+
+```shell
+nd deploy skills/greeting --relative
+```
+
+Change the default strategy in your config file (`symlink_strategy: relative`).
 
 ## 6. Verify
 
@@ -140,14 +166,18 @@ nd doctor
 Enable tab-completion for your shell:
 
 ```shell
-# Bash
+# Print completion script
+nd completion bash
+nd completion zsh
+nd completion fish
+
+# Auto-install to standard location
 nd completion bash --install
-
-# Zsh
 nd completion zsh --install
-
-# Fish
 nd completion fish --install
+
+# Install to custom directory
+nd completion zsh --install-dir ~/.my-completions
 ```
 
 For zsh, add this to your `~/.zshrc` if not already present:
@@ -168,7 +198,6 @@ nd settings edit
 ## Next steps
 
 - **[How nd works](how-nd-works.md):** What happens on disk when you deploy
-- **[User guide](user-guide.md):** Learn about managing sources, scopes, and syncing
 - **[Profiles & snapshots](profiles-and-snapshots.md):** Group assets into profiles and switch between them
 - **[Configuration](configuration.md):** Customize nd behavior
 - **[Creating sources](creating-sources.md):** Build and share your own asset libraries

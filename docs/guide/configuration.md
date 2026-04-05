@@ -158,3 +158,62 @@ nd doctor
 `nd doctor` checks config validity as its first step.
 
 If your config file contains invalid YAML, nd commands report a parse error with the line number. Fix the syntax and retry.
+
+## Global flags
+
+These flags work with every nd command and override config file settings for a single invocation:
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output structured JSON for piping and parsing |
+| `--yes` / `-y` | Skip confirmation prompts (essential for scripts) |
+| `--dry-run` | Preview changes without applying them |
+| `--verbose` / `-v` | Show detailed output on stderr |
+| `--quiet` / `-q` | Suppress non-error output |
+| `--scope` / `-s` | Set deployment scope: `global` or `project` |
+| `--config` | Override config file path |
+| `--no-color` | Disable colored output |
+
+Example scripted workflow:
+
+```shell
+nd deploy skills/greeting --yes --json | jq '.status'
+```
+
+## Operation log
+
+nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/operations.log`. Each line is a JSON object with the timestamp, operation type, affected assets, scope, and success/failure counts.
+
+### View the log
+
+```shell
+# Last 10 operations
+tail -10 ~/.config/nd/logs/operations.log
+
+# Pretty-print with jq
+tail -5 ~/.config/nd/logs/operations.log | jq .
+
+# Filter by operation type
+cat ~/.config/nd/logs/operations.log | jq 'select(.operation == "deploy")'
+
+# Count operations by type
+cat ~/.config/nd/logs/operations.log | jq -r '.operation' | sort | uniq -c | sort -rn
+```
+
+### Log entry fields
+
+| Field | Description |
+|-------|-------------|
+| `timestamp` | ISO 8601 timestamp |
+| `operation` | Operation type: `deploy`, `remove`, `sync`, `profile-switch`, `snapshot-save`, `snapshot-restore`, `source-add`, `source-remove`, `source-sync`, `uninstall` |
+| `assets` | Array of affected asset identities (source, type, name) |
+| `scope` | Deployment scope (`global` or `project`) |
+| `succeeded` | Number of successful operations |
+| `failed` | Number of failed operations |
+| `detail` | Additional context (profile name, source ID, snapshot name) |
+
+### Log rotation
+
+nd rotates the log file automatically when it exceeds 1 MB. nd preserves the previous log as `operations.log.1` and keeps only one rotated backup.
+
+Dry-run operations (`--dry-run`) do not write log entries.

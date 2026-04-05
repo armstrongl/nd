@@ -50,14 +50,14 @@ Not every directory needs to be present. nd only discovers assets in directories
 
 | Type | Format | Deployable | Description |
 |------|--------|------------|-------------|
-| `skills` | Directory | Yes | Multi-file skill definitions |
-| `agents` | File | Yes | Agent configuration files |
-| `commands` | File | Yes | Custom command definitions |
-| `output-styles` | File | Yes | Output formatting styles (requires manual settings.json registration) |
-| `rules` | File | Yes | Rule files for agent behavior |
-| `context` | Folder-per-asset | Yes | Context files (special deployment rules: see below) |
-| `plugins` | Directory | No | Plugin packages (uses export workflow, not symlinks) |
-| `hooks` | Directory | Yes | Hook definitions (requires manual settings.json registration) |
+| [`skills`](asset-types/skills.md) | Directory | Yes | Multi-file skill definitions |
+| [`agents`](asset-types/agents.md) | File | Yes | Agent configuration files |
+| [`commands`](asset-types/commands.md) | File | Yes | Custom command definitions |
+| [`output-styles`](asset-types/output-styles.md) | File | Yes | Output formatting styles (requires manual settings.json registration) |
+| [`rules`](asset-types/rules.md) | File | Yes | Rule files for agent behavior |
+| [`context`](asset-types/context.md) | Folder-per-asset | Yes | Context files (special deployment rules: see below) |
+| [`plugins`](asset-types/plugins.md) | Directory | No | Plugin packages (uses export workflow, not symlinks) |
+| [`hooks`](asset-types/hooks.md) | Directory | Yes | Hook definitions (requires manual settings.json registration) |
 
 ## Context files
 
@@ -116,3 +116,11 @@ nd source add https://github.com/you/my-assets.git
 ```
 
 nd clones git sources to `~/.config/nd/sources/`. Sync them with `nd sync --source <id>`.
+
+## Remove a source
+
+```shell
+nd source remove <source-id>
+```
+
+If assets from the source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. nd prevents removal of the `builtin` source.
