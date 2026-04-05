@@ -25,8 +25,8 @@ func newDeployCmd(app *App) *cobra.Command {
 		Long: `Deploy one or more assets by creating symlinks from source to agent config.
 
 Asset references can be:
-  name           Search all types for matching name
-  type/name      Search specific type (e.g., skills/greeting)`,
+  name Search all types for matching name
+  type/name Search specific type (e.g., skills/greeting)`,
 		Example: `  # Deploy a single asset
   nd deploy skills/greeting
 
