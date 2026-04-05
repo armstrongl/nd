@@ -42,7 +42,7 @@ Here is a source directory with two assets: a skill (directory) and a rule (file
 ~/my-assets/
 ├── skills/
 │   └── greeting/
-│       └── greeting.md
+│       └── SKILL.md
 └── rules/
     └── no-emojis.md
 ```
@@ -147,7 +147,7 @@ nd deploy skills/greeting --relative
 
 ## What the agent sees
 
-Once you deploy an asset, Claude Code uses it. Claude Code loads skills, agents, commands, and rules from `~/.claude/` in your next session. It loads project-scope assets when you run it from that project's directory.
+Once you deploy an asset, Claude Code uses it. Claude Code typically loads skills, agents, commands, and rules from `~/.claude/` at session start. It loads project-scope assets when you run it from that project's directory.
 
 Two asset types need an extra step after deploying:
 

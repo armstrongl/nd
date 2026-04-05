@@ -5,7 +5,7 @@ lastValidated: "2026-04-04"
 maxAgeDays: 90
 weight: 60
 paths:
-  - "internal/asset/scanner.go"
+  - "internal/sourcemanager/scanner.go"
   - "internal/deploy/**"
   - "internal/deploy/context.go"
 tags:

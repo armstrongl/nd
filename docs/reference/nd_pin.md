@@ -16,7 +16,7 @@ nd pin <asset> [flags]
   # Pin an asset to survive profile switches
   nd pin skills/greeting
 
-  # Pin using just the name
+  # Pin using only the name
   nd pin greeting
 ```
 

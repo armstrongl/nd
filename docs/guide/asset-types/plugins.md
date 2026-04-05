@@ -5,7 +5,7 @@ lastValidated: "2026-04-04"
 maxAgeDays: 90
 weight: 70
 paths:
-  - "internal/asset/scanner.go"
+  - "internal/sourcemanager/scanner.go"
   - "internal/export/**"
   - "cmd/export.go"
 tags:
@@ -21,17 +21,18 @@ Plugins are directory assets that bundle multiple nd assets into a Claude Code p
 ```text
 plugins/
 └── my-toolbox/
-    ├── plugin.json
+    ├── .claude-plugin/
+    │   └── plugin.json
     ├── skills/
     │   └── helper/
-    │       └── helper.md
+    │       └── SKILL.md
     └── commands/
         └── run-all.md
 ```
 
 ## File format
 
-A plugin directory contains a `plugin.json` manifest and asset subdirectories that follow the standard nd structure.
+A plugin directory contains a `.claude-plugin/` subdirectory with a `plugin.json` manifest inside it, plus asset subdirectories that follow the standard nd structure.
 
 ```json
 {
@@ -64,9 +65,10 @@ Not applicable. Plugins bypass the symlink deployment system entirely and have n
 ## Create a plugin
 
 ```shell
+mkdir -p ~/my-assets/plugins/my-toolbox/.claude-plugin
 mkdir -p ~/my-assets/plugins/my-toolbox/skills/greeting
 
-cat > ~/my-assets/plugins/my-toolbox/plugin.json << 'EOF'
+cat > ~/my-assets/plugins/my-toolbox/.claude-plugin/plugin.json << 'EOF'
 {
   "name": "my-toolbox",
   "version": "1.0.0",
@@ -74,7 +76,7 @@ cat > ~/my-assets/plugins/my-toolbox/plugin.json << 'EOF'
 }
 EOF
 
-cat > ~/my-assets/plugins/my-toolbox/skills/greeting/greeting.md << 'EOF'
+cat > ~/my-assets/plugins/my-toolbox/skills/greeting/SKILL.md << 'EOF'
 Greet the user by name with a short, friendly message.
 EOF
 

@@ -5,7 +5,7 @@ lastValidated: "2026-04-04"
 maxAgeDays: 90
 weight: 50
 paths:
-  - "internal/asset/scanner.go"
+  - "internal/sourcemanager/scanner.go"
   - "internal/deploy/**"
 tags:
   - rules
@@ -13,14 +13,16 @@ tags:
   - deployment
 ---
 
-Rules are single-file assets that define behavioral constraints or conventions a coding agent must follow throughout a session.
+Rules are assets that define behavioral constraints or conventions a coding agent must follow throughout a session. A rule can be a single Markdown file or a directory.
 
 ## Directory layout
 
 ```text
 rules/
 ├── no-emojis.md
-└── always-test.md
+├── always-test.md
+└── security-standards/
+    └── ...
 ```
 
 ## File format

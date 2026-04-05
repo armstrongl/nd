@@ -5,7 +5,7 @@ lastValidated: "2026-04-04"
 maxAgeDays: 90
 weight: 80
 paths:
-  - "internal/asset/scanner.go"
+  - "internal/sourcemanager/scanner.go"
   - "internal/deploy/**"
 tags:
   - hooks
@@ -20,13 +20,13 @@ Hooks are directory assets that define event-driven automation triggered by agen
 ```text
 hooks/
 └── pre-tool-lint/
-    ├── hook.json
+    ├── hooks.json
     └── run.sh
 ```
 
 ## File format
 
-Each hook is a directory containing a `hook.json` configuration file and one or more executable scripts.
+Each hook is a directory containing a `hooks.json` configuration file and one or more executable scripts.
 
 ```json
 {
@@ -61,7 +61,7 @@ After running `nd deploy`, open your agent's `settings.json` and add the hook to
 ```shell
 mkdir -p ~/my-assets/hooks/lint-check
 
-cat > ~/my-assets/hooks/lint-check/hook.json << 'EOF'
+cat > ~/my-assets/hooks/lint-check/hooks.json << 'EOF'
 {
   "event": "PreToolUse",
   "description": "Run linter before tool use"
