@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -15,6 +16,9 @@ func stubRegistry(cfg config.Config, lookPath func(string) (string, error), stat
 	r := agent.New(cfg)
 	r.SetLookPath(lookPath)
 	r.SetStat(stat)
+	// Skip binary verification by default in tests to avoid hitting real binaries.
+	// Tests that need to verify binary detection set their own runCommand.
+	r.SetRunCommand(nil)
 	return r
 }
 
@@ -393,5 +397,110 @@ func TestDefaultWithCopilotConfigured(t *testing.T) {
 	}
 	if a.Name != "copilot" {
 		t.Errorf("got %q, want %q", a.Name, "copilot")
+	}
+}
+
+// --- Binary verification tests (Unit 4) ---
+
+func TestDetectBinaryVerified(t *testing.T) {
+	r := stubRegistry(config.Config{}, lookPathFound, statNotFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		return []byte("Claude Code CLI v1.2.3"), nil
+	})
+	result := r.Detect()
+	claude := result.Agents[0]
+	if !claude.InPath {
+		t.Error("expected InPath=true when binary found and version matches")
+	}
+	if !claude.Detected {
+		t.Error("expected Detected=true")
+	}
+}
+
+func TestDetectBinaryNameCollision(t *testing.T) {
+	// Binary exists but version output doesn't match — name collision
+	r := stubRegistry(config.Config{}, lookPathFound, statNotFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		return []byte("some-other-tool v3.0"), nil
+	})
+	result := r.Detect()
+	claude := result.Agents[0]
+	if claude.InPath {
+		t.Error("expected InPath=false when version doesn't match (name collision)")
+	}
+	// No dir either, so not detected
+	if claude.Detected {
+		t.Error("expected Detected=false (no match, no dir)")
+	}
+}
+
+func TestDetectBinaryCollisionFallsBackToDir(t *testing.T) {
+	// Binary doesn't match version, but directory exists
+	r := stubRegistry(config.Config{}, lookPathFound, statFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		return []byte("not-the-right-tool"), nil
+	})
+	result := r.Detect()
+	claude := result.Agents[0]
+	if claude.InPath {
+		t.Error("expected InPath=false when version doesn't match")
+	}
+	if !claude.Detected {
+		t.Error("expected Detected=true (dir exists even though binary doesn't match)")
+	}
+}
+
+func TestDetectVersionCommandTimeout(t *testing.T) {
+	r := stubRegistry(config.Config{}, lookPathFound, statFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		return nil, fmt.Errorf("signal: killed")
+	})
+	result := r.Detect()
+	claude := result.Agents[0]
+	if claude.InPath {
+		t.Error("expected InPath=false when version command fails")
+	}
+	if !claude.Detected {
+		t.Error("expected Detected=true (dir exists as fallback)")
+	}
+}
+
+func TestDetectVersionOnStderr(t *testing.T) {
+	// Version string appears in combined output (could be stderr)
+	r := stubRegistry(config.Config{}, lookPathFound, statNotFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		return []byte("error: something\nGitHub Copilot CLI v2.0\n"), nil
+	})
+	result := r.Detect()
+	copilot := result.Agents[1]
+	if !copilot.InPath {
+		t.Error("expected copilot InPath=true when version found in combined output")
+	}
+}
+
+func TestDetectNoRunCommandDefaultsToNoVerification(t *testing.T) {
+	// When runCommand is nil (not set), binary found via lookPath means InPath=true (legacy behavior)
+	r := stubRegistry(config.Config{}, lookPathFound, statFound)
+	// Don't call SetRunCommand — nil means skip verification
+	result := r.Detect()
+	claude := result.Agents[0]
+	if !claude.InPath {
+		t.Error("expected InPath=true with nil runCommand (legacy behavior)")
+	}
+}
+
+func TestDetectIdempotentWithRunCommand(t *testing.T) {
+	runCount := 0
+	r := stubRegistry(config.Config{}, lookPathFound, statFound)
+	r.SetRunCommand(func(name string, args ...string) ([]byte, error) {
+		runCount++
+		return []byte("claude code"), nil
+	})
+	r.Detect()
+	r.Detect()
+	r.Detect()
+	// 2 agents × 1 detect cycle = 2 runCommand calls
+	if runCount != 2 {
+		t.Errorf("runCommand called %d times, want 2 (one per agent, idempotent across cycles)", runCount)
 	}
 }
