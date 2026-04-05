@@ -10,6 +10,16 @@ Delete a profile
 nd profile delete <name> [flags]
 ```
 
+## Examples
+
+```
+  # Delete a profile
+  nd profile delete my-setup
+
+  # Delete without confirmation
+  nd profile delete my-setup --yes
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd profile delete <name> [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

@@ -24,6 +24,19 @@ Then add to ~/.zshrc (if not already present):
 nd completion zsh [flags]
 ```
 
+## Examples
+
+```
+  # Print zsh completion script
+  nd completion zsh
+
+  # Auto-install to ~/.zfunc
+  nd completion zsh --install
+
+  # Install to custom directory
+  nd completion zsh --install-dir ~/.my-completions
+```
+
 ## Options
 
 ```

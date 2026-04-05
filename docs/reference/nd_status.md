@@ -10,6 +10,19 @@ Show deployment status and health
 nd status [flags]
 ```
 
+## Examples
+
+```
+  # Show all deployed assets and their health
+  nd status
+
+  # Output as JSON for scripting
+  nd status --json
+
+  # Show project-scope deployments
+  nd status --scope project
+```
+
 ## Options
 
 ```
@@ -32,3 +45,7 @@ nd status [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)

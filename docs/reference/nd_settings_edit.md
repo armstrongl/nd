@@ -10,6 +10,13 @@ Open settings in your editor
 nd settings edit [flags]
 ```
 
+## Examples
+
+```
+  # Open config in your default editor
+  nd settings edit
+```
+
 ## Options
 
 ```
@@ -32,3 +39,7 @@ nd settings edit [flags]
 ## Related
 
 - [nd settings](nd_settings.md) - Manage nd settings
+
+## Guides
+
+- [Configuration](../guide/configuration.md)

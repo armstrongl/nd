@@ -10,6 +10,14 @@ Manage asset sources
 
 Add, remove, and list asset source directories.
 
+## Examples
+
+```
+  nd source add ~/my-assets
+  nd source list
+  nd source remove my-assets
+```
+
 ## Options
 
 ```
@@ -35,3 +43,7 @@ Add, remove, and list asset source directories.
 - [nd source add](nd_source_add.md) - Register a new asset source
 - [nd source list](nd_source_list.md) - List registered sources
 - [nd source remove](nd_source_remove.md) - Remove a registered source
+
+## Guides
+
+- [Create sources](../guide/creating-sources.md)

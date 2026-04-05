@@ -10,6 +10,14 @@ Manage deployment profiles
 
 Create, list, deploy, and switch between named profiles.
 
+## Examples
+
+```
+  nd profile create my-setup
+  nd profile list
+  nd profile switch my-setup
+```
+
 ## Options
 
 ```
@@ -38,3 +46,7 @@ Create, list, deploy, and switch between named profiles.
 - [nd profile deploy](nd_profile_deploy.md) - Deploy all assets in a profile
 - [nd profile list](nd_profile_list.md) - List all profiles
 - [nd profile switch](nd_profile_switch.md) - Switch from current profile to another
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

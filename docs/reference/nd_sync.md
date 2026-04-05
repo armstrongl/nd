@@ -10,6 +10,19 @@ Repair symlinks and optionally pull git sources
 nd sync [flags]
 ```
 
+## Examples
+
+```
+  # Repair all broken symlinks
+  nd sync
+
+  # Pull and repair a specific git source
+  nd sync --source my-git-source
+
+  # Preview what would be repaired
+  nd sync --dry-run
+```
+
 ## Options
 
 ```
@@ -33,3 +46,9 @@ nd sync [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [Create sources](../guide/creating-sources.md)
+- [Troubleshoot](../guide/troubleshooting.md)

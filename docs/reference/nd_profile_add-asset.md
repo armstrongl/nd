@@ -10,6 +10,16 @@ Add an asset to an existing profile
 nd profile add-asset <profile> <asset> [flags]
 ```
 
+## Examples
+
+```
+  # Add an asset to an existing profile
+  nd profile add-asset my-setup skills/greeting
+
+  # Add multiple assets
+  nd profile add-asset my-setup skills/greeting commands/hello
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd profile add-asset <profile> <asset> [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

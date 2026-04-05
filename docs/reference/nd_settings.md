@@ -6,6 +6,12 @@ weight: 210
 
 Manage nd settings
 
+## Examples
+
+```
+  nd settings edit
+```
+
 ## Options
 
 ```

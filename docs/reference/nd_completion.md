@@ -14,6 +14,14 @@ Available shells: bash, zsh, fish
 
 Run "nd completion <shell> --help" for shell-specific instructions.
 
+## Examples
+
+```
+  nd completion bash
+  nd completion zsh --install
+  nd completion fish
+```
+
 ## Options
 
 ```

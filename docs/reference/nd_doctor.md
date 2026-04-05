@@ -10,6 +10,16 @@ Check nd configuration and deployment health
 nd doctor [flags]
 ```
 
+## Examples
+
+```
+  # Run a full health check
+  nd doctor
+
+  # Output as JSON for CI
+  nd doctor --json
+```
+
 ## Options
 
 ```
@@ -32,3 +42,8 @@ nd doctor [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [Troubleshoot](../guide/troubleshooting.md)

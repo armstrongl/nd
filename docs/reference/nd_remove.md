@@ -10,6 +10,22 @@ Remove deployed assets
 nd remove <asset> [assets...] [flags]
 ```
 
+## Examples
+
+```
+  # Remove a deployed asset
+  nd remove skills/greeting
+
+  # Remove multiple assets
+  nd remove skills/greeting commands/hello
+
+  # Skip confirmation prompt
+  nd remove skills/greeting --yes
+
+  # Preview what would be removed
+  nd remove skills/greeting --dry-run
+```
+
 ## Options
 
 ```
@@ -32,3 +48,7 @@ nd remove <asset> [assets...] [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)

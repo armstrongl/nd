@@ -10,6 +10,16 @@ List all snapshots
 nd snapshot list [flags]
 ```
 
+## Examples
+
+```
+  # List all snapshots
+  nd snapshot list
+
+  # Output as JSON
+  nd snapshot list --json
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd snapshot list [flags]
 ## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

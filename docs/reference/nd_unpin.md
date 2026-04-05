@@ -10,6 +10,13 @@ Unpin an asset, allowing profile switches to manage it
 nd unpin <asset> [flags]
 ```
 
+## Examples
+
+```
+  # Unpin an asset
+  nd unpin skills/greeting
+```
+
 ## Options
 
 ```
@@ -32,3 +39,7 @@ nd unpin <asset> [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

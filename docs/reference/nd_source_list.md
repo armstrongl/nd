@@ -10,6 +10,16 @@ List registered sources
 nd source list [flags]
 ```
 
+## Examples
+
+```
+  # List all registered sources
+  nd source list
+
+  # Output as JSON
+  nd source list --json
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd source list [flags]
 ## Related
 
 - [nd source](nd_source.md) - Manage asset sources
+
+## Guides
+
+- [Create sources](../guide/creating-sources.md)

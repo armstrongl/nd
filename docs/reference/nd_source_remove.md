@@ -10,6 +10,16 @@ Remove a registered source
 nd source remove <source-id> [flags]
 ```
 
+## Examples
+
+```
+  # Remove a source by ID
+  nd source remove my-assets
+
+  # Skip confirmation prompt
+  nd source remove my-assets --yes
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd source remove <source-id> [flags]
 ## Related
 
 - [nd source](nd_source.md) - Manage asset sources
+
+## Guides
+
+- [Create sources](../guide/creating-sources.md)

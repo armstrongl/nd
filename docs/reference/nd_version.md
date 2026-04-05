@@ -10,6 +10,12 @@ Print nd version information
 nd version [flags]
 ```
 
+## Examples
+
+```
+  nd version
+```
+
 ## Options
 
 ```

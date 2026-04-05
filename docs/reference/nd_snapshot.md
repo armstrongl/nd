@@ -10,6 +10,14 @@ Manage deployment snapshots
 
 Save, restore, list, and delete point-in-time deployment snapshots.
 
+## Examples
+
+```
+  nd snapshot save before-update
+  nd snapshot list
+  nd snapshot restore before-update
+```
+
 ## Options
 
 ```
@@ -36,3 +44,7 @@ Save, restore, list, and delete point-in-time deployment snapshots.
 - [nd snapshot list](nd_snapshot_list.md) - List all snapshots
 - [nd snapshot restore](nd_snapshot_restore.md) - Restore deployments from a snapshot
 - [nd snapshot save](nd_snapshot_save.md) - Save current deployments as a named snapshot
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

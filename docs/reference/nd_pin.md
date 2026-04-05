@@ -10,6 +10,16 @@ Pin an asset to prevent profile switches from removing it
 nd pin <asset> [flags]
 ```
 
+## Examples
+
+```
+  # Pin an asset to survive profile switches
+  nd pin skills/greeting
+
+  # Pin using just the name
+  nd pin greeting
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd pin <asset> [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

@@ -14,6 +14,22 @@ nd manages coding agent assets (skills, commands, rules, etc.) via symlink deplo
 nd [flags]
 ```
 
+## Examples
+
+```
+  # Deploy an asset
+  nd deploy skills/greeting
+
+  # List available assets
+  nd list --type skills
+
+  # Check deployment health
+  nd doctor
+
+  # Open the TUI
+  nd
+```
+
 ## Options
 
 ```

@@ -10,6 +10,16 @@ Deploy all assets in a profile
 nd profile deploy <name> [flags]
 ```
 
+## Examples
+
+```
+  # Deploy all assets in a profile
+  nd profile deploy my-setup
+
+  # Preview what would be deployed
+  nd profile deploy my-setup --dry-run
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd profile deploy <name> [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)
