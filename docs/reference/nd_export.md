@@ -60,3 +60,8 @@ nd export [flags]
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd export marketplace](nd_export_marketplace.md) - Generate a Claude Code marketplace from exported plugins
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [Create sources](../guide/creating-sources.md)

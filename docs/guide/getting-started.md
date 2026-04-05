@@ -14,6 +14,8 @@ tags:
   - onboarding
 ---
 
+nd is an asset manager for AI coding agents. It organizes reusable agent components — skills, agents, commands, rules, context files, output styles, hooks, and plugins — into source directories and deploys them as symlinks into your agent's config directory. Use nd when you want to version, share, or switch between sets of agent assets without copying files around.
+
 This guide takes you from zero to your first deployed asset in about 5 minutes.
 
 ## 1. Install nd
@@ -201,3 +203,4 @@ nd settings edit
 - **[Profiles & snapshots](profiles-and-snapshots.md):** Group assets into profiles and switch between them
 - **[Configuration](configuration.md):** Customize nd behavior
 - **[Creating sources](creating-sources.md):** Build and share your own asset libraries
+- **[Glossary](glossary.md):** Definitions for nd terms like asset, source, scope, and profile

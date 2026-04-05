@@ -42,7 +42,7 @@ Here is a source directory with two assets: a skill (directory) and a rule (file
 ~/my-assets/
 ├── skills/
 │   └── greeting/
-│       └── SKILL.md
+│       └── greeting.md
 └── rules/
     └── no-emojis.md
 ```
@@ -154,3 +154,7 @@ Two asset types need an extra step after deploying:
 - **Hooks** and **output-styles** require manual registration in Claude Code's `settings.json`. nd creates the symlink, but Claude Code needs to be told about them in its settings file. Check Claude Code's documentation for the specific settings entries.
 
 For everything else, deploy and go: no additional nd configuration required.
+
+## Next steps
+
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them without touching individual symlinks.

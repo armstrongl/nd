@@ -16,8 +16,8 @@ nd profile add-asset <profile> <asset> [flags]
   # Add an asset to an existing profile
   nd profile add-asset my-setup skills/greeting
 
-  # Add multiple assets
-  nd profile add-asset my-setup skills/greeting commands/hello
+  # Add a command to a profile
+  nd profile add-asset my-setup commands/hello
 ```
 
 ## Options

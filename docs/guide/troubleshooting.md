@@ -3,7 +3,7 @@ title: "Troubleshoot"
 description: "Load when debugging nd issues: broken symlinks, missing assets, config errors, profile switching problems, or context file conflicts."
 lastValidated: "2026-04-04"
 maxAgeDays: 90
-weight: 60
+weight: 70
 paths:
   - "cmd/doctor.go"
   - "cmd/sync.go"

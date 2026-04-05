@@ -220,7 +220,7 @@ See [How nd works](how-nd-works.md#global-vs-project-scope) for details.
 
 ## Skill
 
-A deployable asset that teaches a coding agent a reusable workflow or capability. Skill assets are directories containing a `SKILL.md` file and optional supporting files, stored in the `skills/` directory of a source.
+A deployable asset that teaches a coding agent a reusable workflow or capability. Skill assets are directories containing a Markdown entry-point file (typically named after the directory, e.g., `greeting.md`) and optional supporting files, stored in the `skills/` directory of a source.
 
 Skills are specific to Claude Code. Other coding agents use different terminology for similar concepts (tools, instructions, prompts).
 
@@ -228,7 +228,7 @@ Skills are specific to Claude Code. Other coding agents use different terminolog
 my-source/
 └── skills/
     └── greeting/
-        └── SKILL.md
+        └── greeting.md
 ```
 
 ## Snapshot

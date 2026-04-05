@@ -71,7 +71,7 @@ Deploy all assets from a profile:
 nd profile deploy work
 ```
 
-This resolves each asset reference from your registered sources and creates symlinks. nd reports missing assets as warnings.
+This resolves each asset reference from your registered sources and creates symlinks. nd reports missing assets as warnings. See [How nd works](how-nd-works.md) for what happens on disk when symlinks are created.
 
 Preview first:
 
