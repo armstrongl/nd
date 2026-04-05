@@ -35,9 +35,7 @@ jobs:
       - name: Run staleness check
         id: staleness
         run: |
-          cd scripts/agents
-          python check-staleness.py --repo-root ../.. --dry-run > ../../staleness-output.json
-          cd ../..
+          python scripts/agents/check-staleness.py --dry-run > staleness-output.json
 
           if [ -s staleness-output.json ] && [ "$(cat staleness-output.json)" != "[]" ]; then
             echo "has_stale=true" >> "$GITHUB_OUTPUT"
@@ -61,9 +59,7 @@ jobs:
         id: autobump
         if: steps.staleness.outputs.auto_count != '0'
         run: |
-          cd scripts/agents
-          BUMPED=$(python bump-validated.py --report ../../staleness-output.json)
-          cd ../..
+          BUMPED=$(python scripts/agents/bump-validated.py --report staleness-output.json)
           echo "bumped=$BUMPED" >> "$GITHUB_OUTPUT"
           echo "Auto-bumped: $BUMPED"
 
@@ -89,10 +85,7 @@ jobs:
 
       - name: Regenerate AGENTS.md index
         if: steps.staleness.outputs.has_stale == 'true'
-        run: |
-          cd scripts/agents
-          python build-index.py --staleness-report ../../review-report.json --agents-md ../../AGENTS.md
-          cd ../..
+        run: python scripts/agents/build-index.py --staleness-report review-report.json
 
       - name: Create pull request
         if: steps.staleness.outputs.has_stale == 'true'

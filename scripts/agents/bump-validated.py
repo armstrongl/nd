@@ -9,6 +9,7 @@ in each file's YAML frontmatter to today's date (or a date given via
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import date
@@ -47,6 +48,11 @@ def main():
         help="Path to the staleness report JSON (default: staleness-report.json)",
     )
     parser.add_argument(
+        "--repo-root",
+        default=".",
+        help="Path to repo root for resolving report file paths (default: .)",
+    )
+    parser.add_argument(
         "--date",
         default=str(date.today()),
         help="Date to set lastValidated to (default: today)",
@@ -72,16 +78,16 @@ def main():
     for entry in report:
         if not entry.get("autoResolvable"):
             continue
-        filepath = entry["file"]
+        filepath = os.path.join(args.repo_root, entry["file"])
         if args.dry_run:
-            print(f"Would bump {filepath} → {args.date}", file=sys.stderr)
-            bumped.append(filepath)
+            print(f"Would bump {entry['file']} → {args.date}", file=sys.stderr)
+            bumped.append(entry["file"])
         else:
             if bump_last_validated(filepath, args.date):
-                bumped.append(filepath)
-                print(f"Bumped {filepath} → {args.date}", file=sys.stderr)
+                bumped.append(entry["file"])
+                print(f"Bumped {entry['file']} → {args.date}", file=sys.stderr)
             else:
-                print(f"Warning: no lastValidated found in {filepath}", file=sys.stderr)
+                print(f"Warning: no lastValidated found in {entry['file']}", file=sys.stderr)
 
     # Machine-readable output for workflow consumption
     print(json.dumps(bumped))

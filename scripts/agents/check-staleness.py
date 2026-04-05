@@ -130,8 +130,12 @@ def check_path_staleness(paths: list[str], last_validated: str, repo_root: str) 
 
     output = run_git_log(last_validated, paths, repo_root)
     if output:
-        commit_count = len(output.strip().split("\n"))
         classification = classify_log_output(output)
+        # Use the classified prefix counts (merge commits excluded)
+        # so the reported count matches the prefixes breakdown.
+        commit_count = sum(classification["prefixes"].values())
+        if commit_count == 0:
+            return None
         return {
             "reason": "paths",
             "detail": f"{commit_count} commit(s) touching tracked paths since {last_validated}",
