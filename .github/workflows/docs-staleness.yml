@@ -36,22 +36,56 @@ jobs:
         id: staleness
         run: |
           python scripts/agents/check-staleness.py --dry-run > staleness-output.json
+
           if [ -s staleness-output.json ] && [ "$(cat staleness-output.json)" != "[]" ]; then
             echo "has_stale=true" >> "$GITHUB_OUTPUT"
-            {
-              echo 'json<<EOF'
-              cat staleness-output.json
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
-            echo "Stale docs found:"
+
+            # Count auto-resolvable vs needs-review
+            AUTO=$(python3 -c "import json; d=json.load(open('staleness-output.json')); print(sum(1 for e in d if e.get('autoResolvable')))")
+            REVIEW=$(python3 -c "import json; d=json.load(open('staleness-output.json')); print(sum(1 for e in d if not e.get('autoResolvable')))")
+            echo "auto_count=$AUTO" >> "$GITHUB_OUTPUT"
+            echo "review_count=$REVIEW" >> "$GITHUB_OUTPUT"
+
+            echo "Stale docs: $AUTO auto-resolvable, $REVIEW need review"
             cat staleness-output.json
           else
             echo "has_stale=false" >> "$GITHUB_OUTPUT"
+            echo "auto_count=0" >> "$GITHUB_OUTPUT"
+            echo "review_count=0" >> "$GITHUB_OUTPUT"
             echo "No stale docs."
           fi
 
+      - name: Auto-bump trivial staleness
+        id: autobump
+        if: steps.staleness.outputs.auto_count != '0'
+        run: |
+          BUMPED=$(python scripts/agents/bump-validated.py --report staleness-output.json)
+          echo "bumped=$BUMPED" >> "$GITHUB_OUTPUT"
+          echo "Auto-bumped: $BUMPED"
+
+      - name: Build review-only report
+        id: review_report
+        if: steps.staleness.outputs.has_stale == 'true'
+        run: |
+          python3 -c "
+          import json
+          d = json.load(open('staleness-output.json'))
+          review = [e for e in d if not e.get('autoResolvable')]
+          with open('review-report.json', 'w') as f:
+            json.dump(review, f, indent=2)
+          print(json.dumps(review, indent=2))
+          "
+          if [ -s review-report.json ] && [ "$(cat review-report.json)" != "[]" ]; then
+            {
+              echo 'json<<EOF'
+              cat review-report.json
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Regenerate AGENTS.md index
-        run: python scripts/agents/build-index.py --staleness-report staleness-output.json
+        if: steps.staleness.outputs.has_stale == 'true'
+        run: python scripts/agents/build-index.py --staleness-report review-report.json
 
       - name: Create pull request
         if: steps.staleness.outputs.has_stale == 'true'
@@ -62,13 +96,12 @@ jobs:
           body: |
             Automated staleness check found docs that may need review.
 
-            See the staleness report below. For each flagged doc, review the content,
-            confirm it is still accurate, update `lastValidated` in the frontmatter,
-            and merge this PR.
+            **Auto-resolved:** ${{ steps.staleness.outputs.auto_count }} doc(s) had only internal commits (`fix`, `refactor`, `test`, `ci`, `chore`, `build`, `style`, `perf`) — `lastValidated` bumped automatically.
 
-            ```json
-            ${{ steps.staleness.outputs.json }}
-            ```
+            **Need review:** ${{ steps.staleness.outputs.review_count }} doc(s) have `feat`, `docs`, or unrecognised commits touching tracked paths.
+
+            ${{ steps.staleness.outputs.review_count != '0' && format('```json{0}{1}{0}```', '
+            ', steps.review_report.outputs.json) || 'No docs need manual review. This PR only contains auto-bumped dates — safe to merge.' }}
           branch: agents/staleness-${{ github.run_id }}
           labels: agents-staleness
           commit-message: "chore: flag stale docs in AGENTS.md"

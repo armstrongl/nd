@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
-"""Checks docs for time-based and path-based staleness. Outputs a JSON report."""
+"""Checks docs for time-based and path-based staleness. Outputs a JSON report.
+
+Commit-type triage
+------------------
+When staleness is path-based, each commit touching the tracked paths is
+classified by its conventional-commit prefix. If every non-merge commit
+uses an *internal* prefix (fix, refactor, test, ci, chore, build, style,
+perf), the doc is marked ``autoResolvable: true`` — the workflow can bump
+``lastValidated`` without human review. Commits with ``feat``, ``docs``,
+or an unrecognised prefix require manual review.
+"""
 
 import argparse
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -12,6 +23,51 @@ from datetime import date, timedelta
 import yaml
 
 from frontmatter import parse_frontmatter
+
+# Conventional-commit prefixes that indicate internal-only changes.
+# Docs tracking these paths almost never need content updates.
+INTERNAL_PREFIXES = frozenset({
+    "fix", "refactor", "test", "ci", "chore", "build", "style", "perf",
+})
+
+
+def classify_commit(message: str) -> str:
+    """Return the conventional-commit prefix of *message*, or a sentinel.
+
+    Returns ``"merge"`` for merge commits, the lowercased prefix for
+    conventional commits (e.g. ``"feat"``, ``"fix"``), or ``"unknown"``
+    when no prefix is recognised.
+    """
+    if message.startswith("Merge "):
+        return "merge"
+    match = re.match(r"^(\w+)(?:\([^)]*\))?!?:", message)
+    if match:
+        return match.group(1).lower()
+    return "unknown"
+
+
+def classify_log_output(log_output: str) -> dict:
+    """Classify every commit in *git log --oneline* output.
+
+    Returns a dict with:
+      ``prefixes``
+        Mapping of prefix → count (merge commits excluded).
+      ``autoResolvable``
+        ``True`` when every non-merge commit has an internal prefix.
+    """
+    prefixes: dict[str, int] = {}
+    for line in log_output.strip().splitlines():
+        # Format: "<hash> <message>"
+        parts = line.split(" ", 1)
+        if len(parts) < 2:
+            continue
+        prefix = classify_commit(parts[1])
+        if prefix == "merge":
+            continue
+        prefixes[prefix] = prefixes.get(prefix, 0) + 1
+
+    auto = bool(prefixes) and all(p in INTERNAL_PREFIXES for p in prefixes)
+    return {"prefixes": prefixes, "autoResolvable": auto}
 
 
 def run_git_log(since: str, paths: list[str], repo_root: str) -> str:
@@ -64,16 +120,27 @@ def check_time_staleness(last_validated: str, max_age_days: int) -> dict | None:
 
 
 def check_path_staleness(paths: list[str], last_validated: str, repo_root: str) -> dict | None:
-    """Check if code paths have changed since lastValidated. Returns dict if stale."""
+    """Check if code paths have changed since lastValidated.
+
+    Returns a dict with ``reason``, ``detail``, commit ``prefixes``, and
+    ``autoResolvable`` flag when stale, or ``None`` otherwise.
+    """
     if not paths:
         return None
 
     output = run_git_log(last_validated, paths, repo_root)
     if output:
-        commit_count = len(output.strip().split("\n"))
+        classification = classify_log_output(output)
+        # Use the classified prefix counts (merge commits excluded)
+        # so the reported count matches the prefixes breakdown.
+        commit_count = sum(classification["prefixes"].values())
+        if commit_count == 0:
+            return None
         return {
             "reason": "paths",
             "detail": f"{commit_count} commit(s) touching tracked paths since {last_validated}",
+            "prefixes": classification["prefixes"],
+            "autoResolvable": classification["autoResolvable"],
         }
     return None
 
@@ -116,14 +183,27 @@ def check_all_docs(docs_dir: str, default_max_age: int, repo_root: str) -> list[
                 reasons.append("paths")
                 details.append(path_result["detail"])
 
-            flagged.append({
+            # Auto-resolvable only when staleness is purely path-based
+            # and every commit uses an internal prefix.
+            auto = (
+                path_result is not None
+                and time_result is None
+                and path_result.get("autoResolvable", False)
+            )
+
+            entry = {
                 "file": os.path.relpath(filepath, repo_root),
                 "title": fm.get("title", os.path.basename(filepath)),
                 "reason": " + ".join(reasons),
                 "details": details,
                 "lastValidated": str(last_validated),
                 "maxAgeDays": max_age_int,
-            })
+                "autoResolvable": auto,
+            }
+            if path_result and path_result.get("prefixes"):
+                entry["prefixes"] = path_result["prefixes"]
+
+            flagged.append(entry)
 
     return flagged
 
