@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -42,13 +43,23 @@ func newInitCmd(app *App) *cobra.Command {
 				return err
 			}
 
-			// Deploy built-in assets
-			deployed, deployErr := deployBuiltinAssets(cmd, app, configDir, app.initAgent)
+			// Detect agents and display status
+			reg := initRegistry(app)
+			detResult := reg.Detect()
+			agentStatus := agentDetectionMap(detResult)
+
+			if !app.JSON && !app.Quiet {
+				displayAgentDetection(w, detResult)
+			}
+
+			// Deploy built-in assets using the registry
+			deployed, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)
 
 			if app.JSON {
 				result := map[string]interface{}{
-					"config_path": app.ConfigPath,
-					"config_dir":  configDir,
+					"config_path":     app.ConfigPath,
+					"config_dir":      configDir,
+					"agents_detected": agentStatus,
 				}
 				if deployed > 0 {
 					result["builtin_deployed"] = deployed
@@ -99,11 +110,53 @@ sources: []
 	return configDir, nil
 }
 
+// initRegistry returns the agent registry for the init command.
+// Uses app.initRegistry if set (tests), otherwise creates a fresh registry
+// from the default config values.
+func initRegistry(app *App) *agent.Registry {
+	if app.initRegistry != nil {
+		return app.initRegistry
+	}
+	cfg := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	return agent.New(cfg)
+}
+
+// displayAgentDetection prints the agent detection status line to the writer.
+// Format: "Detected agents: claude-code (yes), copilot (no)"
+func displayAgentDetection(w io.Writer, result agent.DetectionResult) {
+	line := "Detected agents:"
+	for i, ag := range result.Agents {
+		if i > 0 {
+			line += ","
+		}
+		status := "yes"
+		if !ag.Detected {
+			status = "no"
+		}
+		line += fmt.Sprintf(" %s (%s)", ag.Name, status)
+	}
+	printHuman(w, "%s\n", line)
+}
+
+// agentDetectionMap builds a map of agent name -> detected (bool) for JSON output.
+func agentDetectionMap(result agent.DetectionResult) map[string]bool {
+	m := make(map[string]bool, len(result.Agents))
+	for _, ag := range result.Agents {
+		m[ag.Name] = ag.Detected
+	}
+	return m
+}
+
 // deployBuiltinAssets extracts and deploys all built-in assets during init.
-// If ag is nil, the agent is auto-detected from a fresh config. Pass a non-nil
-// agent in tests to control the deploy target directory.
+// Uses the provided registry to resolve the default agent. If ag is non-nil,
+// it overrides the registry's default (test use only).
 // Returns the number of deployed assets and any error.
-func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, ag *agent.Agent) (int, error) {
+func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *agent.Registry, ag *agent.Agent) (int, error) {
 	w := cmd.OutOrStdout()
 
 	// Extract the builtin cache
@@ -154,15 +207,8 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, ag *age
 		return 0, nil
 	}
 
-	// Auto-detect agent if not provided
+	// Auto-detect agent from registry if not provided
 	if ag == nil {
-		cfg := config.Config{
-			Version:         1,
-			DefaultScope:    nd.ScopeGlobal,
-			DefaultAgent:    "claude-code",
-			SymlinkStrategy: nd.SymlinkAbsolute,
-		}
-		reg := agent.New(cfg)
 		detected, err := reg.Default()
 		if err != nil {
 			if !app.Quiet {

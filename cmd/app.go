@@ -39,6 +39,8 @@ type App struct {
 
 	// initAgent overrides agent detection during init (test use only).
 	initAgent *agent.Agent
+	// initRegistry overrides the agent registry during init (test use only).
+	initRegistry *agent.Registry
 }
 
 // SourceManager returns the source manager, creating it on first call.

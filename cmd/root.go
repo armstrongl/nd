@@ -228,7 +228,7 @@ func offerInit(cmd *cobra.Command, app *App) error {
 		if err != nil {
 			return err
 		}
-		_, err = deployBuiltinAssets(cmd, app, configDir, app.initAgent)
+		_, err = deployBuiltinAssets(cmd, app, configDir, initRegistry(app), app.initAgent)
 		if err != nil {
 			return err
 		}
