@@ -22,3 +22,7 @@ type PopToRootMsg struct{}
 
 // RefreshHeaderMsg re-queries state for header counts.
 type RefreshHeaderMsg struct{}
+
+// ScopeSwitchedMsg signals that the deployment scope changed.
+// Screens caching scope-dependent data should reload when they receive this.
+type ScopeSwitchedMsg struct{}

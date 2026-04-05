@@ -24,6 +24,13 @@ type statusScreen struct {
 	err     error
 	loaded  bool
 
+	filter    string
+	filtering bool
+
+	// generation is incremented on every ScopeSwitchedMsg so that stale
+	// statusLoadedMsg results from a previous scope's goroutine are discarded.
+	generation uint64
+
 	renderedLines []string  // content lines cached after data loads
 	height        int       // terminal height, updated by tea.WindowSizeMsg
 	scroll        listScroll
@@ -31,8 +38,9 @@ type statusScreen struct {
 
 // statusLoadedMsg carries the results of loading status data.
 type statusLoadedMsg struct {
-	entries []deploy.StatusEntry
-	err     error
+	entries    []deploy.StatusEntry
+	err        error
+	generation uint64
 }
 
 func newStatusScreen(svc Services, styles Styles, isDark bool) *statusScreen {
@@ -40,41 +48,60 @@ func newStatusScreen(svc Services, styles Styles, isDark bool) *statusScreen {
 }
 
 func (s *statusScreen) Title() string     { return "Status" }
-func (s *statusScreen) InputActive() bool { return false }
+func (s *statusScreen) InputActive() bool { return s.filtering }
 
 // HelpItems returns context-sensitive help items for the status screen.
 func (s *statusScreen) HelpItems() []HelpItem {
-	return []HelpItem{
+	if s.filtering {
+		return []HelpItem{
+			{"esc", "clear filter"},
+		}
+	}
+	items := []HelpItem{
 		{"j/k", "scroll"},
+		{"/", "filter"},
 		{"d", "deploy"},
 		{"r", "remove"},
 		{"f", "fix"},
 	}
+	return items
 }
 
 func (s *statusScreen) Init() tea.Cmd {
 	// M10: capture svc in local to avoid capturing mutable receiver in goroutine
 	svc := s.svc
+	gen := s.generation
 	return func() tea.Msg {
-		return loadStatus(svc)
+		return loadStatus(svc, gen)
 	}
 }
 
-func loadStatus(svc Services) statusLoadedMsg {
+func loadStatus(svc Services, gen uint64) statusLoadedMsg {
 	eng, err := svc.DeployEngine()
 	if err != nil {
-		return statusLoadedMsg{err: err}
+		return statusLoadedMsg{err: err, generation: gen}
 	}
 	if eng == nil {
-		return statusLoadedMsg{err: fmt.Errorf("deploy engine not available")}
+		return statusLoadedMsg{err: fmt.Errorf("deploy engine not available"), generation: gen}
 	}
 	entries, err := eng.Status()
-	return statusLoadedMsg{entries: entries, err: err}
+	return statusLoadedMsg{entries: entries, err: err, generation: gen}
 }
 
 func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ScopeSwitchedMsg:
+		s.generation++
+		s.loaded = false
+		s.entries = nil
+		s.renderedLines = nil
+		s.scroll = listScroll{}
+		return s, s.Init()
+
 	case statusLoadedMsg:
+		if msg.generation != s.generation {
+			return s, nil // stale result from a previous scope; discard
+		}
 		s.loaded = true
 		s.entries = msg.entries
 		s.err = msg.err
@@ -93,11 +120,17 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// M11: Handle shortcut keys shown in help bar
 	case tea.KeyPressMsg:
+		if s.filtering {
+			return s.handleFilterKey(msg)
+		}
 		switch msg.String() {
 		case "j", "down":
 			s.scroll.ScrollDown(len(s.renderedLines), s.contentHeight())
 		case "k", "up":
 			s.scroll.ScrollUp()
+		case "/":
+			s.filtering = true
+			return s, nil
 		case "d":
 			screen := newDeployScreen(s.svc, s.styles, s.isDark)
 			return s, func() tea.Msg { return NavigateMsg{Screen: screen} }
@@ -125,12 +158,64 @@ func (s *statusScreen) contentHeight() int {
 	return h
 }
 
-// buildContent renders the full status list as a string (no windowing).
-// Called once after data loads to populate renderedLines.
+// handleFilterKey processes keystrokes while in filter mode.
+func (s *statusScreen) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	switch key {
+	case "esc":
+		s.filtering = false
+		s.filter = ""
+		s.rebuildRendered()
+		return s, nil
+	case "backspace":
+		if len(s.filter) > 0 {
+			s.filter = s.filter[:len(s.filter)-1]
+			s.rebuildRendered()
+		}
+		return s, nil
+	case "enter":
+		s.filtering = false
+		return s, nil
+	default:
+		// Append printable characters to filter (msg.Text is empty for control keys).
+		if msg.Text != "" {
+			s.filter += msg.Text
+			s.rebuildRendered()
+		}
+		return s, nil
+	}
+}
+
+// filteredEntries returns entries matching the current filter.
+func (s *statusScreen) filteredEntries() []deploy.StatusEntry {
+	if s.filter == "" {
+		return s.entries
+	}
+	lower := strings.ToLower(s.filter)
+	var result []deploy.StatusEntry
+	for _, e := range s.entries {
+		name := strings.ToLower(e.Deployment.AssetName)
+		src := strings.ToLower(e.Deployment.SourceID)
+		if strings.Contains(name, lower) || strings.Contains(src, lower) {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
+// rebuildRendered re-renders the displayed lines from filtered entries.
+func (s *statusScreen) rebuildRendered() {
+	s.renderedLines = splitLines(s.buildContent())
+	s.scroll = listScroll{} // reset scroll position
+}
+
+// buildContent renders the status list as a string (no windowing).
+// Called after data loads and on filter changes to populate renderedLines.
 func (s *statusScreen) buildContent() string {
+	filtered := s.filteredEntries()
 	grouped := make(map[nd.AssetType][]deploy.StatusEntry)
 	var types []nd.AssetType
-	for _, e := range s.entries {
+	for _, e := range filtered {
 		t := e.Deployment.AssetType
 		if _, ok := grouped[t]; !ok {
 			types = append(types, t)
@@ -151,7 +236,11 @@ func (s *statusScreen) buildContent() string {
 				styled, e.Deployment.AssetName, s.styles.Subtle.Render(scope), s.styles.Subtle.Render(e.Deployment.SourceID))
 		}
 	}
-	fmt.Fprintf(&b, "\n  %d deployed", len(s.entries))
+	if s.filter != "" {
+		fmt.Fprintf(&b, "\n  %d/%d matching %q", len(filtered), len(s.entries), s.filter)
+	} else {
+		fmt.Fprintf(&b, "\n  %d deployed", len(s.entries))
+	}
 	if s.issues > 0 {
 		fmt.Fprintf(&b, "  %s", s.styles.Danger.Render(fmt.Sprintf("%d issues", s.issues)))
 	}
@@ -169,6 +258,13 @@ func (s *statusScreen) View() tea.View {
 	}
 	if len(s.entries) == 0 {
 		return tea.NewView("  " + NothingDeployed())
+	}
+
+	var filterLine string
+	if s.filtering {
+		filterLine = fmt.Sprintf("  filter: %s█\n", s.filter)
+	} else if s.filter != "" {
+		filterLine = fmt.Sprintf("  filter: %s\n", s.filter)
 	}
 
 	lines := s.renderedLines
@@ -197,7 +293,7 @@ func (s *statusScreen) View() tea.View {
 		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
 	}
 
-	return tea.NewView(b.String())
+	return tea.NewView(filterLine + b.String())
 }
 
 // healthGlyph returns the text glyph for the given health status.

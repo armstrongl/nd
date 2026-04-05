@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -107,6 +108,28 @@ func TestSettingsScreen_ScopeSwitchStep_FormNotNil(t *testing.T) {
 	}
 }
 
+func TestSettingsScreen_ScopeSwitch_ProjectWithNoRootShowsError(t *testing.T) {
+	svc := newMockServices()
+	// GetProjectRoot defaults to "" — no project root
+	s := newSettingsScreen(svc, NewStyles(true), true)
+
+	s.Update(settingsActionMsg{action: "scope"})
+	s.Update(settingsScopeSelectedMsg{scope: "project"})
+
+	// Should NOT call ResetForScope.
+	if len(svc.resetCalls) != 0 {
+		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+
+	// Should show an error message in the result step.
+	if s.step != settingsShowResult {
+		t.Fatalf("step should be settingsShowResult, got %d", s.step)
+	}
+	if !strings.Contains(s.result, "Cannot switch") {
+		t.Errorf("result should contain guard message, got %q", s.result)
+	}
+}
+
 func TestSettingsScreen_ScopeSwitch_CallsResetForScope(t *testing.T) {
 	svc := newMockServices()
 	s := newSettingsScreen(svc, NewStyles(true), true)
@@ -119,5 +142,48 @@ func TestSettingsScreen_ScopeSwitch_CallsResetForScope(t *testing.T) {
 
 	if len(svc.resetCalls) != 1 {
 		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+}
+
+func TestSettingsScreen_EditorFinished_ReturnsToSettingsMenu(t *testing.T) {
+	s := newSettingsScreen(newMockServices(), NewStyles(true), true)
+
+	// Simulate the editor exiting successfully.
+	_, cmd := s.Update(editorFinishedMsg{err: nil})
+
+	// Should return to settings menu, not emit BackMsg.
+	if s.step != settingsMenu {
+		t.Fatalf("step = %d after editorFinishedMsg, want settingsMenu (%d)", s.step, settingsMenu)
+	}
+	if s.form == nil {
+		t.Fatal("form is nil after editorFinishedMsg, want rebuilt menu")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd (form.Init) after editorFinishedMsg")
+	}
+
+	// Verify it did NOT produce a BackMsg.
+	msg := cmd()
+	if _, ok := msg.(BackMsg); ok {
+		t.Fatal("editorFinishedMsg should not produce BackMsg; user should stay on settings screen")
+	}
+}
+
+func TestSettingsScreen_EditorFinished_ErrorSurfaced(t *testing.T) {
+	s := newSettingsScreen(newMockServices(), NewStyles(true), true)
+
+	// Simulate the editor exiting with an error.
+	editorErr := errors.New("editor crashed: exit status 1")
+	s.Update(editorFinishedMsg{err: editorErr})
+
+	// Should show the error in the result step.
+	if s.step != settingsShowResult {
+		t.Fatalf("step = %d after editorFinishedMsg with error, want settingsShowResult (%d)", s.step, settingsShowResult)
+	}
+	if !strings.Contains(s.result, "Editor error") {
+		t.Errorf("result should contain 'Editor error', got %q", s.result)
+	}
+	if !strings.Contains(s.result, "exit status 1") {
+		t.Errorf("result should contain the original error message, got %q", s.result)
 	}
 }

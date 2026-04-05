@@ -284,8 +284,9 @@ func (ds *deployScreen) View() tea.View {
 		return tea.NewView("  Loading assets...")
 
 	case deployRunning:
+		msg := fmt.Sprintf("Deploying %d asset(s)...", len(ds.reqs))
 		return tea.NewView(fmt.Sprintf("  %s",
-			ds.styles.Primary.Render("Deploying...")))
+			ds.styles.Primary.Render(msg)))
 
 	case deployConflictConfirm:
 		return ds.viewConflictConfirm()

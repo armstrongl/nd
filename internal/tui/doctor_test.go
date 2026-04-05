@@ -192,6 +192,158 @@ func TestDoctorScreen_HealthGlyphs_InIssuesList(t *testing.T) {
 	}
 }
 
+func TestDoctorScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	// Put in a non-loading state with stale data.
+	s.step = doctorDone
+	s.issues = []state.HealthCheck{
+		{Deployment: state.Deployment{AssetName: "stale"}, Status: state.HealthBroken},
+	}
+	s.err = fmt.Errorf("old error")
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.step != doctorLoading {
+		t.Errorf("step should be doctorLoading after ScopeSwitchedMsg, got %d", s.step)
+	}
+	if s.issues != nil {
+		t.Error("issues should be nil after ScopeSwitchedMsg")
+	}
+	if s.err != nil {
+		t.Errorf("err should be nil after ScopeSwitchedMsg, got %v", s.err)
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
+func TestDoctorScreen_ScopeSwitchedMsg_ResetsFixingAndConfirmed(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	// Simulate being mid-fix: step=doctorFixing, fixing=true, confirmed=true.
+	s.step = doctorFixing
+	s.fixing = true
+	s.confirmed = true
+	s.issues = []state.HealthCheck{
+		{Deployment: state.Deployment{AssetName: "stale"}, Status: state.HealthBroken},
+	}
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.fixing {
+		t.Error("fixing should be false after ScopeSwitchedMsg")
+	}
+	if s.confirmed {
+		t.Error("confirmed should be false after ScopeSwitchedMsg")
+	}
+	if s.step != doctorLoading {
+		t.Errorf("step should be doctorLoading after ScopeSwitchedMsg, got %d", s.step)
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
+// --- Generation counter (stale message guard) tests ---
+
+func TestDoctorScreen_ScopeSwitchedMsg_IncrementsGeneration(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	before := s.generation
+
+	s.Update(ScopeSwitchedMsg{})
+
+	if s.generation != before+1 {
+		t.Fatalf("generation = %d, want %d", s.generation, before+1)
+	}
+}
+
+func TestDoctorScreen_StaleCheckedMsgDiscarded(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+
+	// Scope switch increments generation to 1.
+	s.Update(ScopeSwitchedMsg{})
+	if s.generation != 1 {
+		t.Fatalf("precondition: generation = %d, want 1", s.generation)
+	}
+
+	// Simulate a stale checked message from the old scope (generation 0).
+	staleIssues := []state.HealthCheck{
+		{Deployment: state.Deployment{AssetName: "stale"}, Status: state.HealthBroken},
+	}
+	s.Update(doctorCheckedMsg{issues: staleIssues, generation: 0})
+
+	// The stale message should be discarded: step should remain doctorLoading.
+	if s.step != doctorLoading {
+		t.Errorf("step should remain doctorLoading after stale msg, got %d", s.step)
+	}
+	if s.issues != nil {
+		t.Error("issues should remain nil after stale doctorCheckedMsg")
+	}
+}
+
+func TestDoctorScreen_FreshCheckedMsgAccepted(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+
+	// Scope switch increments generation to 1.
+	s.Update(ScopeSwitchedMsg{})
+
+	// Fresh message with matching generation should be accepted.
+	freshIssues := []state.HealthCheck{
+		{Deployment: state.Deployment{AssetName: "fresh"}, Status: state.HealthBroken},
+	}
+	s.Update(doctorCheckedMsg{issues: freshIssues, generation: 1})
+
+	if s.step != doctorConfirm {
+		t.Errorf("step should be doctorConfirm after fresh checked msg, got %d", s.step)
+	}
+	if len(s.issues) != 1 || s.issues[0].Deployment.AssetName != "fresh" {
+		t.Errorf("issues should contain fresh data, got %v", s.issues)
+	}
+}
+
+func TestDoctorScreen_StaleSyncedMsgDiscarded(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	s.step = doctorFixing
+
+	// Scope switch increments generation to 1 and resets to doctorLoading.
+	s.Update(ScopeSwitchedMsg{})
+
+	// Simulate a stale sync result from the old scope (generation 0).
+	_, cmd := s.Update(doctorSyncedMsg{
+		result:     &deploy.SyncResult{Repaired: []state.Deployment{{AssetName: "stale-repair"}}},
+		generation: 0,
+	})
+
+	// The stale message should be discarded.
+	if s.step != doctorLoading {
+		t.Errorf("step should remain doctorLoading after stale syncedMsg, got %d", s.step)
+	}
+	if s.syncResult != nil {
+		t.Error("syncResult should remain nil after stale doctorSyncedMsg")
+	}
+	if cmd != nil {
+		t.Error("stale doctorSyncedMsg should return nil cmd")
+	}
+}
+
+func TestDoctorScreen_FreshSyncedMsgAccepted(t *testing.T) {
+	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
+	s.step = doctorFixing
+
+	// Fresh sync result with matching generation (0) should be accepted.
+	result := &deploy.SyncResult{Repaired: []state.Deployment{{AssetName: "repaired"}}}
+	_, cmd := s.Update(doctorSyncedMsg{result: result, generation: 0})
+
+	if s.step != doctorDone {
+		t.Errorf("step should be doctorDone after fresh syncedMsg, got %d", s.step)
+	}
+	if s.syncResult == nil || len(s.syncResult.Repaired) != 1 {
+		t.Error("syncResult should contain fresh data")
+	}
+	if cmd == nil {
+		t.Fatal("fresh doctorSyncedMsg should emit RefreshHeaderMsg cmd")
+	}
+}
+
 func TestDoctorScreen_RefreshHeaderEmittedAfterSync(t *testing.T) {
 	s := newDoctorScreen(newMockServices(), NewStyles(true), true)
 

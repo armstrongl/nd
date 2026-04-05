@@ -419,8 +419,9 @@ func (m *removeScreen) viewConfirm() tea.View {
 }
 
 func (m *removeScreen) viewRunning() tea.View {
+	msg := fmt.Sprintf("Removing %d asset(s)...", len(m.selected))
 	return tea.NewView(fmt.Sprintf("  %s",
-		m.styles.Primary.Render("Removing...")))
+		m.styles.Primary.Render(msg)))
 }
 
 // buildResultContent renders the full remove result as a string.

@@ -525,6 +525,95 @@ func TestBrowseScreen_NoIndicatorsWhenAllFit(t *testing.T) {
 	}
 }
 
+func TestBrowseScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+	s.filtering = true
+	s.filter = "test"
+	s.cursor = 2
+
+	if !s.loaded {
+		t.Fatal("precondition: should be loaded")
+	}
+
+	_, cmd := s.Update(ScopeSwitchedMsg{})
+
+	if s.loaded {
+		t.Error("loaded should be false after ScopeSwitchedMsg")
+	}
+	if s.assets != nil {
+		t.Error("assets should be nil after ScopeSwitchedMsg")
+	}
+	if s.deployed != nil {
+		t.Error("deployed should be nil after ScopeSwitchedMsg")
+	}
+	if s.filter != "" {
+		t.Errorf("filter should be empty, got %q", s.filter)
+	}
+	if s.filtering {
+		t.Error("filtering should be false after ScopeSwitchedMsg")
+	}
+	if s.cursor != 0 {
+		t.Errorf("cursor should be 0, got %d", s.cursor)
+	}
+	if cmd == nil {
+		t.Fatal("ScopeSwitchedMsg should return Init cmd to reload")
+	}
+}
+
+// --- Generation counter (stale message guard) tests ---
+
+func TestBrowseScreen_ScopeSwitchedMsg_IncrementsGeneration(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+	before := s.generation
+
+	s.Update(ScopeSwitchedMsg{})
+
+	if s.generation != before+1 {
+		t.Fatalf("generation = %d, want %d", s.generation, before+1)
+	}
+}
+
+func TestBrowseScreen_StaleLoadedMsgDiscarded(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+
+	// Simulate a scope switch (generation goes from 0 to 1).
+	s.Update(ScopeSwitchedMsg{})
+	if s.generation != 1 {
+		t.Fatalf("precondition: generation = %d, want 1", s.generation)
+	}
+
+	// Simulate a stale loaded message arriving from the old scope (generation 0).
+	staleAssets := []*asset.Asset{{Identity: asset.Identity{SourceID: "old", Type: nd.AssetSkill, Name: "stale-asset"}}}
+	s.Update(browseLoadedMsg{assets: staleAssets, generation: 0})
+
+	// The stale message should have been discarded: loaded should remain false,
+	// assets should remain nil (reset by ScopeSwitchedMsg).
+	if s.loaded {
+		t.Error("loaded should remain false after stale browseLoadedMsg")
+	}
+	if s.assets != nil {
+		t.Error("assets should remain nil after stale browseLoadedMsg")
+	}
+}
+
+func TestBrowseScreen_FreshLoadedMsgAccepted(t *testing.T) {
+	s := browseSeedAssets(t, 3, nil)
+
+	// Scope switch increments generation to 1.
+	s.Update(ScopeSwitchedMsg{})
+
+	// Fresh message with matching generation should be accepted.
+	freshAssets := []*asset.Asset{{Identity: asset.Identity{SourceID: "new", Type: nd.AssetSkill, Name: "fresh-asset"}}}
+	s.Update(browseLoadedMsg{assets: freshAssets, generation: 1})
+
+	if !s.loaded {
+		t.Error("loaded should be true after fresh browseLoadedMsg")
+	}
+	if len(s.assets) != 1 || s.assets[0].Name != "fresh-asset" {
+		t.Errorf("assets should contain fresh data, got %v", s.assets)
+	}
+}
+
 func TestBrowseScreen_TypeAndSourceShown(t *testing.T) {
 	assets := []asset.Asset{
 		{Identity: asset.Identity{SourceID: "my-source", Type: nd.AssetRule, Name: "go-rules"}},

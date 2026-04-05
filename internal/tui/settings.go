@@ -25,6 +25,9 @@ type settingsActionMsg struct{ action string }
 // settingsScopeSelectedMsg is sent when the scope form completes.
 type settingsScopeSelectedMsg struct{ scope nd.Scope }
 
+// editorFinishedMsg is sent when the external editor process exits.
+type editorFinishedMsg struct{ err error }
+
 // settingsScreen provides a submenu for editing config, showing info, and switching scope.
 type settingsScreen struct {
 	svc    Services
@@ -84,11 +87,30 @@ func (s *settingsScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case settingsActionMsg:
 		return s.handleAction(msg.action)
 
+	case editorFinishedMsg:
+		if msg.err != nil {
+			s.result = fmt.Sprintf("Editor error: %s", msg.err)
+			s.step = settingsShowResult
+			return s, nil
+		}
+		s.step = settingsMenu
+		s.buildMenu()
+		return s, s.form.Init()
+
 	case settingsScopeSelectedMsg:
+		// Project scope requires a project root.
+		if msg.scope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
+			s.result = "Cannot switch to project scope: no project root detected."
+			s.step = settingsShowResult
+			return s, nil
+		}
 		s.svc.ResetForScope(msg.scope, s.svc.GetProjectRoot())
 		s.result = fmt.Sprintf("Scope switched to %q.", msg.scope)
 		s.step = settingsShowResult
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		return s, tea.Batch(
+			func() tea.Msg { return ScopeSwitchedMsg{} },
+			func() tea.Msg { return RefreshHeaderMsg{} },
+		)
 	}
 
 	switch s.step {
@@ -147,8 +169,7 @@ func (s *settingsScreen) handleAction(action string) (tea.Model, tea.Cmd) {
 		editorEnv := "EDITOR"
 		editorCmd := exec.Command("sh", "-c", fmt.Sprintf("${%s:-vi} %q", editorEnv, configPath))
 		return s, tea.ExecProcess(editorCmd, func(err error) tea.Msg {
-			// After editing, return to menu regardless of error.
-			return settingsActionMsg{action: ""}
+			return editorFinishedMsg{err: err}
 		})
 	case "path":
 		s.result = fmt.Sprintf("Config path: %s", s.svc.GetConfigPath())
@@ -158,7 +179,7 @@ func (s *settingsScreen) handleAction(action string) (tea.Model, tea.Cmd) {
 		s.step = settingsShowResult
 	case "scope":
 		return s.buildScopeForm()
-	case "back", "":
+	case "back":
 		return s, func() tea.Msg { return BackMsg{} }
 	}
 	return s, nil

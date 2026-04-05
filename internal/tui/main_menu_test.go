@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -106,7 +107,7 @@ func TestMainMenu_HandleSelectionWiredScreens(t *testing.T) {
 	// These choices are wired to real screens and should return NavigateMsg.
 	wiredChoices := []string{
 		"deploy", "remove", "status", "browse", "doctor",
-		"profile", "snapshot", "pin", "source", "settings",
+		"profile", "snapshot", "pin", "source", "scope", "settings",
 	}
 	for _, choice := range wiredChoices {
 		m.choice = choice
@@ -122,18 +123,18 @@ func TestMainMenu_HandleSelectionWiredScreens(t *testing.T) {
 	}
 }
 
-func TestMainMenu_HandleSelectionUnwiredScreens(t *testing.T) {
+func TestMainMenu_HandleSelectionExport(t *testing.T) {
 	s := NewStyles(true)
 	m := newMainMenuScreen(newMockServices(), s, true)
+	m.choice = "export"
 
-	// These choices are not yet wired and should return nil.
-	unwiredChoices := []string{"export"}
-	for _, choice := range unwiredChoices {
-		m.choice = choice
-		cmd := m.handleSelection()
-		if cmd != nil {
-			t.Errorf("handleSelection() for %q returned non-nil, want nil (not yet wired)", choice)
-		}
+	cmd := m.handleSelection()
+	if cmd == nil {
+		t.Fatal("handleSelection() for export returned nil, want BackMsg cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(BackMsg); !ok {
+		t.Fatalf("export cmd produced %T, want BackMsg", msg)
 	}
 }
 
@@ -165,3 +166,78 @@ func TestMainMenu_StylesPreserved(t *testing.T) {
 		t.Fatal("styles.Bold should have bold attribute set")
 	}
 }
+
+func TestMainMenu_HasGroupSeparators(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+	m.Init() // huh form needs Init before View renders options
+
+	// The menu should contain group separator options with sentinel values.
+	// Separators appear between logical groups, not before the first item.
+	v := m.View()
+	content := v.Content
+
+	// Group headers should appear in rendered output.
+	for _, header := range []string{"Manage", "System"} {
+		if !strings.Contains(content, header) {
+			t.Errorf("View() does not contain group header %q", header)
+		}
+	}
+}
+
+func TestMainMenu_SeparatorsAreNoOp(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+
+	// Separator sentinel values should return nil from handleSelection.
+	for _, sep := range []string{menuSepManage, menuSepSystem} {
+		m.choice = sep
+		cmd := m.handleSelection()
+		if cmd != nil {
+			t.Errorf("handleSelection() for separator %q returned non-nil, want nil", sep)
+		}
+	}
+}
+
+func TestMainMenu_SeparatorDoesNotFreeze(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+
+	// Simulate the form completing with a separator value.
+	// Force the form state to completed and set choice to a separator.
+	m.choice = menuSepManage
+	m.form.State = huh.StateCompleted
+
+	// Call Update — this triggers handleSelection which returns nil.
+	// The fix should reset navigated to false so the menu stays responsive.
+	updated, _ := m.Update(nil)
+	menu := updated.(*mainMenuScreen)
+	if menu.navigated {
+		t.Fatal("navigated should be false after selecting a separator (menu would freeze)")
+	}
+}
+
+func TestMainMenu_UnknownChoiceDoesNotFreeze(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+
+	// Simulate the form completing with an unknown value.
+	m.choice = "totally_bogus_value"
+	m.form.State = huh.StateCompleted
+
+	updated, _ := m.Update(nil)
+	menu := updated.(*mainMenuScreen)
+	if menu.navigated {
+		t.Fatal("navigated should be false after selecting an unknown choice (menu would freeze)")
+	}
+}
+
+func TestMainMenu_FirstOptionIsDeployNotSeparator(t *testing.T) {
+	s := NewStyles(true)
+	m := newMainMenuScreen(newMockServices(), s, true)
+	// huh auto-selects option 0. It must be "deploy", not a separator.
+	if m.choice != "deploy" {
+		t.Fatalf("choice = %q after construction, want %q (first option must be a real item, not separator)", m.choice, "deploy")
+	}
+}
+

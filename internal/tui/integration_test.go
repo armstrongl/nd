@@ -18,7 +18,7 @@ import (
 // =============================================================================
 
 func TestIntegration_DeployFlow_MenuToResultToRoot(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// 1. Navigate to deploy screen.
 	ds := newDeployScreen(m.svc, m.styles, m.isDark)
@@ -140,7 +140,7 @@ func TestIntegration_DeployFlow_PartialFailure(t *testing.T) {
 // =============================================================================
 
 func TestIntegration_RapidEscPresses(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// Push 3 screens (all with InputActive=false so esc works).
 	m.screens = append(m.screens,
@@ -179,7 +179,7 @@ func TestIntegration_RapidEscPresses(t *testing.T) {
 }
 
 func TestIntegration_PopToRootFromDeepStack(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// Build a deep stack: menu -> deploy -> result context (simulated with stubs).
 	m.screens = append(m.screens,
@@ -216,7 +216,7 @@ func TestIntegration_BackMsgFromMainMenu_Quits(t *testing.T) {
 }
 
 func TestIntegration_NavigateAndBackPreservesRoot(t *testing.T) {
-	m := newTestModel()
+	m := newTestModelWithSources(t)
 
 	// Push a screen, then pop it.
 	updated, _ := m.Update(NavigateMsg{Screen: stubScreen{title: "Status"}})

@@ -109,13 +109,14 @@ func TestStubScreen_SatisfiesTeaModel(t *testing.T) {
 }
 
 func TestAllMessageTypes_SwitchDispatch(t *testing.T) {
-	// Verify all four message types can be dispatched in a type switch,
+	// Verify all five message types can be dispatched in a type switch,
 	// which is the pattern the root model uses.
 	messages := []interface{}{
 		NavigateMsg{Screen: stubScreen{title: "Deploy"}},
 		BackMsg{},
 		PopToRootMsg{},
 		RefreshHeaderMsg{},
+		ScopeSwitchedMsg{},
 	}
 
 	for i, msg := range messages {
@@ -139,6 +140,11 @@ func TestAllMessageTypes_SwitchDispatch(t *testing.T) {
 		case RefreshHeaderMsg:
 			if i != 3 {
 				t.Fatalf("RefreshHeaderMsg matched at index %d, expected 3", i)
+			}
+			matched = true
+		case ScopeSwitchedMsg:
+			if i != 4 {
+				t.Fatalf("ScopeSwitchedMsg matched at index %d, expected 4", i)
 			}
 			matched = true
 		}
