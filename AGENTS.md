@@ -14,21 +14,13 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 
 | Doc | When to load | Last validated | Status | Paths |
 |---|---|---|---|---|
-| [Glossary](docs/guide/glossary.md) | Load when encountering unfamiliar nd terminology or when disambiguating overloaded terms like agent, context, or command. | 2026-04-03 | stale (paths) | `internal/nd/**`<br>`internal/asset/**` |
-| [Get started](docs/guide/getting-started.md) | Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user. | 2026-03-28 | stale (paths) | `cmd/init.go`<br>`cmd/source.go`<br>`cmd/deploy.go` |
-| [Skills](docs/guide/asset-types/skills.md) | Load when modifying skill directory scanning, skill deployment, or the skills asset type. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
-| [How nd works](docs/guide/how-nd-works.md) | Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments. | 2026-03-28 | stale (paths) | `internal/deploy/**`<br>`cmd/deploy.go`<br>`cmd/remove.go` |
-| [Agents](docs/guide/asset-types/agents.md) | Load when modifying agent file scanning, agent deployment, or the agents asset type. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
-| [Commands](docs/guide/asset-types/commands.md) | Load when modifying command file scanning, command deployment, or the commands asset type. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
-| [Configuration](docs/guide/configuration.md) | Load when modifying config loading, merging, validation, or debugging config file issues. | 2026-03-28 | stale (paths) | `internal/config/**`<br>`cmd/settings.go`<br>`cmd/init.go` |
-| [Output styles](docs/guide/asset-types/output-styles.md) | Load when modifying output style scanning, deployment, or settings.json registration behavior. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
-| [Create asset sources](docs/guide/creating-sources.md) | Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention. | 2026-03-28 | stale (paths) | `internal/sourcemanager/**`<br>`internal/asset/**` |
-| [Rules](docs/guide/asset-types/rules.md) | Load when modifying rule file scanning, rule deployment, or the rules asset type. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
-| [Context](docs/guide/asset-types/context.md) | Load when modifying context asset scanning, context deployment paths, or context conflict handling. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**`<br>`internal/deploy/context.go` |
-| [Profiles and snapshots](docs/guide/profiles-and-snapshots.md) | Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic. | 2026-03-28 | stale (paths) | `internal/profile/**`<br>`cmd/profile.go`<br>`cmd/snapshot.go`<br>`cmd/pin.go`<br>`cmd/unpin.go` |
+| [Configuration](docs/guide/configuration.md) | Load when modifying config loading, merging, validation, or debugging config file issues. | 2026-03-28 | current | `internal/config/**`<br>`cmd/settings.go`<br>`cmd/init.go` |
+| [Create asset sources](docs/guide/creating-sources.md) | Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention. | 2026-03-28 | current | `internal/sourcemanager/**`<br>`internal/asset/**` |
+| [Get started](docs/guide/getting-started.md) | Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user. | 2026-03-28 | current | `cmd/init.go`<br>`cmd/source.go`<br>`cmd/deploy.go` |
+| [Glossary](docs/guide/glossary.md) | Load when encountering unfamiliar nd terminology or when disambiguating overloaded terms like agent, context, or command. | 2026-04-03 | current | `internal/nd/**`<br>`internal/asset/**` |
+| [How nd works](docs/guide/how-nd-works.md) | Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments. | 2026-03-28 | current | `internal/deploy/**`<br>`cmd/deploy.go`<br>`cmd/remove.go` |
+| [Profiles and snapshots](docs/guide/profiles-and-snapshots.md) | Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic. | 2026-03-28 | current | `internal/profile/**`<br>`cmd/profile.go`<br>`cmd/snapshot.go`<br>`cmd/pin.go`<br>`cmd/unpin.go` |
 | [Troubleshoot](docs/guide/troubleshooting.md) | Load when debugging nd issues: broken symlinks, missing assets, config errors, profile switching problems, or context file conflicts. | 2026-04-04 | current | `cmd/doctor.go`<br>`cmd/sync.go`<br>`internal/deploy/**` |
-| [Plugins](docs/guide/asset-types/plugins.md) | Load when modifying plugin scanning, export workflow, or plugin.json manifest handling. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/export/**`<br>`cmd/export.go` |
-| [Hooks](docs/guide/asset-types/hooks.md) | Load when modifying hook scanning, hook deployment, or settings.json hook registration. | 2026-04-04 | current | `internal/asset/scanner.go`<br>`internal/deploy/**` |
 
 <!-- AGENTS-INDEX-END -->
 
