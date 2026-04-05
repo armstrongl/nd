@@ -18,6 +18,31 @@ Asset references can be:
 nd deploy <asset> [assets...] [flags]
 ```
 
+## Examples
+
+```
+  # Deploy a single asset
+  nd deploy skills/greeting
+
+  # Deploy by name (if unique across types)
+  nd deploy greeting
+
+  # Deploy multiple assets at once
+  nd deploy skills/greeting commands/hello agents/researcher
+
+  # Filter by type
+  nd deploy --type skills greeting
+
+  # Deploy to project scope
+  nd deploy skills/greeting --scope project
+
+  # Use relative symlinks
+  nd deploy skills/greeting --relative
+
+  # Script-friendly: skip prompts, output JSON
+  nd deploy skills/greeting --yes --json
+```
+
 ## Options
 
 ```
@@ -43,3 +68,9 @@ nd deploy <asset> [assets...] [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [How nd works](../guide/how-nd-works.md)
+- [Context files](../guide/asset-types/context.md)

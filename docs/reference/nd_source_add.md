@@ -10,6 +10,25 @@ Register a new asset source
 nd source add <path|url> [flags]
 ```
 
+## Examples
+
+```
+  # Add a local directory
+  nd source add ~/my-assets
+
+  # Add with a custom alias
+  nd source add ~/my-assets --alias my-stuff
+
+  # Add a GitHub repository (shorthand)
+  nd source add owner/repo
+
+  # Add via HTTPS
+  nd source add https://github.com/owner/repo.git
+
+  # Add via SSH
+  nd source add git@github.com:owner/repo.git
+```
+
 ## Options
 
 ```
@@ -33,3 +52,8 @@ nd source add <path|url> [flags]
 ## Related
 
 - [nd source](nd_source.md) - Manage asset sources
+
+## Guides
+
+- [Create sources](../guide/creating-sources.md)
+- [Getting started](../guide/getting-started.md)

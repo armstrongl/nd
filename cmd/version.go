@@ -8,9 +8,10 @@ import (
 
 func newVersionCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print nd version information",
-		Args:  cobra.NoArgs,
+		Use:     "version",
+		Short:   "Print nd version information",
+		Example: `  nd version`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			if app.JSON {

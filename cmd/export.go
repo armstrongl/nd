@@ -38,6 +38,14 @@ func newExportCmd(app *App) *cobra.Command {
 
 Assets are specified with --assets in type/name format (e.g., skills/greeting).
 Multiple assets can be comma-separated or the flag repeated.`,
+		Example: `  # Export assets as a Claude Code plugin
+  nd export --assets skills/greeting,commands/hello --output ./my-plugin
+
+  # Generate a marketplace from plugins
+  nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,creating-sources,asset-types/plugins",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -209,6 +217,8 @@ func newExportMarketplaceCmd(app *App) *cobra.Command {
 		Long: `Generate a marketplace directory structure from one or more previously exported plugins.
 
 Each --plugins path must point to a directory containing a .claude-plugin/plugin.json file.`,
+		Example: `  # Generate marketplace from exported plugins
+  nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

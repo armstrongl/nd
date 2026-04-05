@@ -10,6 +10,16 @@ Remove all nd-managed symlinks and optionally config
 nd uninstall [flags]
 ```
 
+## Examples
+
+```
+  # Remove all nd-managed symlinks
+  nd uninstall
+
+  # Skip confirmation prompt
+  nd uninstall --yes
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd uninstall [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)

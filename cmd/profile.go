@@ -16,6 +16,12 @@ func newProfileCmd(app *App) *cobra.Command {
 		Use:   "profile",
 		Short: "Manage deployment profiles",
 		Long:  "Create, list, deploy, and switch between named profiles.",
+		Example: `  nd profile create my-setup
+  nd profile list
+  nd profile switch my-setup`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 	}
 
 	cmd.AddCommand(
@@ -40,6 +46,14 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a new profile",
+		Example: `  # Create a profile from current deployments
+  nd profile create my-setup
+
+  # Create a profile for project scope
+  nd profile create my-setup --scope project`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -123,6 +137,14 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a profile",
+		Example: `  # Delete a profile
+  nd profile delete my-setup
+
+  # Delete without confirmation
+  nd profile delete my-setup --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -192,6 +214,14 @@ func newProfileListCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all profiles",
+		Example: `  # List all saved profiles
+  nd profile list
+
+  # Output as JSON
+  nd profile list --json`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -257,6 +287,14 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy <name>",
 		Short: "Deploy all assets in a profile",
+		Example: `  # Deploy all assets in a profile
+  nd profile deploy my-setup
+
+  # Preview what would be deployed
+  nd profile deploy my-setup --dry-run`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -368,6 +406,14 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "switch <name>",
 		Short: "Switch from current profile to another",
+		Example: `  # Switch to a different profile
+  nd profile switch my-setup
+
+  # Switch without confirmation
+  nd profile switch my-setup --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -540,6 +586,14 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-asset <profile> <asset>",
 		Short: "Add an asset to an existing profile",
+		Example: `  # Add an asset to an existing profile
+  nd profile add-asset my-setup skills/greeting
+
+  # Add a command to a profile
+  nd profile add-asset my-setup commands/hello`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

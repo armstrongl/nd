@@ -39,6 +39,9 @@ func main() {
 // homePathRe matches absolute home directory prefixes like /Users/foo/ or /home/foo/.
 var homePathRe = regexp.MustCompile(`^/(Users|home)/[^/]+/`)
 
+// multiSpaceRe collapses runs of multiple spaces to a single space.
+var multiSpaceRe = regexp.MustCompile(`  +`)
+
 func generateCommandDocs(root *cobra.Command, outDir string) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
@@ -91,6 +94,13 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 			if strings.TrimSpace(line) == "## SEE ALSO" {
 				line = "## Related\n"
 			}
+			// Normalize Cobra's "* [link](url)\t - desc" to "- [link](url) - desc".
+			if strings.HasPrefix(line, "* [") {
+				line = strings.Replace(line, "* [", "- [", 1)
+				line = strings.ReplaceAll(line, "\t", " ")
+				// Collapse multiple spaces (Cobra pads for alignment).
+				line = multiSpaceRe.ReplaceAllString(line, " ")
+			}
 			out = append(out, line)
 		}
 
@@ -103,8 +113,23 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 		if description == "" {
 			description = c.CommandPath()
 		}
-		frontMatter := fmt.Sprintf("---\ntitle: %q\ndescription: %q\nweight: %d\n---\n\n", c.CommandPath(), description, weight)
+		frontMatter := fmt.Sprintf("---\ntitle: %q\ndescription: %q\nweight: %d\n---\n", c.CommandPath(), description, weight)
+		// Append guide cross-links from Annotations["docs.guides"].
+		if guides, ok := c.Annotations["docs.guides"]; ok && guides != "" {
+			out = append(out, "## Guides\n\n")
+			for _, slug := range strings.Split(guides, ",") {
+				slug = strings.TrimSpace(slug)
+				title := guideTitles[slug]
+				if title == "" {
+					title = slug
+				}
+				out = append(out, fmt.Sprintf("- [%s](../guide/%s.md)\n", title, slug))
+			}
+			out = append(out, "\n")
+		}
+
 		content := frontMatter + strings.Join(out, "")
+		content = strings.TrimRight(content, "\n") + "\n"
 
 		filename := strings.ReplaceAll(c.CommandPath(), " ", "_") + ".md"
 		path := filepath.Join(outDir, filename)
@@ -114,6 +139,25 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 	}
 
 	return nil
+}
+
+// guideTitles maps guide file slugs to display titles for cross-links.
+var guideTitles = map[string]string{
+	"getting-started":        "Getting started",
+	"how-nd-works":           "How nd works",
+	"configuration":          "Configuration",
+	"creating-sources":       "Create sources",
+	"profiles-and-snapshots": "Profiles and snapshots",
+	"glossary":               "Glossary",
+	"troubleshooting":        "Troubleshoot",
+	"asset-types/skills":     "Skills",
+	"asset-types/agents":     "Agents",
+	"asset-types/commands":   "Commands",
+	"asset-types/rules":      "Rules",
+	"asset-types/context":    "Context files",
+	"asset-types/hooks":      "Hooks",
+	"asset-types/plugins":    "Plugins",
+	"asset-types/output-styles": "Output styles",
 }
 
 // allCommands returns cmd and all its descendants, depth-first.

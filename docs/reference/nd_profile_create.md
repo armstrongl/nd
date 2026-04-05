@@ -10,6 +10,16 @@ Create a new profile
 nd profile create <name> [flags]
 ```
 
+## Examples
+
+```
+  # Create a profile from current deployments
+  nd profile create my-setup
+
+  # Create a profile for project scope
+  nd profile create my-setup --scope project
+```
+
 ## Options
 
 ```
@@ -35,3 +45,7 @@ nd profile create <name> [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

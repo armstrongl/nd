@@ -12,6 +12,17 @@ func newStatusCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Show deployment status and health",
+		Example: `  # Show all deployed assets and their health
+  nd status
+
+  # Output as JSON for scripting
+  nd status --json
+
+  # Show project-scope deployments
+  nd status --scope project`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

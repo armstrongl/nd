@@ -10,6 +10,16 @@ Restore deployments from a snapshot
 nd snapshot restore <name> [flags]
 ```
 
+## Examples
+
+```
+  # Restore deployments from a snapshot
+  nd snapshot restore before-update
+
+  # Preview what would change
+  nd snapshot restore before-update --dry-run
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd snapshot restore <name> [flags]
 ## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

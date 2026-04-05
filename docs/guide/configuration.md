@@ -24,7 +24,7 @@ nd uses YAML configuration files with a layered merging system.
 | Project | `.nd/config.yaml` | Project-specific overrides |
 | CLI flag | `--config <path>` | One-time override |
 
-The global config is created by `nd init`. Project-level config is optional.
+`nd init` creates the global config. Project-level config is optional.
 
 ## Data directories
 
@@ -105,12 +105,12 @@ agents:
 
 nd merges configuration from multiple sources in this order (later overrides earlier):
 
-1. **Built-in defaults:** Sensible defaults for all settings
+1. **Built-in defaults:** Default values for all settings
 2. **Global config:** `~/.config/nd/config.yaml`
 3. **Project config:** `.nd/config.yaml` (if present)
-4. **CLI flags:** `--scope`, `--config`, etc.
+4. **CLI flags:** `--scope`, `--config`, and others
 
-For sources, global sources appear first (higher priority), followed by project sources. The built-in source always has the lowest priority. This means if the same asset exists in both a user source and the builtin source, the user source wins.
+For sources, global sources appear first (higher priority), followed by project sources. The built-in source always has the lowest priority. If the same asset exists in both a user source and the builtin source, the user source takes priority.
 
 ## Project-level config
 
@@ -139,7 +139,7 @@ Use cases:
 | `$VISUAL` | `nd settings edit` | Visual editor (fallback if `$EDITOR` not set) |
 | `$NO_COLOR` | All commands | Disable colored output (equivalent to `--no-color` flag) |
 
-If neither `$EDITOR` nor `$VISUAL` is set, `nd settings edit` falls back to `vi`.
+If you have not set `$EDITOR` or `$VISUAL`, `nd settings edit` uses `vi`.
 
 ## Edit config
 
@@ -155,6 +155,65 @@ After editing, validate your config:
 nd doctor
 ```
 
-The doctor command checks config validity as its first step.
+`nd doctor` checks config validity as its first step.
 
-If your config file contains invalid YAML, nd commands will report a parse error with the line number. Fix the syntax and retry.
+If your config file contains invalid YAML, nd commands report a parse error with the line number. Fix the syntax and retry.
+
+## Global flags
+
+These flags work with every nd command and override config file settings for a single invocation:
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output structured JSON for piping and parsing |
+| `--yes` / `-y` | Skip confirmation prompts (essential for scripts) |
+| `--dry-run` | Preview changes without applying them |
+| `--verbose` / `-v` | Show detailed output on stderr |
+| `--quiet` / `-q` | Suppress non-error output |
+| `--scope` / `-s` | Set deployment scope: `global` or `project` |
+| `--config` | Override config file path |
+| `--no-color` | Disable colored output |
+
+Example scripted workflow:
+
+```shell
+nd deploy skills/greeting --yes --json | jq '.status'
+```
+
+## Operation log
+
+nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/operations.log`. Each line is a JSON object with the timestamp, operation type, affected assets, scope, and success/failure counts.
+
+### View the log
+
+```shell
+# Last 10 operations
+tail -10 ~/.config/nd/logs/operations.log
+
+# Pretty-print with jq
+tail -5 ~/.config/nd/logs/operations.log | jq .
+
+# Filter by operation type
+cat ~/.config/nd/logs/operations.log | jq 'select(.operation == "deploy")'
+
+# Count operations by type
+cat ~/.config/nd/logs/operations.log | jq -r '.operation' | sort | uniq -c | sort -rn
+```
+
+### Log entry fields
+
+| Field | Description |
+|-------|-------------|
+| `timestamp` | ISO 8601 timestamp |
+| `operation` | Operation type: `deploy`, `remove`, `sync`, `profile-switch`, `snapshot-save`, `snapshot-restore`, `source-add`, `source-remove`, `source-sync`, `uninstall` |
+| `assets` | Array of affected asset identities (source, type, name) |
+| `scope` | Deployment scope (`global` or `project`) |
+| `succeeded` | Number of successful operations |
+| `failed` | Number of failed operations |
+| `detail` | Additional context (profile name, source ID, snapshot name) |
+
+### Log rotation
+
+nd rotates the log file automatically when it exceeds 1 MB. nd preserves the previous log as `operations.log.1` and keeps only one rotated backup.
+
+Dry-run operations (`--dry-run`) do not write log entries.

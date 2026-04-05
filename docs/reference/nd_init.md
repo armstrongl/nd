@@ -18,6 +18,16 @@ config directory. Use --yes to skip the deploy confirmation prompt.
 nd init [flags]
 ```
 
+## Examples
+
+```
+  # Interactive setup
+  nd init
+
+  # Non-interactive setup (skip prompts)
+  nd init --yes
+```
+
 ## Options
 
 ```
@@ -40,3 +50,8 @@ nd init [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [Configuration](../guide/configuration.md)

@@ -10,6 +10,16 @@ Switch from current profile to another
 nd profile switch <name> [flags]
 ```
 
+## Examples
+
+```
+  # Switch to a different profile
+  nd profile switch my-setup
+
+  # Switch without confirmation
+  nd profile switch my-setup --yes
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd profile switch <name> [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

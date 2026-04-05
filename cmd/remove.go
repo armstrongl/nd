@@ -16,6 +16,20 @@ func newRemoveCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <asset> [assets...]",
 		Short: "Remove deployed assets",
+		Example: `  # Remove a deployed asset
+  nd remove skills/greeting
+
+  # Remove multiple assets
+  nd remove skills/greeting commands/hello
+
+  # Skip confirmation prompt
+  nd remove skills/greeting --yes
+
+  # Preview what would be removed
+  nd remove skills/greeting --dry-run`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started",
+		},
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

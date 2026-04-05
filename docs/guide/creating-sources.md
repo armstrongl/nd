@@ -13,7 +13,7 @@ tags:
   - scanning
 ---
 
-An asset source is a directory containing coding agent assets organized by type. nd supports three source types: **local** (a directory on disk), **git** (a cloned repository), and **builtin** (embedded in the nd binary). This guide explains how to structure your own local or git source.
+An asset source is a directory that organizes coding agent assets by type. nd supports three source types: **local** (a directory on disk), **git** (a cloned repository), and **builtin** (embedded in the nd binary). This guide explains how to structure your own local or git source.
 
 ## Directory convention
 
@@ -50,14 +50,14 @@ Not every directory needs to be present. nd only discovers assets in directories
 
 | Type | Format | Deployable | Description |
 |------|--------|------------|-------------|
-| `skills` | Directory | Yes | Multi-file skill definitions |
-| `agents` | File | Yes | Agent configuration files |
-| `commands` | File | Yes | Custom command definitions |
-| `output-styles` | File | Yes | Output formatting styles (requires manual settings.json registration) |
-| `rules` | File | Yes | Rule files for agent behavior |
-| `context` | Folder-per-asset | Yes | Context files (special deployment rules: see below) |
-| `plugins` | Directory | No | Plugin packages (uses export workflow, not symlinks) |
-| `hooks` | Directory | Yes | Hook definitions (requires manual settings.json registration) |
+| [`skills`](asset-types/skills.md) | Directory | Yes | Multi-file skill definitions |
+| [`agents`](asset-types/agents.md) | File | Yes | Agent configuration files |
+| [`commands`](asset-types/commands.md) | File | Yes | Custom command definitions |
+| [`output-styles`](asset-types/output-styles.md) | File | Yes | Output formatting styles (requires manual settings.json registration) |
+| [`rules`](asset-types/rules.md) | File | Yes | Rule files for agent behavior |
+| [`context`](asset-types/context.md) | Folder-per-asset | Yes | Context files (special deployment rules: see below) |
+| [`plugins`](asset-types/plugins.md) | Directory | No | Plugin packages (uses export workflow, not symlinks) |
+| [`hooks`](asset-types/hooks.md) | Directory | Yes | Hook definitions (requires manual settings.json registration) |
 
 ## Context files
 
@@ -65,7 +65,7 @@ Context files have special deployment rules:
 
 - **Global scope:** Deployed to the agent's global directory (e.g., `~/.claude/CLAUDE.md`)
 - **Project scope:** Deployed to the project root directly (e.g., `./CLAUDE.md`), not inside `.claude/`
-- **Local files** (`*.local.md`): Can only be deployed at project scope
+- **Local files** (`*.local.md`): Deploy only at project scope
 
 ### _meta.yaml
 
@@ -92,7 +92,7 @@ exclude:
   - vendor/
 ```
 
-When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. Convention-based discovery only happens if no manifest is found.
+When an `nd-source.yaml` manifest is present, it **overrides** convention-based scanning entirely. nd falls back to convention-based discovery only when no manifest exists.
 
 ## Publish your source
 
@@ -115,4 +115,14 @@ nd source add you/my-assets
 nd source add https://github.com/you/my-assets.git
 ```
 
-Git sources are cloned to `~/.config/nd/sources/` and can be synced with `nd sync --source <id>`.
+nd clones git sources to `~/.config/nd/sources/`. Sync them with `nd sync --source <id>`.
+
+## Remove a source
+
+```shell
+nd source remove <source-id>
+```
+
+If assets from the source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. nd prevents removal of the `builtin` source.
+
+> **Warning:** `nd source remove <id> --yes` skips the interactive prompt and **removes all deployed assets** from that source without confirmation. This is a destructive operation — use it only in scripts or when you are certain you want a clean removal.

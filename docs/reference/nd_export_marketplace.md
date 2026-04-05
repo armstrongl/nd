@@ -16,6 +16,13 @@ Each --plugins path must point to a directory containing a .claude-plugin/plugin
 nd export marketplace [flags]
 ```
 
+## Examples
+
+```
+  # Generate marketplace from exported plugins
+  nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace
+```
+
 ## Options
 
 ```

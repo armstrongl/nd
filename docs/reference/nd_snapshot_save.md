@@ -10,6 +10,13 @@ Save current deployments as a named snapshot
 nd snapshot save <name> [flags]
 ```
 
+## Examples
+
+```
+  # Save current deployments as a snapshot
+  nd snapshot save before-update
+```
+
 ## Options
 
 ```
@@ -32,3 +39,7 @@ nd snapshot save <name> [flags]
 ## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

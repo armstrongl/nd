@@ -20,6 +20,16 @@ Or manually:
 nd completion fish [flags]
 ```
 
+## Examples
+
+```
+  # Print fish completion script
+  nd completion fish
+
+  # Auto-install to standard location
+  nd completion fish --install
+```
+
 ## Options
 
 ```

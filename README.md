@@ -119,9 +119,8 @@ See the full [configuration guide](docs/guide/configuration.md).
 
 - [How nd works](docs/guide/how-nd-works.md): What happens on disk when you deploy
 - [Get started](docs/guide/getting-started.md): Install to first deploy in 5 minutes
-- [User guide](docs/guide/user-guide.md): Core workflows: sources, deploying, syncing
 - [Profiles & snapshots](docs/guide/profiles-and-snapshots.md): Advanced workflow management
-- [Configuration](docs/guide/configuration.md): Full config reference
+- [Configuration](docs/guide/configuration.md): Config reference, global flags, operation log
 - [Creating sources](docs/guide/creating-sources.md): Build your own asset library
 - [Command reference](docs/reference/nd.md): Auto-generated from source
 

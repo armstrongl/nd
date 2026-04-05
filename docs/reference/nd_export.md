@@ -17,6 +17,16 @@ Multiple assets can be comma-separated or the flag repeated.
 nd export [flags]
 ```
 
+## Examples
+
+```
+  # Export assets as a Claude Code plugin
+  nd export --assets skills/greeting,commands/hello --output ./my-plugin
+
+  # Generate a marketplace from plugins
+  nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace
+```
+
 ## Options
 
 ```
@@ -50,3 +60,9 @@ nd export [flags]
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
 - [nd export marketplace](nd_export_marketplace.md) - Generate a Claude Code marketplace from exported plugins
+
+## Guides
+
+- [Getting started](../guide/getting-started.md)
+- [Create sources](../guide/creating-sources.md)
+- [Plugins](../guide/asset-types/plugins.md)

@@ -14,6 +14,14 @@ func newUninstallCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove all nd-managed symlinks and optionally config",
+		Example: `  # Remove all nd-managed symlinks
+  nd uninstall
+
+  # Skip confirmation prompt
+  nd uninstall --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

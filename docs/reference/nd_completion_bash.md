@@ -22,6 +22,16 @@ Then restart your shell or source the file.
 nd completion bash [flags]
 ```
 
+## Examples
+
+```
+  # Print bash completion script
+  nd completion bash
+
+  # Auto-install to standard location
+  nd completion bash --install
+```
+
 ## Options
 
 ```

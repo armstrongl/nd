@@ -16,7 +16,7 @@ tags:
 
 nd doesn't copy files. It creates symlinks.
 
-When you run `nd deploy skills/greeting`, nd creates a symbolic link from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
+When you run `nd deploy skills/greeting`, nd creates a symlink from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
 
 ## The mental model
 
@@ -24,12 +24,12 @@ nd wires each deployed asset from your source into the agent's config directory:
 
 ```text
   your source               nd               agent config dir
-+----------------+     (creates link)     +------------------+
-| ~/my-assets/   |  ---- nd deploy --->   | ~/.claude/        |
-|   skills/      |                        |   skills/         |
-|   rules/       |                        |   rules/          |
-|   agents/      |                        |   agents/         |
-+----------------+                        +------------------+
+┌────────────────┐     (creates link)     ┌──────────────────┐
+│ ~/my-assets/   │  ─── nd deploy ───▶    │ ~/.claude/        │
+│   skills/      │                        │   skills/         │
+│   rules/       │                        │   rules/          │
+│   agents/      │                        │   agents/         │
+└────────────────┘                        └──────────────────┘
 ```
 
 Your files stay in the source. nd creates links so the agent can find them. You manage the source; nd manages the wiring.
@@ -61,7 +61,7 @@ nd creates the parent directories (`~/.claude/skills/`, `~/.claude/rules/`) if t
 
 The `->` arrow shows where the symlink points. `greeting` is a directory symlink (the whole skill folder), while `no-emojis.md` is a file symlink. Both point back to the original source.
 
-You can verify this yourself:
+Verify this:
 
 ```shell
 ls -la ~/.claude/skills/
@@ -70,7 +70,7 @@ ls -la ~/.claude/skills/
 
 ## Global vs project scope
 
-nd can deploy to two places depending on the scope:
+nd deploys to one of two places depending on the scope:
 
 **Global scope** (default) deploys to your agent's user-wide config directory:
 
@@ -98,7 +98,7 @@ See the [configuration guide](configuration.md) for how to change the default sc
 
 ## Context files (the exception)
 
-Context files break the pattern. Every other asset type deploys into a subdirectory (`skills/`, `rules/`, `agents/`, etc.). Context files deploy directly into the config directory or project root.
+Context files break the pattern. Every other asset type deploys into a subdirectory (`skills/`, `rules/`, `agents/`, and others). Context files deploy directly into the config directory or project root.
 
 **Global scope:** deploys into the agent's config directory:
 
@@ -116,7 +116,7 @@ This is intentional. Claude Code reads project-level context from the project ro
 
 Two things to keep in mind:
 
-- **Local-only context files** (`*.local.md`) can only be deployed at project scope. Attempting to deploy them globally will fail with an error.
+- **Local-only context files** (`*.local.md`) can only be deployed at project scope. Attempting to deploy them globally fails with an error.
 - **One context file per target.** If you deploy a second context file to the same location, nd backs up the existing file to `~/.config/nd/backups/` before replacing it.
 
 ## Absolute vs relative symlinks
@@ -147,10 +147,14 @@ nd deploy skills/greeting --relative
 
 ## What the agent sees
 
-Once an asset is deployed, Claude Code can use it. Skills, agents, commands, and rules deployed to `~/.claude/` are typically available in your next Claude Code session. Project-scope assets are available when you run Claude Code from that project's directory.
+Once you deploy an asset, Claude Code uses it. Claude Code typically loads skills, agents, commands, and rules from `~/.claude/` at session start. It loads project-scope assets when you run it from that project's directory.
 
 Two asset types need an extra step after deploying:
 
 - **Hooks** and **output-styles** require manual registration in Claude Code's `settings.json`. nd creates the symlink, but Claude Code needs to be told about them in its settings file. Check Claude Code's documentation for the specific settings entries.
 
-For everything else, deploy and go: no additional nd configuration is needed.
+For everything else, deploy and go: no additional nd configuration required.
+
+## Next steps
+
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them without touching individual symlinks.

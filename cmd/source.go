@@ -17,6 +17,12 @@ func newSourceCmd(app *App) *cobra.Command {
 		Use:   "source",
 		Short: "Manage asset sources",
 		Long:  "Add, remove, and list asset source directories.",
+		Example: `  nd source add ~/my-assets
+  nd source list
+  nd source remove my-assets`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources",
+		},
 	}
 
 	cmd.AddCommand(
@@ -34,7 +40,24 @@ func newSourceAddCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <path|url>",
 		Short: "Register a new asset source",
-		Args:  cobra.ExactArgs(1),
+		Example: `  # Add a local directory
+  nd source add ~/my-assets
+
+  # Add with a custom alias
+  nd source add ~/my-assets --alias my-stuff
+
+  # Add a GitHub repository (shorthand)
+  nd source add owner/repo
+
+  # Add via HTTPS
+  nd source add https://github.com/owner/repo.git
+
+  # Add via SSH
+  nd source add git@github.com:owner/repo.git`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources,getting-started",
+		},
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sm, err := app.SourceManager()
 			if err != nil {
@@ -106,7 +129,15 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <source-id>",
 		Short: "Remove a registered source",
-		Args:  cobra.ExactArgs(1),
+		Example: `  # Remove a source by ID
+  nd source remove my-assets
+
+  # Skip confirmation prompt
+  nd source remove my-assets --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources",
+		},
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Wire hidden --force into --yes with deprecation warning
 			if force {
@@ -233,7 +264,15 @@ func newSourceListCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List registered sources",
-		Args:  cobra.NoArgs,
+		Example: `  # List all registered sources
+  nd source list
+
+  # Output as JSON
+  nd source list --json`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources",
+		},
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sm, err := app.SourceManager()
 			if err != nil {

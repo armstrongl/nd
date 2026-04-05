@@ -10,6 +10,16 @@ List all profiles
 nd profile list [flags]
 ```
 
+## Examples
+
+```
+  # List all saved profiles
+  nd profile list
+
+  # Output as JSON
+  nd profile list --json
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd profile list [flags]
 ## Related
 
 - [nd profile](nd_profile.md) - Manage deployment profiles
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

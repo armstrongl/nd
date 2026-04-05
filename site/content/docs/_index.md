@@ -4,7 +4,7 @@ cascade:
   type: docs
 ---
 
-Learn how to install, configure, and use nd to manage coding agent assets.
+Set up, configure, and use nd to manage coding agent assets.
 
 {{< cards >}}
   {{< card link="guide/" title="Guides" subtitle="Step-by-step instructions for common workflows" icon="book-open" >}}

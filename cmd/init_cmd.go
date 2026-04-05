@@ -17,9 +17,17 @@ import (
 
 func newInitCmd(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "init",
+		Use:  "init",
 		Short: "Initialize nd configuration",
 		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. Use --yes to skip the deploy confirmation prompt.",
+		Example: `  # Interactive setup
+  nd init
+
+  # Non-interactive setup (skip prompts)
+  nd init --yes`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,configuration",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

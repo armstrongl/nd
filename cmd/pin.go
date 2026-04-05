@@ -11,6 +11,14 @@ func newPinCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pin <asset>",
 		Short: "Pin an asset to prevent profile switches from removing it",
+		Example: `  # Pin an asset to survive profile switches
+  nd pin skills/greeting
+
+  # Pin using only the name
+  nd pin greeting`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginPinned, "Pinned")
@@ -26,6 +34,11 @@ func newUnpinCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unpin <asset>",
 		Short: "Unpin an asset, allowing profile switches to manage it",
+		Example: `  # Unpin an asset
+  nd unpin skills/greeting`,
+		Annotations: map[string]string{
+			"docs.guides": "profiles-and-snapshots",
+		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginManual, "Unpinned")

@@ -18,6 +18,23 @@ func newListCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available assets from all sources",
+		Example: `  # List all available assets
+  nd list
+
+  # Filter by type
+  nd list --type skills
+
+  # Filter by source
+  nd list --source my-assets
+
+  # Filter by name pattern
+  nd list --pattern greeting
+
+  # Output as JSON for scripting
+  nd list --json`,
+		Annotations: map[string]string{
+			"docs.guides": "getting-started,asset-types/skills,asset-types/agents,asset-types/commands,asset-types/rules",
+		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

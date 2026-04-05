@@ -10,6 +10,16 @@ Delete a snapshot
 nd snapshot delete <name> [flags]
 ```
 
+## Examples
+
+```
+  # Delete a snapshot
+  nd snapshot delete before-update
+
+  # Delete without confirmation
+  nd snapshot delete before-update --yes
+```
+
 ## Options
 
 ```
@@ -32,3 +42,7 @@ nd snapshot delete <name> [flags]
 ## Related
 
 - [nd snapshot](nd_snapshot.md) - Manage deployment snapshots
+
+## Guides
+
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)
