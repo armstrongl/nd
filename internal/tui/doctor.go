@@ -57,8 +57,9 @@ type doctorScreen struct {
 	err        error
 
 	// issue list scrolling (confirm step)
-	height int
-	scroll listScroll
+	issueLines []string // pre-rendered issue lines for RenderScrolledLines
+	height     int
+	scroll     listScroll
 }
 
 func newDoctorScreen(svc Services, styles Styles, isDark bool) *doctorScreen {
@@ -167,6 +168,7 @@ func (d *doctorScreen) handleChecked(msg doctorCheckedMsg) (tea.Model, tea.Cmd) 
 	}
 
 	d.issues = msg.issues
+	d.issueLines = d.buildIssueLines()
 	d.scroll = listScroll{}
 	d.step = doctorConfirm
 
@@ -215,7 +217,7 @@ func (d *doctorScreen) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case "j", "down":
-			d.scroll.ScrollDown(len(d.issues), d.issueListHeight())
+			d.scroll.ScrollDown(len(d.issueLines), d.issueListHeight())
 			return d, nil
 		case "k", "up":
 			d.scroll.ScrollUp()
@@ -281,35 +283,7 @@ func (d *doctorScreen) viewConfirm() tea.View {
 	fmt.Fprintf(&b, "  %s %d issue(s) found:\n\n",
 		d.styles.Warning.Render(GlyphBroken), len(d.issues))
 
-	pageSize := d.issueListHeight()
-	// Reserve rows for scroll indicators so they don't push content past the
-	// terminal height budget.
-	if d.scroll.MoreAbove() > 0 {
-		pageSize--
-	}
-	if d.scroll.MoreBelow(len(d.issues), pageSize) > 0 {
-		pageSize--
-	}
-	if pageSize < 1 {
-		pageSize = 1
-	}
-	start, end := d.scroll.Window(len(d.issues), pageSize)
-
-	if above := d.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(d.styles, "↑", above))
-	}
-
-	for _, issue := range d.issues[start:end] {
-		glyph := healthGlyph(issue.Status)
-		styled := styleGlyphWith(d.styles, glyph, issue.Status)
-		fmt.Fprintf(&b, "    %s  %-20s  %s\n",
-			styled, issue.Deployment.AssetName,
-			d.styles.Subtle.Render(issue.Detail))
-	}
-
-	if below := d.scroll.MoreBelow(len(d.issues), pageSize); below > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(d.styles, "↓", below))
-	}
+	b.WriteString(RenderScrolledLines(d.styles, &d.scroll, d.issueLines, d.issueListHeight()))
 
 	if d.confirmForm != nil {
 		b.WriteString("\n")
@@ -317,6 +291,19 @@ func (d *doctorScreen) viewConfirm() tea.View {
 	}
 
 	return tea.NewView(b.String())
+}
+
+// buildIssueLines pre-renders each issue as a single line for RenderScrolledLines.
+func (d *doctorScreen) buildIssueLines() []string {
+	lines := make([]string, len(d.issues))
+	for i, issue := range d.issues {
+		glyph := healthGlyph(issue.Status)
+		styled := styleGlyphWith(d.styles, glyph, issue.Status)
+		lines[i] = fmt.Sprintf("    %s  %-20s  %s",
+			styled, issue.Deployment.AssetName,
+			d.styles.Subtle.Render(issue.Detail))
+	}
+	return lines
 }
 
 func (d *doctorScreen) viewDone() tea.View {

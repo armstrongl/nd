@@ -368,14 +368,10 @@ func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resultLines = splitLines(m.buildResultContent())
 	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case "j", "down":
-			m.scroll.ScrollDown(len(m.resultLines), m.contentHeight())
+		switch HandleScrollKeys(keyMsg, &m.scroll, len(m.resultLines), m.contentHeight()) {
+		case scrollKeyHandled:
 			return m, nil
-		case "k", "up":
-			m.scroll.ScrollUp()
-			return m, nil
-		case "enter":
+		case scrollKeyPopToRoot:
 			return m, tea.Batch(
 				func() tea.Msg { return PopToRootMsg{} },
 				func() tea.Msg { return RefreshHeaderMsg{} },
@@ -386,14 +382,7 @@ func (m *removeScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *removeScreen) contentHeight() int {
-	if m.height == 0 {
-		return listScrollUnlimited
-	}
-	h := m.height - 4
-	if h < 3 {
-		h = 3
-	}
-	return h
+	return ContentHeight(m.height, 4)
 }
 
 // --- Views ---
@@ -464,31 +453,7 @@ func (m *removeScreen) viewResult() tea.View {
 	if len(m.resultLines) == 0 {
 		m.resultLines = splitLines(m.buildResultContent())
 	}
-
-	lines := m.resultLines
-	pageSize := m.contentHeight()
-	// Reserve rows for scroll indicators so they don't push content past the
-	// terminal height budget.
-	if m.scroll.MoreAbove() > 0 {
-		pageSize--
-	}
-	if m.scroll.MoreBelow(len(lines), pageSize) > 0 {
-		pageSize--
-	}
-	if pageSize < 1 {
-		pageSize = 1
-	}
-	start, end := m.scroll.Window(len(lines), pageSize)
-
-	var b strings.Builder
-	if above := m.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(m.styles, "↑", above))
-	}
-	b.WriteString(strings.Join(lines[start:end], "\n"))
-	if below := m.scroll.MoreBelow(len(lines), pageSize); below > 0 {
-		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(m.styles, "↓", below))
-	}
-	return tea.NewView(b.String())
+	return tea.NewView(RenderScrolledLines(m.styles, &m.scroll, m.resultLines, m.contentHeight()))
 }
 
 // --- Helpers ---

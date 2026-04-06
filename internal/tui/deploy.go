@@ -517,20 +517,14 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 // updateResult handles key presses at the result step.
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Eagerly populate resultLines so scroll keys work before the first render.
 	if len(ds.resultLines) == 0 {
 		ds.resultLines = splitLines(ds.buildResultContent())
 	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case "j", "down":
-			ds.scroll.ScrollDown(len(ds.resultLines), ds.contentHeight())
+		switch HandleScrollKeys(keyMsg, &ds.scroll, len(ds.resultLines), ds.contentHeight()) {
+		case scrollKeyHandled:
 			return ds, nil
-		case "k", "up":
-			ds.scroll.ScrollUp()
-			return ds, nil
-		case "enter":
-			// M7: PopToRootMsg (matching remove screen behavior)
+		case scrollKeyPopToRoot:
 			return ds, tea.Batch(
 				func() tea.Msg { return PopToRootMsg{} },
 				func() tea.Msg { return RefreshHeaderMsg{} },
@@ -541,14 +535,7 @@ func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (ds *deployScreen) contentHeight() int {
-	if ds.height == 0 {
-		return listScrollUnlimited
-	}
-	h := ds.height - 4
-	if h < 3 {
-		h = 3
-	}
-	return h
+	return ContentHeight(ds.height, 4)
 }
 
 // buildResultContent renders the full deployment result as a string.
@@ -605,31 +592,7 @@ func (ds *deployScreen) viewResult() tea.View {
 	if len(ds.resultLines) == 0 {
 		ds.resultLines = splitLines(ds.buildResultContent())
 	}
-
-	lines := ds.resultLines
-	pageSize := ds.contentHeight()
-	// Reserve rows for scroll indicators so they don't push content past the
-	// terminal height budget.
-	if ds.scroll.MoreAbove() > 0 {
-		pageSize--
-	}
-	if ds.scroll.MoreBelow(len(lines), pageSize) > 0 {
-		pageSize--
-	}
-	if pageSize < 1 {
-		pageSize = 1
-	}
-	start, end := ds.scroll.Window(len(lines), pageSize)
-
-	var b strings.Builder
-	if above := ds.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(ds.styles, "↑", above))
-	}
-	b.WriteString(strings.Join(lines[start:end], "\n"))
-	if below := ds.scroll.MoreBelow(len(lines), pageSize); below > 0 {
-		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(ds.styles, "↓", below))
-	}
-	return tea.NewView(b.String())
+	return tea.NewView(RenderScrolledLines(ds.styles, &ds.scroll, ds.resultLines, ds.contentHeight()))
 }
 
 // --- Conflict resolution ---
