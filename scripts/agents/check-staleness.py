@@ -145,66 +145,88 @@ def check_path_staleness(paths: list[str], last_validated: str, repo_root: str) 
     return None
 
 
+def _check_single_doc(
+    filepath: str, default_max_age: int, repo_root: str,
+) -> tuple[dict, dict | None, dict | None, int] | None:
+    """Validate one doc and run staleness checks.
+
+    Returns ``(fm, time_result, path_result, max_age_int)`` when the doc
+    has valid frontmatter and a ``lastValidated`` field, or ``None`` to skip.
+    """
+    fm = parse_frontmatter(filepath)
+    if not fm or not fm.get("lastValidated"):
+        return None
+
+    max_age = fm.get("maxAgeDays", default_max_age)
+    try:
+        max_age_int = int(max_age)
+    except (ValueError, TypeError):
+        print(
+            f"Warning: skipping {filepath} — maxAgeDays is not numeric: {max_age!r}",
+            file=sys.stderr,
+        )
+        return None
+
+    last_validated = str(fm["lastValidated"])
+    time_result = check_time_staleness(last_validated, max_age_int)
+    path_result = check_path_staleness(fm.get("paths", []), last_validated, repo_root)
+    return fm, time_result, path_result, max_age_int
+
+
+def _build_flagged_entry(
+    filepath: str,
+    fm: dict,
+    time_result: dict | None,
+    path_result: dict | None,
+    repo_root: str,
+    max_age_int: int,
+) -> dict | None:
+    """Build a flagged-entry dict if at least one staleness check fired."""
+    if not time_result and not path_result:
+        return None
+
+    reasons = []
+    details = []
+    for tag, result in [("time", time_result), ("paths", path_result)]:
+        if result:
+            reasons.append(tag)
+            details.append(result["detail"])
+
+    # Auto-resolvable only when staleness is purely path-based
+    # and every commit uses an internal prefix.
+    auto = (
+        path_result is not None
+        and time_result is None
+        and path_result.get("autoResolvable", False)
+    )
+
+    entry = {
+        "file": os.path.relpath(filepath, repo_root),
+        "title": fm.get("title", os.path.basename(filepath)),
+        "reason": " + ".join(reasons),
+        "details": details,
+        "lastValidated": str(fm["lastValidated"]),
+        "maxAgeDays": max_age_int,
+        "autoResolvable": auto,
+    }
+    if path_result and path_result.get("prefixes"):
+        entry["prefixes"] = path_result["prefixes"]
+
+    return entry
+
+
 def check_all_docs(docs_dir: str, default_max_age: int, repo_root: str) -> list[dict]:
     """Check all docs for staleness. Returns list of flagged doc reports."""
     pattern = os.path.join(docs_dir, "*.md")
-    files = sorted(glob.glob(pattern))
-
     flagged = []
-    for filepath in files:
-        fm = parse_frontmatter(filepath)
-        if not fm:
+    for filepath in sorted(glob.glob(pattern)):
+        result = _check_single_doc(filepath, default_max_age, repo_root)
+        if result is None:
             continue
-
-        last_validated = fm.get("lastValidated")
-        if not last_validated:
-            continue
-
-        max_age = fm.get("maxAgeDays", default_max_age)
-        paths = fm.get("paths", [])
-
-        # Validate maxAgeDays is numeric; skip docs with bad values
-        try:
-            max_age_int = int(max_age)
-        except (ValueError, TypeError):
-            print(f"Warning: skipping {filepath} — maxAgeDays is not numeric: {max_age!r}", file=sys.stderr)
-            continue
-
-        time_result = check_time_staleness(str(last_validated), max_age_int)
-        path_result = check_path_staleness(paths, str(last_validated), repo_root)
-
-        if time_result or path_result:
-            reasons = []
-            details = []
-            if time_result:
-                reasons.append("time")
-                details.append(time_result["detail"])
-            if path_result:
-                reasons.append("paths")
-                details.append(path_result["detail"])
-
-            # Auto-resolvable only when staleness is purely path-based
-            # and every commit uses an internal prefix.
-            auto = (
-                path_result is not None
-                and time_result is None
-                and path_result.get("autoResolvable", False)
-            )
-
-            entry = {
-                "file": os.path.relpath(filepath, repo_root),
-                "title": fm.get("title", os.path.basename(filepath)),
-                "reason": " + ".join(reasons),
-                "details": details,
-                "lastValidated": str(last_validated),
-                "maxAgeDays": max_age_int,
-                "autoResolvable": auto,
-            }
-            if path_result and path_result.get("prefixes"):
-                entry["prefixes"] = path_result["prefixes"]
-
+        fm, time_result, path_result, max_age_int = result
+        entry = _build_flagged_entry(filepath, fm, time_result, path_result, repo_root, max_age_int)
+        if entry:
             flagged.append(entry)
-
     return flagged
 
 
