@@ -24,8 +24,7 @@ type statusScreen struct {
 	err     error
 	loaded  bool
 
-	filter    string
-	filtering bool
+	filter filterInput
 
 	// generation is incremented on every ScopeSwitchedMsg so that stale
 	// statusLoadedMsg results from a previous scope's goroutine are discarded.
@@ -48,11 +47,11 @@ func newStatusScreen(svc Services, styles Styles, isDark bool) *statusScreen {
 }
 
 func (s *statusScreen) Title() string     { return "Status" }
-func (s *statusScreen) InputActive() bool { return s.filtering }
+func (s *statusScreen) InputActive() bool { return s.filter.active }
 
 // HelpItems returns context-sensitive help items for the status screen.
 func (s *statusScreen) HelpItems() []HelpItem {
-	if s.filtering {
+	if s.filter.active {
 		return []HelpItem{
 			{"esc", "clear filter"},
 		}
@@ -96,6 +95,7 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.entries = nil
 		s.renderedLines = nil
 		s.scroll = listScroll{}
+		s.filter = filterInput{}
 		return s, s.Init()
 
 	case statusLoadedMsg:
@@ -120,8 +120,11 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// M11: Handle shortcut keys shown in help bar
 	case tea.KeyPressMsg:
-		if s.filtering {
-			return s.handleFilterKey(msg)
+		if s.filter.active {
+			if s.filter.HandleKey(msg) {
+				s.rebuildRendered()
+			}
+			return s, nil
 		}
 		switch msg.String() {
 		case "j", "down":
@@ -129,7 +132,7 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k", "up":
 			s.scroll.ScrollUp()
 		case "/":
-			s.filtering = true
+			s.filter.active = true
 			return s, nil
 		case "d":
 			screen := newDeployScreen(s.svc, s.styles, s.isDark)
@@ -145,58 +148,18 @@ func (s *statusScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// contentHeight returns the number of content rows that fit in the terminal.
-// Returns listScrollUnlimited when height is unknown, disabling windowing.
 func (s *statusScreen) contentHeight() int {
-	if s.height == 0 {
-		return listScrollUnlimited
-	}
-	h := s.height - 4 // root chrome: header + 2 blank separators + helpbar
-	if h < 3 {
-		h = 3
-	}
-	return h
-}
-
-// handleFilterKey processes keystrokes while in filter mode.
-func (s *statusScreen) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
-	switch key {
-	case "esc":
-		s.filtering = false
-		s.filter = ""
-		s.rebuildRendered()
-		return s, nil
-	case "backspace":
-		if len(s.filter) > 0 {
-			s.filter = s.filter[:len(s.filter)-1]
-			s.rebuildRendered()
-		}
-		return s, nil
-	case "enter":
-		s.filtering = false
-		return s, nil
-	default:
-		// Append printable characters to filter (msg.Text is empty for control keys).
-		if msg.Text != "" {
-			s.filter += msg.Text
-			s.rebuildRendered()
-		}
-		return s, nil
-	}
+	return ContentHeight(s.height, 4) // root chrome: header + 2 blank separators + helpbar
 }
 
 // filteredEntries returns entries matching the current filter.
 func (s *statusScreen) filteredEntries() []deploy.StatusEntry {
-	if s.filter == "" {
+	if s.filter.text == "" {
 		return s.entries
 	}
-	lower := strings.ToLower(s.filter)
 	var result []deploy.StatusEntry
 	for _, e := range s.entries {
-		name := strings.ToLower(e.Deployment.AssetName)
-		src := strings.ToLower(e.Deployment.SourceID)
-		if strings.Contains(name, lower) || strings.Contains(src, lower) {
+		if s.filter.MatchesAny(e.Deployment.AssetName, e.Deployment.SourceID) {
 			result = append(result, e)
 		}
 	}
@@ -236,8 +199,8 @@ func (s *statusScreen) buildContent() string {
 				styled, e.Deployment.AssetName, s.styles.Subtle.Render(scope), s.styles.Subtle.Render(e.Deployment.SourceID))
 		}
 	}
-	if s.filter != "" {
-		fmt.Fprintf(&b, "\n  %d/%d matching %q", len(filtered), len(s.entries), s.filter)
+	if s.filter.text != "" {
+		fmt.Fprintf(&b, "\n  %d/%d matching %q", len(filtered), len(s.entries), s.filter.text)
 	} else {
 		fmt.Fprintf(&b, "\n  %d deployed", len(s.entries))
 	}
@@ -260,40 +223,9 @@ func (s *statusScreen) View() tea.View {
 		return tea.NewView("  " + NothingDeployed())
 	}
 
-	var filterLine string
-	if s.filtering {
-		filterLine = fmt.Sprintf("  filter: %s█\n", s.filter)
-	} else if s.filter != "" {
-		filterLine = fmt.Sprintf("  filter: %s\n", s.filter)
-	}
-
-	lines := s.renderedLines
-	pageSize := s.contentHeight()
-	// Reserve rows for scroll indicators so they don't push content past the
-	// terminal height budget.  MoreAbove depends only on the offset (known
-	// before windowing); MoreBelow is checked after we've already reduced the
-	// budget, so the indicator row itself is accounted for.
-	if s.scroll.MoreAbove() > 0 {
-		pageSize--
-	}
-	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
-		pageSize--
-	}
-	if pageSize < 1 {
-		pageSize = 1
-	}
-	start, end := s.scroll.Window(len(lines), pageSize)
-
-	var b strings.Builder
-	if above := s.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
-	}
-	b.WriteString(strings.Join(lines[start:end], "\n"))
-	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
-		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
-	}
-
-	return tea.NewView(filterLine + b.String())
+	filterLine := s.filter.Render(s.styles)
+	content := RenderScrolledLines(s.styles, &s.scroll, s.renderedLines, s.contentHeight())
+	return tea.NewView(filterLine + content)
 }
 
 // healthGlyph returns the text glyph for the given health status.

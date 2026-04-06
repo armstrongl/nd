@@ -25,12 +25,11 @@ type browseScreen struct {
 	styles Styles
 	isDark bool
 
-	assets    []*asset.Asset
-	deployed  map[string]bool
-	cursor    int
-	filter    string
-	filtering bool
-	notice    string // transient feedback (e.g. "already deployed")
+	assets   []*asset.Asset
+	deployed map[string]bool
+	cursor   int
+	filter   filterInput
+	notice   string // transient feedback (e.g. "already deployed")
 	err       error
 	loaded    bool
 
@@ -50,11 +49,11 @@ func (b *browseScreen) Title() string { return "Browse" }
 
 // InputActive returns true while the filter input is active,
 // suppressing global q/esc key handling.
-func (b *browseScreen) InputActive() bool { return b.filtering }
+func (b *browseScreen) InputActive() bool { return b.filter.active }
 
 // FullHelpItems returns step-specific help items for the browse screen.
 func (b *browseScreen) FullHelpItems() []HelpItem {
-	if b.filtering {
+	if b.filter.active {
 		return []HelpItem{
 			{"esc", "cancel"},
 			{"enter", "apply"},
@@ -112,8 +111,7 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		b.loaded = false
 		b.assets = nil
 		b.deployed = nil
-		b.filter = ""
-		b.filtering = false
+		b.filter = filterInput{}
 		b.cursor = 0
 		b.scroll = listScroll{}
 		return b, b.Init()
@@ -143,23 +141,8 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKey processes keyboard input, routing filter keys vs navigation.
 func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if b.filtering {
-		switch msg.String() {
-		case "esc":
-			b.filter = ""
-			b.filtering = false
-		case "enter":
-			b.filtering = false
-		case "backspace":
-			if len(b.filter) > 0 {
-				b.filter = b.filter[:len(b.filter)-1]
-			}
-		default:
-			// Append printable characters to filter.
-			if msg.Text != "" {
-				b.filter += msg.Text
-			}
-		}
+	if b.filter.active {
+		b.filter.HandleKey(msg)
 		b.clampCursor()
 		return b, nil
 	}
@@ -174,7 +157,7 @@ func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "/":
-		b.filtering = true
+		b.filter.active = true
 		return b, nil
 
 	case "j", "down":
@@ -227,15 +210,9 @@ func (b *browseScreen) View() tea.View {
 	var buf strings.Builder
 
 	// Filter bar when active.
-	if b.filtering || b.filter != "" {
-		indicator := " "
-		if b.filtering {
-			indicator = "_"
-		}
-		fmt.Fprintf(&buf, "  %s %s%s\n\n",
-			b.styles.Subtle.Render("/"),
-			b.filter,
-			indicator)
+	if filterBar := b.filter.Render(b.styles); filterBar != "" {
+		buf.WriteString(filterBar)
+		buf.WriteString("\n")
 	}
 
 	if len(visible) == 0 {
@@ -297,7 +274,7 @@ func (b *browseScreen) View() tea.View {
 
 	total := len(b.assets)
 	shown := len(visible)
-	if b.filter != "" {
+	if b.filter.text != "" {
 		fmt.Fprintf(&buf, "\n  %s",
 			b.styles.Subtle.Render(fmt.Sprintf("%d of %d  · / to filter", shown, total)))
 	} else {
@@ -309,25 +286,17 @@ func (b *browseScreen) View() tea.View {
 }
 
 // contentHeight returns the number of list rows that fit in the terminal.
-// When height is unknown (0), it returns listScrollUnlimited so all assets
-// are visible without windowing (matching pre-scroll behaviour in tests).
+// Browse has extra chrome beyond the standard 4 lines (summary footer,
+// optional filter bar, optional notice).
 func (b *browseScreen) contentHeight() int {
-	if b.height == 0 {
-		return listScrollUnlimited
-	}
-	h := b.height
-	h -= 4 // root chrome: header + 2 blank separators + helpbar
-	h -= 2 // summary footer: blank line + summary line
-	if b.filtering || b.filter != "" {
-		h -= 2 // filter bar + blank line below it
+	extra := 4 + 2 // root chrome + summary footer
+	if b.filter.active || b.filter.text != "" {
+		extra += 2 // filter bar + blank line below it
 	}
 	if b.notice != "" {
-		h -= 2 // transient notice + blank line before it
+		extra += 2 // transient notice + blank line before it
 	}
-	if h < 3 {
-		h = 3
-	}
-	return h
+	return ContentHeight(b.height, extra)
 }
 
 // clampCursor ensures the cursor stays within the visible asset list bounds
@@ -346,15 +315,12 @@ func (b *browseScreen) clampCursor() {
 
 // visibleAssets returns the filtered asset list (or all if no filter set).
 func (b *browseScreen) visibleAssets() []*asset.Asset {
-	if b.filter == "" {
+	if b.filter.text == "" {
 		return b.assets
 	}
-	lower := strings.ToLower(b.filter)
 	var out []*asset.Asset
 	for _, a := range b.assets {
-		if strings.Contains(strings.ToLower(a.Name), lower) ||
-			strings.Contains(strings.ToLower(string(a.Type)), lower) ||
-			strings.Contains(strings.ToLower(a.SourceID), lower) {
+		if b.filter.MatchesAny(a.Name, string(a.Type), a.SourceID) {
 			out = append(out, a)
 		}
 	}

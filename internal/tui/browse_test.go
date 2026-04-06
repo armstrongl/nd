@@ -26,7 +26,7 @@ func TestBrowseScreen_Title(t *testing.T) {
 
 func TestBrowseScreen_InputActive_WhenFiltering(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = true
+	s.filter.active = true
 	if !s.InputActive() {
 		t.Fatal("InputActive() = false while filtering, want true")
 	}
@@ -34,7 +34,7 @@ func TestBrowseScreen_InputActive_WhenFiltering(t *testing.T) {
 
 func TestBrowseScreen_InputActive_WhenNotFiltering(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = false
+	s.filter.active = false
 	if s.InputActive() {
 		t.Fatal("InputActive() = true when not filtering, want false")
 	}
@@ -104,7 +104,7 @@ func TestBrowseScreen_FilterNarrowsResults(t *testing.T) {
 	s.Update(browseLoadedMsg{assets: idx.All()})
 
 	// Apply filter "deploy"
-	s.filter = "deploy"
+	s.filter.text = "deploy"
 
 	v := s.View()
 	if !strings.Contains(v.Content, "deploy-helper") {
@@ -121,48 +121,48 @@ func TestBrowseScreen_SlashEntersFilterMode(t *testing.T) {
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: '/', Text: "/"}))
 
-	if !s.filtering {
+	if !s.filter.active {
 		t.Fatal("pressing / should enter filter mode")
 	}
 }
 
 func TestBrowseScreen_EscExitsFilterMode(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = true
-	s.filter = "foo"
+	s.filter.active = true
+	s.filter.text = "foo"
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
 
-	if s.filtering {
+	if s.filter.active {
 		t.Fatal("esc should exit filter mode")
 	}
-	if s.filter != "" {
-		t.Fatalf("esc should clear filter, got: %q", s.filter)
+	if s.filter.text != "" {
+		t.Fatalf("esc should clear filter, got: %q", s.filter.text)
 	}
 }
 
 func TestBrowseScreen_FilterCharsAppend(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = true
+	s.filter.active = true
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'a', Text: "a"}))
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'b', Text: "b"}))
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'c', Text: "c"}))
 
-	if s.filter != "abc" {
-		t.Fatalf("filter should be %q, got %q", "abc", s.filter)
+	if s.filter.text != "abc" {
+		t.Fatalf("filter should be %q, got %q", "abc", s.filter.text)
 	}
 }
 
 func TestBrowseScreen_BackspaceDeletesFilterChar(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = true
-	s.filter = "foo"
+	s.filter.active = true
+	s.filter.text = "foo"
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyBackspace}))
 
-	if s.filter != "fo" {
-		t.Fatalf("backspace should remove last char, got %q", s.filter)
+	if s.filter.text != "fo" {
+		t.Fatalf("backspace should remove last char, got %q", s.filter.text)
 	}
 }
 
@@ -278,7 +278,7 @@ func TestBrowseScreen_CursorResetOnFilterChange(t *testing.T) {
 
 	// Move cursor to 2, then apply filter that shows fewer items.
 	s.cursor = 2
-	s.filtering = true
+	s.filter.active = true
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'b', Text: "b"})) // filter = "b" -> only "bravo"
 
 	if s.cursor >= len(s.visibleAssets()) {
@@ -366,7 +366,7 @@ func TestBrowseScreen_FullHelpItems_Default(t *testing.T) {
 
 func TestBrowseScreen_FullHelpItems_Filtering(t *testing.T) {
 	s := newBrowseScreen(newMockServices(), NewStyles(true), true)
-	s.filtering = true
+	s.filter.active = true
 	items := s.FullHelpItems()
 
 	if len(items) != 3 {
@@ -411,16 +411,16 @@ func TestBrowseScreen_ErrorPathRendersError(t *testing.T) {
 
 func TestBrowseScreen_EnterInFilterModePreservesFilter(t *testing.T) {
 	s := browseSeedAssets(t, 3, nil)
-	s.filtering = true
-	s.filter = "asset"
+	s.filter.active = true
+	s.filter.text = "asset"
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 
-	if s.filtering {
+	if s.filter.active {
 		t.Fatal("enter should exit filter mode")
 	}
-	if s.filter != "asset" {
-		t.Fatalf("enter should preserve filter text, got %q", s.filter)
+	if s.filter.text != "asset" {
+		t.Fatalf("enter should preserve filter text, got %q", s.filter.text)
 	}
 }
 
@@ -431,7 +431,7 @@ func TestBrowseScreen_KeysIgnoredBeforeLoad(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("keys before load should produce nil cmd")
 	}
-	if s.filtering {
+	if s.filter.active {
 		t.Fatal("/ before load should not enter filter mode")
 	}
 }
@@ -527,8 +527,8 @@ func TestBrowseScreen_NoIndicatorsWhenAllFit(t *testing.T) {
 
 func TestBrowseScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
 	s := browseSeedAssets(t, 3, nil)
-	s.filtering = true
-	s.filter = "test"
+	s.filter.active = true
+	s.filter.text = "test"
 	s.cursor = 2
 
 	if !s.loaded {
@@ -546,10 +546,10 @@ func TestBrowseScreen_ScopeSwitchedMsg_ResetsAndReloads(t *testing.T) {
 	if s.deployed != nil {
 		t.Error("deployed should be nil after ScopeSwitchedMsg")
 	}
-	if s.filter != "" {
-		t.Errorf("filter should be empty, got %q", s.filter)
+	if s.filter.text != "" {
+		t.Errorf("filter should be empty, got %q", s.filter.text)
 	}
-	if s.filtering {
+	if s.filter.active {
 		t.Error("filtering should be false after ScopeSwitchedMsg")
 	}
 	if s.cursor != 0 {

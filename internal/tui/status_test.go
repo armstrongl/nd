@@ -444,7 +444,7 @@ func TestStatusScreen_SlashEntersFilterMode(t *testing.T) {
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: '/'}))
 
-	if !s.filtering {
+	if !s.filter.active {
 		t.Fatal("expected filtering=true after pressing /")
 	}
 	if !s.InputActive() {
@@ -459,7 +459,7 @@ func TestStatusScreen_FilterMatchesAssetName(t *testing.T) {
 	s.entries = testStatusEntries()
 	s.renderedLines = splitLines(s.buildContent())
 
-	s.filter = "greeting"
+	s.filter.text = "greeting"
 	filtered := s.filteredEntries()
 	if len(filtered) != 1 {
 		t.Fatalf("expected 1 match for 'greeting', got %d", len(filtered))
@@ -475,7 +475,7 @@ func TestStatusScreen_FilterMatchesSourceID(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 
-	s.filter = "dotfiles"
+	s.filter.text = "dotfiles"
 	filtered := s.filteredEntries()
 	// All test entries have source "dotfiles"
 	if len(filtered) != len(s.entries) {
@@ -489,7 +489,7 @@ func TestStatusScreen_FilterIsCaseInsensitive(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 
-	s.filter = "GREETING"
+	s.filter.text = "GREETING"
 	filtered := s.filteredEntries()
 	if len(filtered) != 1 {
 		t.Fatalf("expected 1 match for 'GREETING' (case-insensitive), got %d", len(filtered))
@@ -502,16 +502,16 @@ func TestStatusScreen_EscClearsFilter(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 	s.renderedLines = splitLines(s.buildContent())
-	s.filtering = true
-	s.filter = "test"
+	s.filter.active = true
+	s.filter.text = "test"
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 
-	if s.filtering {
+	if s.filter.active {
 		t.Fatal("expected filtering=false after esc")
 	}
-	if s.filter != "" {
-		t.Fatalf("expected filter cleared, got %q", s.filter)
+	if s.filter.text != "" {
+		t.Fatalf("expected filter cleared, got %q", s.filter.text)
 	}
 }
 
@@ -521,12 +521,12 @@ func TestStatusScreen_ViewShowsFilterInputWhenFiltering(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 	s.renderedLines = splitLines(s.buildContent())
-	s.filtering = true
-	s.filter = "test"
+	s.filter.active = true
+	s.filter.text = "test"
 
 	v := s.View()
-	if !strings.Contains(v.Content, "filter: test") {
-		t.Error("expected view to show filter input")
+	if !strings.Contains(v.Content, "test") || !strings.Contains(v.Content, "█") {
+		t.Error("expected view to show filter input with cursor")
 	}
 }
 
@@ -552,16 +552,16 @@ func TestStatusScreen_EnterConfirmsFilter(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 	s.renderedLines = splitLines(s.buildContent())
-	s.filtering = true
-	s.filter = "greeting"
+	s.filter.active = true
+	s.filter.text = "greeting"
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 
-	if s.filtering {
+	if s.filter.active {
 		t.Fatal("expected filtering=false after enter (confirm)")
 	}
-	if s.filter != "greeting" {
-		t.Fatalf("enter should preserve filter text, got %q", s.filter)
+	if s.filter.text != "greeting" {
+		t.Fatalf("enter should preserve filter text, got %q", s.filter.text)
 	}
 }
 
@@ -571,16 +571,16 @@ func TestStatusScreen_BackspaceOnEmptyFilterDoesNothing(t *testing.T) {
 	s.loaded = true
 	s.entries = testStatusEntries()
 	s.renderedLines = splitLines(s.buildContent())
-	s.filtering = true
-	s.filter = ""
+	s.filter.active = true
+	s.filter.text = ""
 
 	s.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyBackspace}))
 
-	if s.filter != "" {
-		t.Fatalf("backspace on empty filter should leave it empty, got %q", s.filter)
+	if s.filter.text != "" {
+		t.Fatalf("backspace on empty filter should leave it empty, got %q", s.filter.text)
 	}
 	// Should still be filtering (backspace doesn't exit filter mode).
-	if !s.filtering {
+	if !s.filter.active {
 		t.Fatal("backspace on empty should not exit filter mode")
 	}
 }
@@ -588,7 +588,7 @@ func TestStatusScreen_BackspaceOnEmptyFilterDoesNothing(t *testing.T) {
 func TestStatusScreen_HelpShowsEscWhenFiltering(t *testing.T) {
 	svc := newMockServices()
 	s := newStatusScreen(svc, NewStyles(true), true)
-	s.filtering = true
+	s.filter.active = true
 	items := s.HelpItems()
 	found := false
 	for _, item := range items {
