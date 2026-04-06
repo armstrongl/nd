@@ -501,32 +501,7 @@ func (s *sourceScreen) viewList() tea.View {
 	if len(s.listLines) == 0 {
 		s.listLines = splitLines(s.buildListContent())
 	}
-
-	lines := s.listLines
-	pageSize := s.contentHeight()
-	// Reserve rows for scroll indicators so they don't push content past the
-	// terminal height budget.
-	if s.scroll.MoreAbove() > 0 {
-		pageSize--
-	}
-	if s.scroll.MoreBelow(len(lines), pageSize) > 0 {
-		pageSize--
-	}
-	if pageSize < 1 {
-		pageSize = 1
-	}
-	start, end := s.scroll.Window(len(lines), pageSize)
-
-	var b strings.Builder
-	if above := s.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(s.styles, "↑", above))
-	}
-	b.WriteString(strings.Join(lines[start:end], "\n"))
-	if below := s.scroll.MoreBelow(len(lines), pageSize); below > 0 {
-		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(s.styles, "↓", below))
-	}
-
-	return tea.NewView(b.String())
+	return tea.NewView(RenderScrolledLines(s.styles, &s.scroll, s.listLines, s.contentHeight()))
 }
 
 func (s *sourceScreen) formatSyncResult(msg sourceSyncedMsg) string {
