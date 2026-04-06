@@ -412,14 +412,7 @@ func (s *snapshotScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *snapshotScreen) contentHeight() int {
-	if s.height == 0 {
-		return listScrollUnlimited
-	}
-	h := s.height - 4
-	if h < 3 {
-		h = 3
-	}
-	return h
+	return ContentHeight(s.height, 4)
 }
 
 func (s *snapshotScreen) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {

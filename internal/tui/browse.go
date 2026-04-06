@@ -143,7 +143,7 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (b *browseScreen) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if b.filter.active {
 		b.filter.HandleKey(msg)
-		b.clampCursor()
+		b.clampCursor() // always clamp: browse re-filters live in visibleAssets()
 		return b, nil
 	}
 

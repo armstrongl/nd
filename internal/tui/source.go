@@ -456,17 +456,8 @@ func (s *sourceScreen) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// contentHeight returns the visible row budget for the list view.
-// Returns listScrollUnlimited when height is unknown, disabling windowing.
 func (s *sourceScreen) contentHeight() int {
-	if s.height == 0 {
-		return listScrollUnlimited
-	}
-	h := s.height - 4 // root chrome: header + 2 blank separators + helpbar
-	if h < 3 {
-		h = 3
-	}
-	return h
+	return ContentHeight(s.height, 4)
 }
 
 // updateList handles key input while the source list is visible.
