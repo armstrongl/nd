@@ -34,9 +34,13 @@ func TestRenderScrolledLines_Windowed(t *testing.T) {
 	lines := []string{"a", "b", "c", "d", "e"}
 
 	got := RenderScrolledLines(styles, &scroll, lines, 2)
-	// With offset 1 and pageSize 2: should show "b" and "c" with indicators
+	// With offset 1 and pageSize 2, scroll indicators consume both rows,
+	// so only one content line ("b") is rendered alongside the indicators.
 	if !strings.Contains(got, "b") {
 		t.Errorf("expected to contain 'b', got %q", got)
+	}
+	if strings.Contains(got, "c") {
+		t.Errorf("expected 'c' to be hidden (indicators consume page budget), got %q", got)
 	}
 	if !strings.Contains(got, "more") {
 		t.Errorf("expected scroll indicators, got %q", got)
