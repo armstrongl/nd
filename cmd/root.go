@@ -146,6 +146,15 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 	// Derive backup dir from config dir
 	app.BackupDir = filepath.Join(filepath.Dir(app.ConfigPath), "backups")
 
+	// Offer init when config doesn't exist and command needs it
+	if _, err := os.Stat(app.ConfigPath); os.IsNotExist(err) {
+		if needsInit(cmd) {
+			if err := offerInit(cmd, app); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Validate scope
 	switch app.Scope {
 	case nd.ScopeGlobal, nd.ScopeProject:
@@ -166,6 +175,48 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 		app.NoColor = true
 	}
 
+	return nil
+}
+
+// needsInit returns true if the command requires an initialized config.
+// Commands that work without config are exempt.
+func needsInit(cmd *cobra.Command) bool {
+	switch cmd.Name() {
+	case "nd", "init", "version", "completion", "help":
+		return false
+	}
+	return true
+}
+
+// offerInit warns the user that nd is not initialized and offers to run init.
+// In interactive mode, prompts for confirmation. In non-interactive mode or
+// if declined, prints a hint and continues.
+func offerInit(cmd *cobra.Command, app *App) error {
+	w := cmd.ErrOrStderr()
+	printHuman(w, "nd is not initialized.\n")
+
+	shouldInit := app.Yes
+	if !shouldInit && isTerminal() {
+		confirmed, err := confirm(cmd.InOrStdin(), w, "Run nd init now?", false)
+		if err == nil && confirmed {
+			shouldInit = true
+		}
+	}
+
+	if shouldInit {
+		configDir, err := runInitSetup(cmd, app)
+		if err != nil {
+			return err
+		}
+		_, err = deployBuiltinAssets(cmd, app, configDir, app.initAgent)
+		if err != nil {
+			return err
+		}
+		printHuman(w, "\n")
+		return nil
+	}
+
+	printHuman(w, "Run 'nd init' to get started.\n")
 	return nil
 }
 
