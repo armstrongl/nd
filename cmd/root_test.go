@@ -149,11 +149,23 @@ func TestFirstRunPrompt_NonInteractive_ShowsHint(t *testing.T) {
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&out)
-	// Pipe stdin so isTerminal() returns false
-	rootCmd.SetIn(strings.NewReader(""))
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	oldStdin := os.Stdin
+	os.Stdin = r
+	defer func() {
+		os.Stdin = oldStdin
+	}()
+
 	rootCmd.SetArgs([]string{"--config", configPath, "list"})
 
-	// Command will likely fail after the hint (no config), but the hint should appear
+	// Command will likely fail after the hint (no config), but the hint should appear.
 	_ = rootCmd.Execute()
 
 	got := out.String()
