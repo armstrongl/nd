@@ -100,12 +100,26 @@ func TestRootCmd_VersionFlag(t *testing.T) {
 }
 
 func TestNeedsInit_ExemptCommands(t *testing.T) {
-	exempt := []string{"nd", "init", "version", "completion", "help"}
+	exempt := []string{"init", "version", "completion", "help", "__complete", "__completeNoDesc"}
 	for _, name := range exempt {
 		cmd := &cobra.Command{Use: name}
 		if needsInit(cmd) {
 			t.Errorf("needsInit(%q) = true, want false", name)
 		}
+	}
+
+	// Root command (no parent) is exempt
+	root := &cobra.Command{Use: "nd"}
+	if needsInit(root) {
+		t.Error("needsInit(root nd) = true, want false")
+	}
+
+	// Subcommands of exempt parents should also be exempt (e.g. "completion bash")
+	parent := &cobra.Command{Use: "completion"}
+	child := &cobra.Command{Use: "bash"}
+	parent.AddCommand(child)
+	if needsInit(child) {
+		t.Error("needsInit(completion > bash) = true, want false")
 	}
 }
 
@@ -143,13 +157,7 @@ func TestFirstRunPrompt_NonInteractive_ShowsHint(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
 
-	app := &App{}
-	rootCmd := NewRootCmd(app)
-
-	var out bytes.Buffer
-	rootCmd.SetOut(&out)
-	rootCmd.SetErr(&out)
-
+	// Replace os.Stdin with a pipe so isTerminal() returns false deterministically
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("create pipe: %v", err)
@@ -159,10 +167,14 @@ func TestFirstRunPrompt_NonInteractive_ShowsHint(t *testing.T) {
 
 	oldStdin := os.Stdin
 	os.Stdin = r
-	defer func() {
-		os.Stdin = oldStdin
-	}()
+	defer func() { os.Stdin = oldStdin }()
 
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
 	rootCmd.SetArgs([]string{"--config", configPath, "list"})
 
 	// Command will likely fail after the hint (no config), but the hint should appear.
@@ -174,6 +186,30 @@ func TestFirstRunPrompt_NonInteractive_ShowsHint(t *testing.T) {
 	}
 	if !strings.Contains(got, "nd init") {
 		t.Errorf("expected 'nd init' hint, got: %s", got)
+	}
+}
+
+func TestFirstRunPrompt_DryRun_SkipsInit(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--dry-run", "--yes", "list"})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "dry-run: skipping auto-init") {
+		t.Errorf("expected dry-run skip message, got: %s", got)
+	}
+	// Config should NOT have been created
+	if _, err := os.Stat(configPath); err == nil {
+		t.Error("config file should not exist after dry-run")
 	}
 }
 

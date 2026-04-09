@@ -183,12 +183,20 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 }
 
 // needsInit returns true if the command requires an initialized config.
-// Commands that work without config are exempt.
+// Commands that work without config are exempt. Walks the command ancestry
+// so subcommands (e.g. "completion bash") and Cobra internals are also exempt.
 func needsInit(cmd *cobra.Command) bool {
-	for current := cmd; current != nil; current = current.Parent() {
-		switch current.Name() {
-		case "nd", "init", "version", "completion", "help", "__complete", "__completeNoDesc":
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "init", "version", "completion", "help",
+			"__complete", "__completeNoDesc":
 			return false
+		case "nd":
+			// The root "nd" command itself doesn't need init,
+			// but subcommands under it do.
+			if c == cmd {
+				return false
+			}
 		}
 	}
 	return true
@@ -196,8 +204,14 @@ func needsInit(cmd *cobra.Command) bool {
 
 // offerInit warns the user that nd is not initialized and offers to run init.
 // In interactive mode, prompts for confirmation. In non-interactive mode or
-// if declined, prints a hint and continues.
+// if declined, prints a hint and continues. Skipped during --dry-run.
 func offerInit(cmd *cobra.Command, app *App) error {
+	if app.DryRun {
+		printHuman(cmd.ErrOrStderr(), "nd is not initialized (dry-run: skipping auto-init).\n")
+		printHuman(cmd.ErrOrStderr(), "Run 'nd init' to get started.\n")
+		return nil
+	}
+
 	w := cmd.ErrOrStderr()
 	printHuman(w, "nd is not initialized.\n")
 
