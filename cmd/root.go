@@ -181,9 +181,11 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 // needsInit returns true if the command requires an initialized config.
 // Commands that work without config are exempt.
 func needsInit(cmd *cobra.Command) bool {
-	switch cmd.Name() {
-	case "nd", "init", "version", "completion", "help":
-		return false
+	for current := cmd; current != nil; current = current.Parent() {
+		switch current.Name() {
+		case "nd", "init", "version", "completion", "help", "__complete", "__completeNoDesc":
+			return false
+		}
 	}
 	return true
 }
