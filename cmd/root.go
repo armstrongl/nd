@@ -147,11 +147,15 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 	app.BackupDir = filepath.Join(filepath.Dir(app.ConfigPath), "backups")
 
 	// Offer init when config doesn't exist and command needs it
-	if _, err := os.Stat(app.ConfigPath); os.IsNotExist(err) {
-		if needsInit(cmd) {
-			if err := offerInit(cmd, app); err != nil {
-				return err
+	if _, err := os.Stat(app.ConfigPath); err != nil {
+		if os.IsNotExist(err) {
+			if needsInit(cmd) {
+				if err := offerInit(cmd, app); err != nil {
+					return err
+				}
 			}
+		} else {
+			return fmt.Errorf("stat config path %q: %w", app.ConfigPath, err)
 		}
 	}
 
