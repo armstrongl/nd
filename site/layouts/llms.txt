@@ -11,3 +11,8 @@
 {{ $ref := site.GetPage "/docs/reference" }}
 {{- range $ref.RegularPagesRecursive.ByWeight }}{{ $page := . }}{{ with .OutputFormats.Get "markdown" }}
 - [{{ $page.Title }}]({{ .Permalink }}){{ with $page.Params.description }}: {{ . }}{{ end }}{{ end }}{{ end }}
+
+## About
+{{ $about := site.GetPage "/docs/about" }}
+{{- with $about }}{{ $page := . }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $page.Title }}]({{ .Permalink }}){{ end }}{{ end }}

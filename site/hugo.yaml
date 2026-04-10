@@ -1,6 +1,9 @@
 baseURL: https://armstrongl.github.io/nd/
 title: nd
 enableRobotsTXT: true
+disableKinds:
+  - taxonomy
+  - term
 
 module:
   hugoVersion:
