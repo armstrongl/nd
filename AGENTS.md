@@ -25,6 +25,10 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 
 <!-- AGENTS-INDEX-END -->
 
+## Documented solutions
+
+`docs/solutions/` and `.claude/docs/solutions/` contain documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when implementing or debugging in documented areas.
+
 ## Vexp <!-- vexp v1.2.30 -->
 
 **MANDATORY: use `run_pipeline` — do NOT grep or glob the codebase.**
