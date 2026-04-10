@@ -24,7 +24,7 @@ nd uses YAML configuration files with a layered merging system.
 | Project | `.nd/config.yaml` | Project-specific overrides |
 | CLI flag | `--config <path>` | One-time override |
 
-`nd init` creates the global config. Project-level config is optional.
+[`nd init`](../reference/nd_init.md) creates the global config. Project-level config is optional.
 
 ## Data directories
 
@@ -143,13 +143,13 @@ If you have not set `$EDITOR` or `$VISUAL`, `nd settings edit` uses `vi`.
 
 ## Edit config
 
-Open your config in your default editor:
+Open your config in your default editor with [`nd settings edit`](../reference/nd_settings_edit.md):
 
 ```shell
 nd settings edit
 ```
 
-After editing, validate your config:
+After editing, validate your config with [`nd doctor`](../reference/nd_doctor.md):
 
 ```shell
 nd doctor
@@ -217,3 +217,11 @@ cat ~/.config/nd/logs/operations.log | jq -r '.operation' | sort | uniq -c | sor
 nd rotates the log file automatically when it exceeds 1 MB. nd preserves the previous log as `operations.log.1` and keeps only one rotated backup.
 
 Dry-run operations (`--dry-run`) do not write log entries.
+
+## Next steps
+
+- **[Get started](getting-started.md):** Install nd and deploy your first asset
+- **[User guide](user-guide.md):** Core workflows for deploying, removing, and managing assets
+- **[Creating sources](creating-sources.md):** Structure your own asset directories for nd to discover
+- **[`nd settings` reference](../reference/nd_settings.md):** Full reference for the settings command
+- **[Troubleshooting](troubleshooting.md):** Fix configuration problems, broken symlinks, and other issues

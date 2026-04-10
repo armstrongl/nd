@@ -42,6 +42,8 @@ nd pin <asset> [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd unpin](nd_unpin.md) - Unpin an asset, allowing profile switches to manage it
+- [nd deploy](nd_deploy.md) - Deploy assets by creating symlinks
 
 ## Guides
 

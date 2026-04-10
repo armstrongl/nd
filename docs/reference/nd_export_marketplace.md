@@ -52,3 +52,8 @@ nd export marketplace [flags]
 ## Related
 
 - [nd export](nd_export.md) - Export assets as a Claude Code plugin
+
+## Guides
+
+- [Create sources](../guide/creating-sources.md)
+- [Plugins](../guide/asset-types/plugins.md)

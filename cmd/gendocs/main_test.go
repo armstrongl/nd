@@ -26,10 +26,24 @@ func newTestCommandTree() *cobra.Command {
 		Use:   "deploy <widget> [flags]",
 		Short: "Deploy widgets",
 		Long:  "Deploy one or more widgets by creating symlinks.",
-		Run:   noop,
+		Annotations: map[string]string{
+			"docs.related": "testcli remove,testcli profile",
+		},
+		Run: noop,
 	}
 	deploy.Flags().Bool("force", false, "force deployment")
 	root.AddCommand(deploy)
+
+	remove := &cobra.Command{
+		Use:   "remove <widget>",
+		Short: "Remove deployed widgets",
+		Long:  "Remove one or more deployed widgets.",
+		Annotations: map[string]string{
+			"docs.related": "testcli deploy",
+		},
+		Run: noop,
+	}
+	root.AddCommand(remove)
 
 	profile := &cobra.Command{
 		Use:   "profile",
@@ -65,6 +79,7 @@ func TestGenerateCommandDocs_FrontMatter(t *testing.T) {
 	}{
 		{"testcli.md", "testcli"},
 		{"testcli_deploy.md", "testcli deploy"},
+		{"testcli_remove.md", "testcli remove"},
 		{"testcli_profile.md", "testcli profile"},
 		{"testcli_profile_create.md", "testcli profile create"},
 	}
@@ -216,6 +231,7 @@ func TestGenerateCommandDocs_FileNaming(t *testing.T) {
 	expectedFiles := []string{
 		"testcli.md",
 		"testcli_deploy.md",
+		"testcli_remove.md",
 		"testcli_profile.md",
 		"testcli_profile_create.md",
 	}
@@ -250,6 +266,7 @@ func TestGenerateCommandDocs_TitleMatchesCommandPath(t *testing.T) {
 	}{
 		{"testcli.md", "testcli"},
 		{"testcli_deploy.md", "testcli deploy"},
+		{"testcli_remove.md", "testcli remove"},
 		{"testcli_profile.md", "testcli profile"},
 		{"testcli_profile_create.md", "testcli profile create"},
 	}
@@ -292,6 +309,147 @@ func TestGenerateCommandDocs_ConfigDefaultOverridden(t *testing.T) {
 	}
 	if !strings.Contains(text, "~/.config/") {
 		t.Error("testcli.md: expected config flag default to use ~/.config/ tilde path")
+	}
+}
+
+func TestGenerateCommandDocs_DocsRelated_HappyPath(t *testing.T) {
+	outDir := t.TempDir()
+	root := newTestCommandTree()
+
+	if err := generateCommandDocs(root, outDir); err != nil {
+		t.Fatalf("generateCommandDocs failed: %v", err)
+	}
+
+	// deploy has docs.related: "testcli remove,testcli profile"
+	content, err := os.ReadFile(filepath.Join(outDir, "testcli_deploy.md"))
+	if err != nil {
+		t.Fatalf("failed to read testcli_deploy.md: %v", err)
+	}
+	text := string(content)
+
+	if !strings.Contains(text, "## Related") {
+		t.Error("testcli_deploy.md: expected ## Related section")
+	}
+	if !strings.Contains(text, "[testcli remove](testcli_remove.md) - Remove deployed widgets") {
+		t.Error("testcli_deploy.md: expected docs.related link to testcli remove")
+	}
+	if !strings.Contains(text, "[testcli profile](testcli_profile.md) - Manage profiles") {
+		t.Error("testcli_deploy.md: expected docs.related link to testcli profile")
+	}
+}
+
+func TestGenerateCommandDocs_DocsRelated_UnknownCommand(t *testing.T) {
+	outDir := t.TempDir()
+	root := &cobra.Command{
+		Use:   "testcli",
+		Short: "A test CLI tool",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+	root.DisableAutoGenTag = true
+
+	orphan := &cobra.Command{
+		Use:   "orphan",
+		Short: "Orphan command",
+		Annotations: map[string]string{
+			"docs.related": "testcli nonexistent",
+		},
+		Run: func(cmd *cobra.Command, args []string) {},
+	}
+	root.AddCommand(orphan)
+
+	// Must not crash; the unknown reference is silently skipped (with stderr warning).
+	if err := generateCommandDocs(root, outDir); err != nil {
+		t.Fatalf("generateCommandDocs failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(outDir, "testcli_orphan.md"))
+	if err != nil {
+		t.Fatalf("failed to read testcli_orphan.md: %v", err)
+	}
+	text := string(content)
+
+	// The nonexistent command must NOT appear as a link.
+	if strings.Contains(text, "testcli nonexistent") {
+		t.Error("testcli_orphan.md: should not contain link to nonexistent command")
+	}
+}
+
+func TestGenerateCommandDocs_DocsRelated_EmptyValue(t *testing.T) {
+	outDir := t.TempDir()
+	root := &cobra.Command{
+		Use:   "testcli",
+		Short: "A test CLI tool",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+	root.DisableAutoGenTag = true
+
+	empty := &cobra.Command{
+		Use:   "empty",
+		Short: "Empty related",
+		Annotations: map[string]string{
+			"docs.related": "",
+		},
+		Run: func(cmd *cobra.Command, args []string) {},
+	}
+	root.AddCommand(empty)
+
+	if err := generateCommandDocs(root, outDir); err != nil {
+		t.Fatalf("generateCommandDocs failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(outDir, "testcli_empty.md"))
+	if err != nil {
+		t.Fatalf("failed to read testcli_empty.md: %v", err)
+	}
+	text := string(content)
+
+	// Empty docs.related should NOT add any extra links beyond what Cobra generates.
+	body := bodyAfterFrontMatter(text)
+	// Count link lines — should only have the Cobra-generated parent link.
+	var linkCount int
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "- [") {
+			linkCount++
+		}
+	}
+	// The "empty" subcommand gets a Cobra-generated link back to "testcli".
+	if linkCount != 1 {
+		t.Errorf("testcli_empty.md: expected 1 link (Cobra parent), got %d", linkCount)
+	}
+}
+
+func TestGenerateCommandDocs_DocsRelated_CombinedWithCobraLinks(t *testing.T) {
+	outDir := t.TempDir()
+	root := newTestCommandTree()
+
+	if err := generateCommandDocs(root, outDir); err != nil {
+		t.Fatalf("generateCommandDocs failed: %v", err)
+	}
+
+	// deploy has a Cobra-generated parent link to "testcli" AND docs.related links.
+	content, err := os.ReadFile(filepath.Join(outDir, "testcli_deploy.md"))
+	if err != nil {
+		t.Fatalf("failed to read testcli_deploy.md: %v", err)
+	}
+	text := string(content)
+
+	// Must have Cobra-generated parent link.
+	if !strings.Contains(text, "(testcli.md)") {
+		t.Error("testcli_deploy.md: expected Cobra-generated parent link to testcli.md")
+	}
+	// Must also have docs.related links.
+	if !strings.Contains(text, "(testcli_remove.md)") {
+		t.Error("testcli_deploy.md: expected docs.related link to testcli_remove.md")
+	}
+	if !strings.Contains(text, "(testcli_profile.md)") {
+		t.Error("testcli_deploy.md: expected docs.related link to testcli_profile.md")
+	}
+
+	// All links should be under a single ## Related section.
+	body := bodyAfterFrontMatter(text)
+	relatedCount := strings.Count(body, "## Related")
+	if relatedCount != 1 {
+		t.Errorf("testcli_deploy.md: expected exactly 1 '## Related' heading, got %d", relatedCount)
 	}
 }
 

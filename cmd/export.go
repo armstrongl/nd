@@ -219,6 +219,9 @@ func newExportMarketplaceCmd(app *App) *cobra.Command {
 Each --plugins path must point to a directory containing a .claude-plugin/plugin.json file.`,
 		Example: `  # Generate marketplace from exported plugins
   nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources,asset-types/plugins",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

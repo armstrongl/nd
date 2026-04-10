@@ -52,7 +52,7 @@ func newProfileCreateCmd(app *App) *cobra.Command {
   # Create a profile for project scope
   nd profile create my-setup --scope project`,
 		Annotations: map[string]string{
-			"docs.guides": "profiles-and-snapshots",
+			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -48,7 +48,8 @@ Asset references can be:
   # Script-friendly: skip prompts, output JSON
   nd deploy skills/greeting --yes --json`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,how-nd-works,asset-types/context",
+			"docs.guides":  "getting-started,how-nd-works,profiles-and-snapshots,creating-sources,asset-types/context",
+			"docs.related": "nd remove,nd list,nd status",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()

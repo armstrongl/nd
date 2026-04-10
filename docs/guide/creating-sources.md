@@ -107,7 +107,7 @@ git remote add origin https://github.com/you/my-assets.git
 git push -u origin main
 ```
 
-Others can add it with:
+Others can add it with [`nd source add`](../reference/nd_source_add.md):
 
 ```shell
 nd source add you/my-assets
@@ -115,9 +115,11 @@ nd source add you/my-assets
 nd source add https://github.com/you/my-assets.git
 ```
 
-nd clones git sources to `~/.config/nd/sources/`. Sync them with `nd sync --source <id>`.
+nd clones git sources to `~/.config/nd/sources/`. Sync them with [`nd sync`](../reference/nd_sync.md) `--source <id>`.
 
 ## Remove a source
+
+Remove a registered source with [`nd source remove`](../reference/nd_source_remove.md):
 
 ```shell
 nd source remove <source-id>
@@ -126,3 +128,11 @@ nd source remove <source-id>
 If assets from the source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. nd prevents removal of the `builtin` source.
 
 > **Warning:** `nd source remove <id> --yes` skips the interactive prompt and **removes all deployed assets** from that source without confirmation. This is a destructive operation — use it only in scripts or when you are certain you want a clean removal.
+
+## Next steps
+
+- **[How nd works](how-nd-works.md):** Understand what happens on disk when assets are deployed as symlinks
+- **[User guide](user-guide.md):** Core workflows for deploying, removing, and managing assets from your sources
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them
+- **[`nd source` reference](../reference/nd_source.md):** Full flag and option reference for all source subcommands
+- **[Troubleshooting](troubleshooting.md):** Fix missing assets, broken symlinks, and source scanning issues

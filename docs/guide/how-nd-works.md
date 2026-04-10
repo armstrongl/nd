@@ -16,7 +16,7 @@ tags:
 
 nd doesn't copy files. It creates symlinks.
 
-When you run `nd deploy skills/greeting`, nd creates a symlink from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
+When you run [`nd deploy`](../reference/nd_deploy.md) `skills/greeting`, nd creates a symlink from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
 
 ## The mental model
 
@@ -157,4 +157,8 @@ For everything else, deploy and go: no additional nd configuration required.
 
 ## Next steps
 
-- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them without touching individual symlinks.
+- **[User guide](user-guide.md):** Core workflows for deploying, removing, and managing assets
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them without touching individual symlinks
+- **[Creating sources](creating-sources.md):** Structure your own asset directories for nd to discover
+- **[`nd deploy` reference](../reference/nd_deploy.md):** Full flag and option reference for the deploy command
+- **[Troubleshooting](troubleshooting.md):** Fix broken symlinks, missing assets, and other common issues

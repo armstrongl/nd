@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use agents when you want to define a distinct persona or set of instructions that shapes how a coding agent behaves across an entire session. Unlike rules, which enforce individual constraints, an agent file provides holistic behavioral identity.
+
 Agents are single-file assets that define the behavior, persona, or instructions for a named coding agent.
 
 ## Directory layout
@@ -29,7 +31,7 @@ Each agent is a markdown file containing agent instructions, a system prompt, or
 
 ## Deploy behavior
 
-nd symlinks the individual file into the target location. Running `nd deploy agents/researcher` produces:
+nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `agents/researcher` produces:
 
 ```text
 ~/.claude/agents/researcher.md → <source>/agents/researcher.md
@@ -42,9 +44,14 @@ nd symlinks the individual file into the target location. Running `nd deploy age
 | Global | `~/.claude/agents/<name>.md` |
 | Project | `.claude/agents/<name>.md` |
 
+To undeploy an agent, run [`nd remove`](../../reference/nd_remove.md) `agents/researcher`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Rules](rules.md) — enforce individual constraints rather than defining a full persona
+- [Context](context.md) — provide broad project knowledge the agent reads automatically
+- [Glossary: Agent](../glossary.md#agent-asset-type) — terminology definition
 
 ## Create an agent
 

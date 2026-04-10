@@ -33,7 +33,7 @@ go install github.com/armstrongl/nd@latest
 git clone https://github.com/armstrongl/nd.git && cd nd && go build -o nd .
 ```
 
-Verify the installation:
+Verify the installation with [`nd version`](../reference/nd_version.md):
 
 ```shell
 nd version
@@ -61,13 +61,13 @@ nd init
 
 This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
 
-`nd init` then prompts you to deploy nd's built-in assets (skills, commands, and an agent). Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with `nd deploy --source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
+[`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent). Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
 
 If nd cannot detect your coding agent (e.g., Claude Code is not installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install your agent and run `nd deploy --source builtin` afterward.
 
-If a config file already exists, `nd init` exits with an error. Use `nd settings edit` to modify an existing configuration.
+If a config file already exists, `nd init` exits with an error. Use [`nd settings edit`](../reference/nd_settings_edit.md) to modify an existing configuration.
 
-Browse the built-in assets:
+Browse the built-in assets with [`nd list`](../reference/nd_list.md):
 
 ```shell
 nd list
@@ -75,7 +75,7 @@ nd list
 
 ## 3. Add your first source
 
-nd ships with a **builtin** source containing nd-specific assets. To add your own assets, register a **source**: a local directory or git repository containing agent assets organized by type.
+nd ships with a **builtin** source containing nd-specific assets. To add your own assets, register a **source** with [`nd source add`](../reference/nd_source_add.md): a local directory or git repository containing agent assets organized by type.
 
 ```shell
 # Local directory
@@ -120,7 +120,7 @@ Deploy multiple assets at once:
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
-Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — `nd remove`, `nd profile switch`, `nd snapshot restore`, and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
+Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — [`nd remove`](../reference/nd_remove.md), [`nd profile switch`](../reference/nd_profile_switch.md), [`nd snapshot restore`](../reference/nd_snapshot_restore.md), and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
 nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
@@ -152,7 +152,7 @@ Change the default strategy in your config file (`symlink_strategy: relative`).
 
 ## 6. Verify
 
-Check that everything is healthy:
+Check that everything is healthy with [`nd status`](../reference/nd_status.md):
 
 ```shell
 nd status
@@ -160,7 +160,7 @@ nd status
 
 The output shows your deployed assets with health indicators (checkmarks for healthy symlinks).
 
-For a full health check:
+For a full health check, run [`nd doctor`](../reference/nd_doctor.md):
 
 ```shell
 nd doctor
@@ -170,7 +170,7 @@ nd doctor
 
 ### Shell completions
 
-Enable tab-completion for your shell:
+Enable tab-completion for your shell with [`nd completion`](../reference/nd_completion.md):
 
 ```shell
 # Print completion script
@@ -204,7 +204,7 @@ nd settings edit
 
 ## Uninstall
 
-To remove all nd-managed symlinks from your agent's config directory:
+To remove all nd-managed symlinks from your agent's config directory, run [`nd uninstall`](../reference/nd_uninstall.md):
 
 ```shell
 nd uninstall
