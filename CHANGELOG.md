@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0](https://github.com/armstrongl/nd/compare/v0.5.0...v0.6.0) (2026-04-10)
+
+
+### Features
+
+* **cli:** prompt to run nd init on first use ([#83](https://github.com/armstrongl/nd/issues/83)) ([6aa4810](https://github.com/armstrongl/nd/commit/6aa4810b52caf576b2c68f1b6de43ca901943e41))
+* **docs:** add AFDocs compliance for agent-friendly documentation ([#88](https://github.com/armstrongl/nd/issues/88)) ([c9b256e](https://github.com/armstrongl/nd/commit/c9b256ecdab46db4638e8575e94b9ecbc482fd5c))
+* **site:** add enhanced code blocks with catppuccin themes and terminal frame ([#87](https://github.com/armstrongl/nd/issues/87)) ([493dc01](https://github.com/armstrongl/nd/commit/493dc01b835e1bd0fe68dad50f749fad2960d38f))
+
 ## [0.5.0](https://github.com/armstrongl/nd/compare/v0.4.0...v0.5.0) (2026-04-05)
 
 
