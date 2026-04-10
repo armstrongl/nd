@@ -71,7 +71,9 @@ You can also generate a marketplace listing with [`nd export marketplace`](../..
 
 ## Create a plugin
 
-Create the plugin directory structure inside your source:
+### Author a plugin in your source
+
+Create the plugin directory structure inside your source. A plugin needs a `.claude-plugin/plugin.json` manifest and at least one nested asset:
 
 ```shell
 mkdir -p ~/my-assets/plugins/my-toolbox/.claude-plugin
@@ -90,4 +92,8 @@ Greet the user by name with a short, friendly message.
 EOF
 ```
 
-Once your source is registered (`nd source add ~/my-assets`), nd discovers the plugin and its nested assets. To package assets from any source into a standalone plugin for distribution, use `nd export` — see the [nd export reference](../../reference/nd_export.md).
+Once your source is registered (`nd source add ~/my-assets`), nd discovers the plugin and its nested assets.
+
+### Package assets for distribution
+
+To package individual assets from any source into a standalone plugin for distribution, use [`nd export`](../../reference/nd_export.md). This creates a new plugin directory from the assets you select — it does not require an existing `plugins/` directory as input. See the [nd export reference](../../reference/nd_export.md) for details.
