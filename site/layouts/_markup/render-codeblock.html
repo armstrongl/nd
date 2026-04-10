@@ -1,0 +1,24 @@
+{{- $filename := .Attributes.filename | default "" -}}
+{{- $base_url := .Attributes.base_url | default "" -}}
+{{- $lang := .Attributes.lang | default .Type -}}
+
+{{- /* Merge user options with lineNos:inline default. Hugo merge gives precedence to the
+       rightmost map, so .Options (right) wins on conflicts. User's explicit linenos=false
+       or linenos=true from the code fence overrides our default. */ -}}
+{{- $opts := merge (dict "lineNos" "inline") .Options -}}
+
+<div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code">
+  {{- if $filename -}}
+    <div class="nd-code-header">
+      <span class="nd-dots"><span></span><span></span><span></span></span>
+      <span class="nd-filename">{{ $filename }}</span>
+    </div>
+  {{- end -}}
+
+  {{- /* Pass filename="" to suppress Hextra's built-in filename header */ -}}
+  {{- partial "components/codeblock" (dict "filename" "" "lang" $lang "base_url" $base_url "content" .Inner "options" $opts) -}}
+
+  {{- if or (eq site.Params.highlight.copy.enable nil) (site.Params.highlight.copy.enable) -}}
+    {{- partialCached "components/codeblock-copy-button" (dict "filename" "") "" -}}
+  {{- end -}}
+</div>
