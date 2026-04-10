@@ -1,2 +1,4 @@
 <meta name="llms-txt" content="{{ "llms.txt" | absURL }}">
 <meta name="agent-directive" content="For AI agents: see {{ "llms.txt" | absURL }} for a structured index of this documentation.">
+{{- $css := resources.Get "css/custom.css" | resources.Fingerprint -}}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}" crossorigin="anonymous">
