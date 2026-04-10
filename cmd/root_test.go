@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestRootCmd_Help(t *testing.T) {
@@ -92,6 +96,146 @@ func TestRootCmd_VersionFlag(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "nd version") {
 		t.Errorf("expected version info in output, got: %s", got)
+	}
+}
+
+func TestNeedsInit_ExemptCommands(t *testing.T) {
+	exempt := []string{"init", "version", "completion", "help", "__complete", "__completeNoDesc"}
+	for _, name := range exempt {
+		cmd := &cobra.Command{Use: name}
+		if needsInit(cmd) {
+			t.Errorf("needsInit(%q) = true, want false", name)
+		}
+	}
+
+	// Root command (no parent) is exempt
+	root := &cobra.Command{Use: "nd"}
+	if needsInit(root) {
+		t.Error("needsInit(root nd) = true, want false")
+	}
+
+	// Subcommands of exempt parents should also be exempt (e.g. "completion bash")
+	parent := &cobra.Command{Use: "completion"}
+	child := &cobra.Command{Use: "bash"}
+	parent.AddCommand(child)
+	if needsInit(child) {
+		t.Error("needsInit(completion > bash) = true, want false")
+	}
+}
+
+func TestNeedsInit_NonExemptCommands(t *testing.T) {
+	nonExempt := []string{"deploy", "list", "status", "doctor", "remove", "source"}
+	for _, name := range nonExempt {
+		cmd := &cobra.Command{Use: name}
+		if !needsInit(cmd) {
+			t.Errorf("needsInit(%q) = false, want true", name)
+		}
+	}
+}
+
+func TestFirstRunPrompt_VersionSkipped(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "version"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(out.String(), "not initialized") {
+		t.Error("version command should not trigger init prompt")
+	}
+}
+
+func TestFirstRunPrompt_NonInteractive_ShowsHint(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
+
+	// Replace os.Stdin with a pipe so isTerminal() returns false deterministically
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	oldStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "list"})
+
+	// Command will likely fail after the hint (no config), but the hint should appear.
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "not initialized") {
+		t.Errorf("expected 'not initialized' warning, got: %s", got)
+	}
+	if !strings.Contains(got, "nd init") {
+		t.Errorf("expected 'nd init' hint, got: %s", got)
+	}
+}
+
+func TestFirstRunPrompt_DryRun_SkipsInit(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--dry-run", "--yes", "list"})
+
+	_ = rootCmd.Execute()
+
+	got := out.String()
+	if !strings.Contains(got, "dry-run: skipping auto-init") {
+		t.Errorf("expected dry-run skip message, got: %s", got)
+	}
+	// Config should NOT have been created
+	if _, err := os.Stat(configPath); err == nil {
+		t.Error("config file should not exist after dry-run")
+	}
+}
+
+func TestFirstRunPrompt_YesFlag_RunsInit(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	// --yes auto-accepts the init prompt; list will then run (with empty sources)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "list"})
+
+	_ = rootCmd.Execute()
+
+	// Config should now exist
+	if _, err := os.Stat(configPath); err != nil {
+		t.Errorf("expected config file to be created: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Initialized") {
+		t.Errorf("expected 'Initialized' in output, got: %s", got)
 	}
 }
 

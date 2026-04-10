@@ -146,6 +146,19 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 	// Derive backup dir from config dir
 	app.BackupDir = filepath.Join(filepath.Dir(app.ConfigPath), "backups")
 
+	// Offer init when config doesn't exist and command needs it
+	if _, err := os.Stat(app.ConfigPath); err != nil {
+		if os.IsNotExist(err) {
+			if needsInit(cmd) {
+				if err := offerInit(cmd, app); err != nil {
+					return err
+				}
+			}
+		} else {
+			return fmt.Errorf("stat config path %q: %w", app.ConfigPath, err)
+		}
+	}
+
 	// Validate scope
 	switch app.Scope {
 	case nd.ScopeGlobal, nd.ScopeProject:
@@ -166,6 +179,64 @@ func persistentPreRun(cmd *cobra.Command, app *App) error {
 		app.NoColor = true
 	}
 
+	return nil
+}
+
+// needsInit returns true if the command requires an initialized config.
+// Commands that work without config are exempt. Walks the command ancestry
+// so subcommands (e.g. "completion bash") and Cobra internals are also exempt.
+func needsInit(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "init", "version", "completion", "help",
+			"__complete", "__completeNoDesc":
+			return false
+		case "nd":
+			// The root "nd" command itself doesn't need init,
+			// but subcommands under it do.
+			if c == cmd {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// offerInit warns the user that nd is not initialized and offers to run init.
+// In interactive mode, prompts for confirmation. In non-interactive mode or
+// if declined, prints a hint and continues. Skipped during --dry-run.
+func offerInit(cmd *cobra.Command, app *App) error {
+	if app.DryRun {
+		printHuman(cmd.ErrOrStderr(), "nd is not initialized (dry-run: skipping auto-init).\n")
+		printHuman(cmd.ErrOrStderr(), "Run 'nd init' to get started.\n")
+		return nil
+	}
+
+	w := cmd.ErrOrStderr()
+	printHuman(w, "nd is not initialized.\n")
+
+	shouldInit := app.Yes
+	if !shouldInit && isTerminal() {
+		confirmed, err := confirm(cmd.InOrStdin(), w, "Run nd init now?", false)
+		if err == nil && confirmed {
+			shouldInit = true
+		}
+	}
+
+	if shouldInit {
+		configDir, err := runInitSetup(cmd, app)
+		if err != nil {
+			return err
+		}
+		_, err = deployBuiltinAssets(cmd, app, configDir, app.initAgent)
+		if err != nil {
+			return err
+		}
+		printHuman(w, "\n")
+		return nil
+	}
+
+	printHuman(w, "Run 'nd init' to get started.\n")
 	return nil
 }
 

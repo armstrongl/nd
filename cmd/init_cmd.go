@@ -31,42 +31,15 @@ func newInitCmd(app *App) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
-			configPath := app.ConfigPath
-			configDir := filepath.Dir(configPath)
 
 			// Check if config already exists
-			if _, err := os.Stat(configPath); err == nil {
-				return fmt.Errorf("config already exists at %s; edit with 'nd settings edit'", configPath)
+			if _, err := os.Stat(app.ConfigPath); err == nil {
+				return fmt.Errorf("config already exists at %s; edit with 'nd settings edit'", app.ConfigPath)
 			}
 
-			// Create directory structure
-			dirs := []string{
-				configDir,
-				filepath.Join(configDir, "profiles"),
-				filepath.Join(configDir, "snapshots"),
-				filepath.Join(configDir, "snapshots", "user"),
-				filepath.Join(configDir, "snapshots", "auto"),
-				filepath.Join(configDir, "state"),
-			}
-			for _, dir := range dirs {
-				if err := os.MkdirAll(dir, 0o755); err != nil {
-					return fmt.Errorf("create directory %s: %w", dir, err)
-				}
-			}
-
-			// Write default config
-			defaultCfg := `version: 1
-default_scope: global
-default_agent: claude-code
-symlink_strategy: absolute
-sources: []
-`
-			if err := os.WriteFile(configPath, []byte(defaultCfg), 0o644); err != nil {
-				return fmt.Errorf("write config: %w", err)
-			}
-
-			if !app.JSON && !app.Quiet {
-				printHuman(w, "Initialized nd at %s\n", configDir)
+			configDir, err := runInitSetup(cmd, app)
+			if err != nil {
+				return err
 			}
 
 			// Deploy built-in assets
@@ -74,7 +47,7 @@ sources: []
 
 			if app.JSON {
 				result := map[string]interface{}{
-					"config_path": configPath,
+					"config_path": app.ConfigPath,
 					"config_dir":  configDir,
 				}
 				if deployed > 0 {
@@ -86,6 +59,44 @@ sources: []
 			return deployErr
 		},
 	}
+}
+
+// runInitSetup creates the config directory structure and writes the default
+// config file. Returns the config directory path. This is shared between the
+// init command and the first-run prompt in persistentPreRun.
+func runInitSetup(cmd *cobra.Command, app *App) (string, error) {
+	configPath := app.ConfigPath
+	configDir := filepath.Dir(configPath)
+
+	dirs := []string{
+		configDir,
+		filepath.Join(configDir, "profiles"),
+		filepath.Join(configDir, "snapshots"),
+		filepath.Join(configDir, "snapshots", "user"),
+		filepath.Join(configDir, "snapshots", "auto"),
+		filepath.Join(configDir, "state"),
+	}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", fmt.Errorf("create directory %s: %w", dir, err)
+		}
+	}
+
+	defaultCfg := `version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources: []
+`
+	if err := os.WriteFile(configPath, []byte(defaultCfg), 0o644); err != nil {
+		return "", fmt.Errorf("write config: %w", err)
+	}
+
+	if !app.JSON && !app.Quiet {
+		printHuman(cmd.OutOrStdout(), "Initialized nd at %s\n", configDir)
+	}
+
+	return configDir, nil
 }
 
 // deployBuiltinAssets extracts and deploys all built-in assets during init.
