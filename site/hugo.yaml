@@ -1,6 +1,9 @@
 baseURL: https://armstrongl.github.io/nd/
 title: nd
 enableRobotsTXT: true
+disableKinds:
+  - taxonomy
+  - term
 
 module:
   hugoVersion:
@@ -54,9 +57,27 @@ menu:
       url: https://pkg.go.dev/github.com/armstrongl/nd
       weight: 3
 
+outputs:
+  home:
+    - html
+    - llms
+    - markdown
+    - rss
+  section:
+    - html
+    - markdown
+    - rss
+  page:
+    - html
+    - markdown
+
 params:
+  description: "nd is a CLI tool for managing and deploying AI coding agent assets (skills, rules, context, commands, hooks, output styles, agents, and plugins) across tools like Claude Code."
   navbar:
     displayTitle: true
     displayLogo: false
   footer:
     displayPoweredBy: false
+  page:
+    contextMenu:
+      enable: true

@@ -1,0 +1,29 @@
+# {{ .Site.Title }}
+
+> {{ .Site.Params.description }}
+{{ with .OutputFormats.Get "markdown" }}
+- [Home]({{ .Permalink }}){{ end }}
+{{ $docs := site.GetPage "/docs" }}
+{{- with $docs }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $docs.Title }}]({{ .Permalink }}){{ end }}{{ end }}
+
+## Guide
+{{ $guide := site.GetPage "/docs/guide" }}
+{{- with $guide }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $guide.Title }}]({{ .Permalink }}){{ end }}{{ end }}
+{{- range $guide.Sections }}{{ $sec := . }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $sec.Title }}]({{ .Permalink }}){{ with $sec.Params.description }}: {{ . }}{{ end }}{{ end }}{{ end }}
+{{- range $guide.RegularPagesRecursive.ByWeight }}{{ $page := . }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $page.Title }}]({{ .Permalink }}){{ with $page.Params.description }}: {{ . }}{{ end }}{{ end }}{{ end }}
+
+## Reference
+{{ $ref := site.GetPage "/docs/reference" }}
+{{- with $ref }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $ref.Title }}]({{ .Permalink }}){{ end }}{{ end }}
+{{- range $ref.RegularPagesRecursive.ByWeight }}{{ $page := . }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $page.Title }}]({{ .Permalink }}){{ with $page.Params.description }}: {{ . }}{{ end }}{{ end }}{{ end }}
+
+## About
+{{ $about := site.GetPage "/docs/about" }}
+{{- with $about }}{{ $page := . }}{{ with .OutputFormats.Get "markdown" }}
+- [{{ $page.Title }}]({{ .Permalink }}){{ end }}{{ end }}

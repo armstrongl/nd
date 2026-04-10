@@ -29,6 +29,7 @@ cache = true
 "AGENTS.md" = ["MD041"]
 "docs/guide/**" = ["MD025", "MD063"]
 "docs/reference/**" = ["MD041", "MD063"]
+"site/layouts/**" = ["MD041"]
 "ARCHITECTURE.md" = ["MD063"]
 
 # --- Heading rules ---
