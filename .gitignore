@@ -7,3 +7,4 @@ staleness-output.json
 site/public/
 site/resources/
 site/.hugo_build.lock
+site/_vendor/
