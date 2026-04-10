@@ -4,6 +4,11 @@
  * Sections:
  *   1. Chroma light theme (catppuccin-latte)
  *   2. Chroma dark theme (catppuccin-mocha, .dark prefix)
+ *   3. Hextra conflict cancellation
+ *   4. Terminal frame header (nd-code-header)
+ *   5. Copy button offset for terminal frame
+ *   6. Inline line number suppression
+ *   7. Per-line hover highlighting
  */
 
 /* ==========================================================================
@@ -167,3 +172,87 @@
 /* GenericSubheading */ .dark .chroma .gu { color:#fab387;font-weight:bold }
 /* GenericTraceback */ .dark .chroma .gt { color:#f38ba8 }
 /* GenericUnderline */ .dark .chroma .gl { text-decoration:underline }
+
+/* ==========================================================================
+   3. Hextra conflict cancellation
+   Hextra's highlight.css applies padding-top: 3rem to the second child div's
+   pre element (for its own filename header). When nd-code-header is present,
+   the code div becomes the second child, triggering excess padding. Cancel it.
+   ========================================================================== */
+
+.hextra-code-block .nd-code-header ~ div pre { padding-top: 1rem; }
+
+/* ==========================================================================
+   4. Terminal frame header (nd-code-header)
+   macOS-style bar with traffic-light dots and filename display.
+   ========================================================================== */
+
+.nd-code-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #dce0e8;
+  border-radius: 0.375rem 0.375rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #6c6f85;
+  line-height: 1;
+}
+
+.dark .nd-code-header {
+  background-color: #181825;
+  color: #a6adc8;
+}
+
+.nd-code-header + div .chroma {
+  border-radius: 0 0 0.375rem 0.375rem;
+}
+
+.nd-dots {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.nd-dots span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.nd-dots span:nth-child(1) { background-color: #ff5f57; }
+.nd-dots span:nth-child(2) { background-color: #febc2e; }
+.nd-dots span:nth-child(3) { background-color: #28c840; }
+
+.nd-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   5. Copy button offset for terminal frame
+   When nd-code-header is present, the copy button (always top-0 since we
+   pass filename="" to Hextra's partial) needs to shift down past the header.
+   ========================================================================== */
+
+.nd-code-header ~ .hextra-code-copy-btn-container {
+  top: 2.25rem;
+}
+
+/* ==========================================================================
+   6. Inline line number suppression
+   Paired with render hook's lineNos:inline default. Hides .ln spans globally;
+   users who set linenos=true get table-mode line numbers instead.
+   ========================================================================== */
+
+.chroma .ln { display: none; }
+
+/* ==========================================================================
+   7. Per-line hover highlighting
+   ========================================================================== */
+
+.chroma .line:hover { background-color: rgba(0, 0, 0, 0.04); }
+.dark .chroma .line:hover { background-color: rgba(255, 255, 255, 0.06); }
