@@ -17,7 +17,8 @@ func newPinCmd(app *App) *cobra.Command {
   # Pin using only the name
   nd pin greeting`,
 		Annotations: map[string]string{
-			"docs.guides": "profiles-and-snapshots",
+			"docs.guides":  "profiles-and-snapshots",
+			"docs.related": "nd unpin,nd deploy",
 		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -37,7 +38,8 @@ func newUnpinCmd(app *App) *cobra.Command {
 		Example: `  # Unpin an asset
   nd unpin skills/greeting`,
 		Annotations: map[string]string{
-			"docs.guides": "profiles-and-snapshots",
+			"docs.guides":  "profiles-and-snapshots",
+			"docs.related": "nd pin,nd deploy",
 		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

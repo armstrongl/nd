@@ -23,7 +23,8 @@ func newSyncCmd(app *App) *cobra.Command {
   # Preview what would be repaired
   nd sync --dry-run`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,creating-sources,troubleshooting",
+			"docs.guides":  "getting-started,creating-sources,troubleshooting",
+			"docs.related": "nd source add,nd status",
 		},
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

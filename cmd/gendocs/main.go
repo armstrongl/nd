@@ -54,6 +54,12 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 
 	cmds := allCommands(root)
 
+	// Build command lookup map for docs.related cross-links.
+	cmdLookup := make(map[string]*cobra.Command, len(cmds))
+	for _, c := range cmds {
+		cmdLookup[c.CommandPath()] = c
+	}
+
 	// Build sorted names for stable weight assignment.
 	names := make([]string, 0, len(cmds))
 	for _, c := range cmds {
@@ -114,6 +120,32 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 			description = c.CommandPath()
 		}
 		frontMatter := fmt.Sprintf("---\ntitle: %q\ndescription: %q\nweight: %d\n---\n", c.CommandPath(), description, weight)
+		// Append semantic cross-links from Annotations["docs.related"].
+		if related, ok := c.Annotations["docs.related"]; ok && related != "" {
+			// Trim trailing blank line so Cobra-generated and docs.related entries
+			// form one continuous list under ## Related.
+			for len(out) > 0 && strings.TrimSpace(out[len(out)-1]) == "" {
+				out = out[:len(out)-1]
+			}
+			for _, path := range strings.Split(related, ",") {
+				path = strings.TrimSpace(path)
+				if path == "" {
+					continue
+				}
+				target, found := cmdLookup[path]
+				if !found {
+					fmt.Fprintf(os.Stderr, "warning: docs.related %q on %s: command not found, skipping\n", path, c.CommandPath())
+					continue
+				}
+				fname := strings.ReplaceAll(path, " ", "_") + ".md"
+				desc := target.Short
+				if desc == "" {
+					desc = path
+				}
+				out = append(out, fmt.Sprintf("- [%s](%s) - %s\n", path, fname, desc))
+			}
+			out = append(out, "\n")
+		}
 		// Append guide cross-links from Annotations["docs.guides"].
 		if guides, ok := c.Annotations["docs.guides"]; ok && guides != "" {
 			out = append(out, "## Guides\n\n")

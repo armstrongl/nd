@@ -45,6 +45,8 @@ nd status [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd doctor](nd_doctor.md) - Check nd configuration and deployment health
+- [nd deploy](nd_deploy.md) - Deploy assets by creating symlinks
 
 ## Guides
 
