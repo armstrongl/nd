@@ -2,9 +2,10 @@
 {{- $base_url := .Attributes.base_url | default "" -}}
 {{- $lang := .Attributes.lang | default .Type -}}
 
-{{- /* Merge user options with lineNos:inline default. .Options (left) wins on conflicts,
-       so explicit linenos=false or linenos=true from the code fence overrides our default. */ -}}
-{{- $opts := merge .Options (dict "lineNos" "inline") -}}
+{{- /* Merge user options with lineNos:inline default. Hugo merge gives precedence to the
+       rightmost map, so .Options (right) wins on conflicts. User's explicit linenos=false
+       or linenos=true from the code fence overrides our default. */ -}}
+{{- $opts := merge (dict "lineNos" "inline") .Options -}}
 
 <div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code">
   {{- if $filename -}}
