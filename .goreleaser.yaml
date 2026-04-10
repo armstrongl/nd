@@ -33,13 +33,12 @@ changelog:
     - title: Other
       order: 999
 
-homebrew_casks:
-  - name: nd
-    binaries:
-      - nd
-    repository:
+brews:
+  - repository:
       owner: armstrongl
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/armstrongl/nd
     description: Coding agent asset management CLI tool
+    install: |
+      bin.install "nd"
