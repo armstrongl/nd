@@ -21,7 +21,7 @@ func newStatusCmd(app *App) *cobra.Command {
   # Show project-scope deployments
   nd status --scope project`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started",
+			"docs.guides": "getting-started,troubleshooting",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

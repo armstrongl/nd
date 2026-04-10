@@ -52,3 +52,5 @@ nd remove <asset> [assets...] [flags]
 ## Guides
 
 - [Getting started](../guide/getting-started.md)
+- [How nd works](../guide/how-nd-works.md)
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)

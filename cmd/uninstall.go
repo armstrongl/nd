@@ -20,7 +20,7 @@ func newUninstallCmd(app *App) *cobra.Command {
   # Skip confirmation prompt
   nd uninstall --yes`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started",
+			"docs.guides": "getting-started,troubleshooting",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

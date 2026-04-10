@@ -46,3 +46,4 @@ nd uninstall [flags]
 ## Guides
 
 - [Getting started](../guide/getting-started.md)
+- [Troubleshoot](../guide/troubleshooting.md)

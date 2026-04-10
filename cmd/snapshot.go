@@ -41,7 +41,7 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 		Example: `  # Save current deployments as a snapshot
   nd snapshot save before-update`,
 		Annotations: map[string]string{
-			"docs.guides": "profiles-and-snapshots",
+			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
