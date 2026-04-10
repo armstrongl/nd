@@ -18,10 +18,10 @@ This guide covers the core workflows for managing assets with nd.
 
 Many nd commands support running without arguments to get an interactive picker. This works for:
 
-- `nd deploy`: pick assets to deploy
-- `nd remove`: pick deployed assets to remove
-- `nd profile delete` / `switch` / `deploy`: pick a profile
-- `nd snapshot delete` / `restore`: pick a snapshot
+- [`nd deploy`](../reference/nd_deploy.md): pick assets to deploy
+- [`nd remove`](../reference/nd_remove.md): pick deployed assets to remove
+- [`nd profile delete`](../reference/nd_profile_delete.md) / [`switch`](../reference/nd_profile_switch.md) / [`deploy`](../reference/nd_profile_deploy.md): pick a profile
+- [`nd snapshot delete`](../reference/nd_snapshot_delete.md) / [`restore`](../reference/nd_snapshot_restore.md): pick a snapshot
 
 Interactive mode is automatically disabled in non-TTY environments (pipes, scripts) and when `--json` is set. In those cases, nd returns an error with a helpful message.
 
@@ -50,6 +50,8 @@ nd deploy skills/greeting --yes --json | jq '.status'
 
 ### Add a local directory
 
+Add a source with [`nd source add`](../reference/nd_source_add.md):
+
 ```shell
 nd source add ~/my-assets
 nd source add ~/my-assets --alias my-stuff
@@ -74,6 +76,8 @@ Git sources are cloned to `~/.config/nd/sources/` and can be synced later.
 
 ### List sources
 
+List registered sources with [`nd source list`](../reference/nd_source_list.md):
+
 ```shell
 nd source list
 ```
@@ -82,7 +86,7 @@ Output shows source ID, type (`local`, `git`, or `builtin`), asset count, and pa
 
 ### Sync git sources
 
-Pull the latest changes from a git source:
+Pull the latest changes from a git source with [`nd sync`](../reference/nd_sync.md):
 
 ```shell
 nd sync --source <source-id>
@@ -91,6 +95,8 @@ nd sync --source <source-id>
 This runs `git pull --ff-only` and then repairs any broken symlinks.
 
 ### Remove a source
+
+Remove a source with [`nd source remove`](../reference/nd_source_remove.md):
 
 ```shell
 nd source remove <source-id>
@@ -158,6 +164,8 @@ Run `nd remove` with no arguments to get an interactive picker of deployed asset
 
 ### List available assets
 
+Use [`nd list`](../reference/nd_list.md) to browse assets:
+
 ```shell
 # All assets
 nd list
@@ -175,6 +183,8 @@ nd list --pattern greeting
 Assets marked with `*` are currently deployed.
 
 ### Check deployment status
+
+Run [`nd status`](../reference/nd_status.md) to see what is deployed:
 
 ```shell
 nd status
@@ -196,7 +206,7 @@ nd status --json
 
 ## Settings
 
-Open your config file in your default editor (`$EDITOR`, `$VISUAL`, or `vi`):
+Open your config file in your default editor (`$EDITOR`, `$VISUAL`, or `vi`) with [`nd settings edit`](../reference/nd_settings_edit.md):
 
 ```shell
 nd settings edit
@@ -226,7 +236,7 @@ nd sync --dry-run
 
 ## Health checks
 
-Run a comprehensive health check:
+Run a comprehensive health check with [`nd doctor`](../reference/nd_doctor.md):
 
 ```shell
 nd doctor
@@ -280,7 +290,7 @@ Dry-run operations (`--dry-run`) do not write log entries.
 
 ## Shell completions
 
-Generate and install shell completions:
+Generate and install shell completions with [`nd completion`](../reference/nd_completion.md):
 
 ```shell
 # Print completion script
@@ -306,10 +316,18 @@ autoload -Uz compinit && compinit
 
 ## Uninstall
 
-Remove all nd-managed symlinks from agent config directories:
+Remove all nd-managed symlinks from agent config directories with [`nd uninstall`](../reference/nd_uninstall.md):
 
 ```shell
 nd uninstall
 ```
 
 This removes symlinks but does **not** delete your config directory (`~/.config/nd/`). To fully uninstall, also remove that directory and the nd binary.
+
+## Next steps
+
+- **[How nd works](how-nd-works.md):** Understand what happens on disk when you deploy and remove assets
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them
+- **[Creating sources](creating-sources.md):** Build and share your own asset libraries
+- **[Configuration](configuration.md):** Customize nd behavior, config merging, and global flags
+- **[Troubleshooting](troubleshooting.md):** Fix broken symlinks, missing assets, and other common issues
