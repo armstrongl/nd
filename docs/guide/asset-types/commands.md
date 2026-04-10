@@ -31,7 +31,7 @@ Each command is a markdown file whose base filename becomes the slash command na
 
 ## Deploy behavior
 
-nd symlinks the individual file into the target location. Running `nd deploy commands/deploy-all` produces:
+nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `commands/deploy-all` produces:
 
 ```text
 ~/.claude/commands/deploy-all.md → <source>/commands/deploy-all.md
@@ -44,9 +44,14 @@ nd symlinks the individual file into the target location. Running `nd deploy com
 | Global | `~/.claude/commands/<name>.md` |
 | Project | `.claude/commands/<name>.md` |
 
+To undeploy a command, run [`nd remove`](../../reference/nd_remove.md) `commands/deploy-all`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Skills](skills.md) — multi-file directory assets for complex, multi-step behaviors
+- [Agents](agents.md) — define a full persona or instruction set for the coding agent
+- [Glossary: Command](../glossary.md#command) — terminology definition
 
 ## Create a command
 

@@ -41,7 +41,7 @@ The `event` field names the agent lifecycle event that triggers the hook. Script
 
 ## Deploy behavior
 
-nd symlinks the hook directory into the target scope directory. After deployment, you must manually register the hook in your agent's `settings.json` to activate it. nd prints a reminder after deploying this asset type.
+nd symlinks the hook directory into the target scope directory (see [How nd works](../how-nd-works.md) for details on the symlink strategy). After running [`nd deploy`](../../reference/nd_deploy.md), you must manually register the hook in your agent's `settings.json` to activate it. nd prints a reminder after deploying this asset type.
 
 ## Scope rules
 
@@ -54,9 +54,14 @@ nd symlinks the hook directory into the target scope directory. After deployment
 
 After running `nd deploy`, open your agent's `settings.json` and add the hook to the hooks configuration. For Claude Code, hooks are registered under the `hooks` key, keyed by event name.
 
+To undeploy a hook, run [`nd remove`](../../reference/nd_remove.md) `hooks/lint-check`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Output styles](output-styles.md) — another asset type that requires manual `settings.json` registration
+- [Plugins](plugins.md) — bundle multiple assets into a distributable package
+- [Glossary: Hook](../glossary.md#hook) — terminology definition
 
 ## Create a hook
 

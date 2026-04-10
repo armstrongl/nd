@@ -48,7 +48,7 @@ Asset subdirectories inside the plugin (e.g., `skills/`, `commands/`) follow the
 
 ## Deploy behavior
 
-Plugins are **not deployable via `nd deploy`**. Instead, use `nd export` to package the assets you want to include, then install the exported package through your agent's plugin installation mechanism.
+Plugins are **not deployable via `nd deploy`**. Instead, use [`nd export`](../../reference/nd_export.md) to package the assets you want to include, then install the exported package through your agent's plugin installation mechanism.
 
 ```shell
 nd export --assets skills/greeting,commands/hello --output ./my-plugin
@@ -60,9 +60,14 @@ The exported directory is a self-contained plugin that can be handed off, versio
 
 Not applicable. Plugins bypass the symlink deployment system entirely and have no global or project scope path.
 
+You can also generate a marketplace listing with [`nd export marketplace`](../../reference/nd_export_marketplace.md).
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Skills](skills.md) — multi-file directory assets commonly bundled inside plugins
+- [Commands](commands.md) — single-file assets commonly bundled inside plugins
+- [Glossary: Plugin](../glossary.md#plugin) — terminology definition
 
 ## Create a plugin
 

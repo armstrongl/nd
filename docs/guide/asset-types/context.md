@@ -47,9 +47,9 @@ target_agent: "claude-code"
 
 ## Deploy behavior
 
-Context assets deploy to **fixed paths determined by the context filename**, not into a `context/` subdirectory. This differs from all other asset types.
+Context assets deploy to **fixed paths determined by the context filename**, not into a `context/` subdirectory. This differs from all other asset types — see [How nd works](../how-nd-works.md#context-files-the-exception) for details on context deployment.
 
-For a context asset whose context file is `CLAUDE.md`:
+Running [`nd deploy`](../../reference/nd_deploy.md) on a context asset whose context file is `CLAUDE.md`:
 
 - At global scope, nd symlinks to `~/.claude/CLAUDE.md`
 - At project scope, nd symlinks to `./CLAUDE.md` at the project root — not inside `.claude/`
@@ -64,9 +64,14 @@ Files named `*.local.md` are treated as local-only and deploy at project scope r
 | Project | `./<filename>` (project root) |
 | Local (`*.local.md`) | `./<filename>` (project scope only) |
 
+To undeploy a context asset, run [`nd remove`](../../reference/nd_remove.md) `context/go-standards`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Rules](rules.md) — enforce individual constraints rather than broad project knowledge
+- [Agents](agents.md) — define a full persona or instruction set for the coding agent
+- [Glossary: Context file](../glossary.md#context-file) — terminology definition
 
 ## Create a context asset
 

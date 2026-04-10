@@ -33,7 +33,7 @@ Each rule is a markdown file whose base filename describes the constraint it enc
 
 ## Deploy behavior
 
-nd symlinks the individual file into the target location. Running `nd deploy rules/no-emojis` produces:
+nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `rules/no-emojis` produces:
 
 ```text
 ~/.claude/rules/no-emojis.md → <source>/rules/no-emojis.md
@@ -46,9 +46,14 @@ nd symlinks the individual file into the target location. Running `nd deploy rul
 | Global | `~/.claude/rules/<name>.md` |
 | Project | `.claude/rules/<name>.md` |
 
+To undeploy a rule, run [`nd remove`](../../reference/nd_remove.md) `rules/no-emojis`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Context](context.md) — provide broad project knowledge rather than individual constraints
+- [Agents](agents.md) — define a full persona that bundles multiple behavioral instructions
+- [Glossary: Rule](../glossary.md#rule) — terminology definition
 
 ## Create a rule
 
