@@ -2,6 +2,10 @@
 
 Thank you for considering contributing to nd! This guide will help you get started.
 
+## Code of conduct
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+
 ## Prerequisites
 
 - [Go](https://go.dev/dl/) 1.25+
