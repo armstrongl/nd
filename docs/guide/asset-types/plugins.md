@@ -14,6 +14,8 @@ tags:
   - export
 ---
 
+Use plugins when you want to package several related assets into a single distributable unit that others can install. Unlike deploying individual assets with `nd deploy`, plugins are exported as self-contained packages via `nd export`.
+
 Plugins are directory assets that bundle multiple nd assets into a Claude Code plugin package, distributed and installed via the `nd export` workflow rather than symlink deployment.
 
 ## Directory layout

@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use commands when you want to give your agent a repeatable action you can trigger on demand with a slash command. Unlike context or rules, which apply passively, a command runs only when you explicitly invoke it.
+
 Commands are single-file assets that define custom slash commands available to coding agents during a session.
 
 ## Directory layout

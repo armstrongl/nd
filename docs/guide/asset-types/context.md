@@ -15,6 +15,8 @@ tags:
   - conflicts
 ---
 
+Use context when you want project-wide conventions or persistent instructions that the agent reads automatically at the start of every session. Unlike rules, which state individual constraints, context provides broad project knowledge such as architecture decisions, coding standards, or team workflows.
+
 Context assets provide persistent instructions or project conventions to coding agents, deployed to fixed paths derived from the context filename rather than into a type subdirectory.
 
 ## Directory layout

@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use agents when you want to define a distinct persona or set of instructions that shapes how a coding agent behaves across an entire session. Unlike rules, which enforce individual constraints, an agent file provides holistic behavioral identity.
+
 Agents are single-file assets that define the behavior, persona, or instructions for a named coding agent.
 
 ## Directory layout

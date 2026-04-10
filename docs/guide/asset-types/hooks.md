@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use hooks when you want to run scripts automatically in response to agent lifecycle events, such as linting before a tool executes or logging after a response completes. Unlike commands, which require manual invocation, hooks fire automatically when their event occurs.
+
 Hooks are directory assets that define event-driven automation triggered by agent lifecycle events, deployed as symlinked directories and activated via manual `settings.json` registration.
 
 ## Directory layout

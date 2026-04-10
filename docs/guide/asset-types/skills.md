@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use skills when you want to teach the agent a complex, multi-step behavior that may need supporting files like examples, templates, or reference data. Unlike commands, which are single-file slash-command instructions, skills bundle everything the agent needs into one deployable directory.
+
 Skills are multi-file directory assets that package reusable coding-agent behaviors into a named, self-contained directory.
 
 ## Directory layout
