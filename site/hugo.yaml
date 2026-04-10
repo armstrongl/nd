@@ -61,9 +61,11 @@ outputs:
   home:
     - html
     - llms
+    - markdown
     - rss
   section:
     - html
+    - markdown
     - rss
   page:
     - html
