@@ -16,7 +16,7 @@ title: nd
 {{< /hextra/hero-subtitle >}}
 
 ```shell
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 ```
 
 {{< hextra/hero-button text="Get started" link="docs/guide/getting-started/" >}}

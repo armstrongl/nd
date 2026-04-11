@@ -38,6 +38,7 @@ These flags work with every command:
 | `--quiet` / `-q` | Suppress non-error output |
 | `--scope` / `-s` | Set deployment scope: `global` or `project` |
 | `--config` | Override config file path |
+| `--agent` | Target a specific agent (e.g., `claude-code`, `copilot`) |
 | `--no-color` | Disable colored output |
 
 Example scripted workflow:
@@ -134,12 +135,24 @@ Bulk operations continue on per-asset failure and report a summary.
 
 ### Scopes
 
-- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/`)
-- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` in project root)
+- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` for Claude Code, `.github/` for Copilot CLI)
 
 ```shell
 nd deploy skills/greeting --scope project
 ```
+
+### Target a specific agent
+
+Use `--agent` to deploy to a particular agent:
+
+```shell
+nd deploy skills/greeting --agent copilot
+```
+
+When no `--agent` flag is provided, nd deploys to the configured default agent if it is detected. Otherwise, nd falls back to the first detected agent.
+
+> **Note:** Not all agents support all asset types. Copilot CLI supports only skills, agents, and context. Attempting to deploy an unsupported type (such as commands or output-styles) to an incompatible agent produces an error.
 
 ### Symlink strategy
 

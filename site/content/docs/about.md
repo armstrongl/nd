@@ -20,7 +20,7 @@ nd creates symlinks from your agent's config directory to asset sources (local d
 
 ```shell
 # Homebrew (macOS/Linux)
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 
 # Go install
 go install github.com/armstrongl/nd@latest

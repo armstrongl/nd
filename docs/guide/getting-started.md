@@ -24,7 +24,7 @@ Choose your preferred method:
 
 ```shell
 # Homebrew (macOS/Linux)
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 
 # Go install
 go install github.com/armstrongl/nd@latest
@@ -59,11 +59,11 @@ Create the nd configuration directory and default config:
 nd init
 ```
 
-This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
+This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. nd also detects installed coding agents (Claude Code and Copilot CLI) and selects a default agent to deploy to.
 
-[`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent). Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
+[`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent) to the detected default agent. Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
 
-If nd cannot detect your coding agent (e.g., Claude Code is not installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install your agent and run `nd deploy --source builtin` afterward.
+If nd cannot detect any coding agent (e.g., none are installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install an agent and run `nd deploy --source builtin` afterward.
 
 If a config file already exists, `nd init` exits with an error. Use [`nd settings edit`](../reference/nd_settings_edit.md) to modify an existing configuration.
 
@@ -122,7 +122,7 @@ nd deploy skills/greeting commands/hello agents/researcher
 
 Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — [`nd remove`](../reference/nd_remove.md), [`nd profile switch`](../reference/nd_profile_switch.md), [`nd snapshot restore`](../reference/nd_snapshot_restore.md), and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
-nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 **Deploy by type:**
 
@@ -132,12 +132,22 @@ nd deploy --type skills greeting
 
 **Scopes:**
 
-- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/`)
-- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` in the project root)
+- **Global** (`--scope global`, default): Deploys to your agent's global config directory (e.g., `~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.claude/` for Claude Code, `.github/` for Copilot CLI)
 
 ```shell
 nd deploy skills/greeting --scope project
 ```
+
+**Target a specific agent:**
+
+If you have multiple agents installed, nd deploys to the default agent. Use `--agent` to target a different one:
+
+```shell
+nd deploy skills/greeting --agent copilot
+```
+
+Note that not all agents support every asset type. Copilot CLI supports skills, agents, and context only.
 
 **Symlink strategy:**
 

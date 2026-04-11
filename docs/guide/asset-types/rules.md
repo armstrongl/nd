@@ -15,6 +15,8 @@ tags:
 
 Use rules when you want to enforce a specific constraint or convention that the agent must follow in every interaction — such as "never use emojis" or "always write tests." Unlike context, which provides broad project knowledge, each rule targets a single, enforceable behavior.
 
+Rules are a Claude Code-only asset type. Copilot CLI does not support rules.
+
 Rules are assets that define behavioral constraints or conventions a coding agent must follow throughout a session. A rule can be a single Markdown file or a directory.
 
 ## Directory layout

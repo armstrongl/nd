@@ -61,11 +61,22 @@ Not every directory needs to be present. nd only discovers assets in directories
 
 ## Context files
 
-Context files have special deployment rules:
+Context files have special deployment rules. The target path depends on which agent is targeted:
 
-- **Global scope:** Deployed to the agent's global directory (e.g., `~/.claude/CLAUDE.md`)
+**Claude Code (default):**
+
+- **Global scope:** Deployed to `~/.claude/CLAUDE.md`
 - **Project scope:** Deployed to the project root directly (e.g., `./CLAUDE.md`), not inside `.claude/`
+
+**Copilot CLI:**
+
+- **Global scope:** Deployed to `~/.copilot/copilot-instructions.md`
+- **Project scope:** Deployed inside the project agent directory (e.g., `.github/copilot-instructions.md`)
+
+**Both agents:**
+
 - **Local files** (`*.local.md`): Deploy only at project scope
+- **Renaming:** When deploying to Copilot CLI, nd automatically renames context files to `copilot-instructions.md` if the source file uses a different name (e.g., `CLAUDE.md`). The source directory always uses `CLAUDE.md` by convention; the deployed filename is determined by the target agent.
 
 ### _meta.yaml
 

@@ -31,7 +31,12 @@ See [Create asset sources](creating-sources.md) for the full directory layout.
 
 ## Agent config directory
 
-The directory where a coding agent reads its configuration. For Claude Code, this is `~/.claude/` (global) or `.claude/` (project). nd creates symlinks inside this directory when you deploy assets.
+The directory where a coding agent reads its configuration. nd creates symlinks inside this directory when you deploy assets.
+
+| Agent | Global directory | Project directory |
+|---|---|---|
+| Claude Code | `~/.claude/` | `.claude/` |
+| Copilot CLI | `~/.copilot/` | `.github/` |
 
 Configure custom agent directories in your [config file](configuration.md) using the `agents[]` array.
 
@@ -47,7 +52,7 @@ A source embedded inside the nd binary. The builtin source ships nd-specific ass
 
 ## Coding agent
 
-An AI-powered development tool that reads assets from a config directory. Claude Code is the default coding agent. nd also supports other agents (Cursor, Windsurf, Copilot) through the `agents[]` config array.
+An AI-powered development tool that reads assets from a config directory. nd natively supports two built-in agents: Claude Code (default) and Copilot CLI. The `agents[]` config array can override settings for these built-in agents but does not currently support adding new ones.
 
 Not to be confused with [agent (asset type)](#agent-asset-type), which is a file you deploy *to* a coding agent.
 
@@ -55,14 +60,14 @@ Not to be confused with [agent (asset type)](#agent-asset-type), which is a file
 
 A deployable asset that defines a custom slash command for a coding agent. Command assets are single Markdown files stored in the `commands/` directory of a source.
 
-In Claude Code, deployed commands become available as `/command-name` in the chat interface.
+In Claude Code, deployed commands become available as `/command-name` in the chat interface. Commands are supported only by Claude Code — Copilot CLI does not use the commands asset type.
 
 ## Context file
 
 A deployable asset that provides instructions or context to a coding agent. Context files have special deployment rules that differ from other asset types:
 
-- **Global scope**: deploys to the agent config directory (for example, `~/.claude/CLAUDE.md`)
-- **Project scope**: deploys to the project root (for example, `./CLAUDE.md`), not inside `.claude/`
+- **Global scope**: deploys to the agent config directory (for example, `~/.claude/CLAUDE.md` for Claude Code, `~/.copilot/copilot-instructions.md` for Copilot CLI)
+- **Project scope**: deploys to the project root for Claude Code (for example, `./CLAUDE.md`), or inside the agent's project directory for Copilot CLI (for example, `.github/copilot-instructions.md`)
 - **Local files** (`*.local.md`): deploy only at project scope
 
 Context files use a folder-per-asset layout with an optional `_meta.yaml` sidecar for metadata.
@@ -206,10 +211,10 @@ The coding agent auto-loads rules from its config directory. Deployment requires
 
 Where nd deploys an asset. nd supports two scopes:
 
-| Scope | Target directory | Use case |
-|---|---|---|
-| `global` (default) | Agent config directory (`~/.claude/`) | Assets you want in every project |
-| `project` | Project config directory (`.claude/`) | Assets specific to one project |
+| Scope | Claude Code directory | Copilot CLI directory | Use case |
+|---|---|---|---|
+| `global` (default) | `~/.claude/` | `~/.copilot/` | Assets you want in every project |
+| `project` | `.claude/` | `.github/` | Assets specific to one project |
 
 ```shell
 nd deploy skills/greeting              # Global (default)
@@ -222,7 +227,7 @@ See [How nd works](how-nd-works.md#global-vs-project-scope) for details.
 
 A deployable asset that teaches a coding agent a reusable workflow or capability. Skill assets are directories containing a required `SKILL.md` entry-point file and optional supporting files, stored in the `skills/` directory of a source.
 
-Skills are specific to Claude Code. Other coding agents use different terminology for similar concepts (tools, instructions, prompts).
+Skills are supported by Claude Code and Copilot CLI. Other coding agents may use different terminology for similar concepts (tools, instructions, prompts).
 
 ```text
 my-source/
@@ -272,9 +277,11 @@ nd sync --dry-run              # Preview repairs without applying
 
 How nd constructs the symlink path when deploying. nd supports two strategies:
 
-| Strategy | Example | Use case |
+| Strategy | Example (Claude Code) | Use case |
 |---|---|---|
 | `absolute` (default) | `~/.claude/skills/greeting -> /Users/you/my-assets/skills/greeting` | Readable paths for debugging |
 | `relative` | `~/.claude/skills/greeting -> ../../my-assets/skills/greeting` | Portable across machines with different home directory paths |
+
+Paths vary by agent. The examples above show Claude Code; Copilot CLI uses `~/.copilot/` instead.
 
 Set the default in your config file with `symlink_strategy: relative` or per-deploy with `--relative`.

@@ -15,6 +15,8 @@ tags:
 
 Use output styles when you want to control how the agent formats its responses — for example, terse bullet points for experienced users or detailed explanations for learners. Unlike rules, which constrain agent behavior broadly, output styles focus specifically on presentation and tone.
 
+Output styles are a Claude Code-only asset type. Copilot CLI does not support output styles.
+
 Output styles are single-file assets that define formatting instructions for agent output, deployed as symlinks and activated via manual `settings.json` registration.
 
 ## Directory layout
