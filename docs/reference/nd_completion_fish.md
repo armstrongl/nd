@@ -16,13 +16,13 @@ To install completions:
 Or manually:
   nd completion fish > ~/.config/fish/completions/nd.fish
 
-```
+```shell {filename="Terminal"}
 nd completion fish [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Print fish completion script
   nd completion fish
 
@@ -32,7 +32,7 @@ nd completion fish [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help                 help for fish
       --install              install to standard location
       --install-dir string   override install directory
@@ -40,7 +40,7 @@ nd completion fish [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

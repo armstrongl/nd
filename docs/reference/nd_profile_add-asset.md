@@ -6,13 +6,13 @@ weight: 140
 
 Add an asset to an existing profile
 
-```
+```shell {filename="Terminal"}
 nd profile add-asset <profile> <asset> [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Add an asset to an existing profile
   nd profile add-asset my-setup skills/greeting
 
@@ -22,13 +22,13 @@ nd profile add-asset <profile> <asset> [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for add-asset
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

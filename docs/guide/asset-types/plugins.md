@@ -20,7 +20,7 @@ Plugins are directory assets that bundle multiple nd assets into a Claude Code p
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 plugins/
 └── my-toolbox/
     ├── .claude-plugin/
@@ -36,7 +36,7 @@ plugins/
 
 A plugin directory contains a `.claude-plugin/` subdirectory with a `plugin.json` manifest inside it, plus asset subdirectories that follow the standard nd structure.
 
-```json
+```json {filename="plugin.json"}
 {
   "name": "my-toolbox",
   "version": "1.0.0",
@@ -50,7 +50,7 @@ Asset subdirectories inside the plugin (e.g., `skills/`, `commands/`) follow the
 
 Plugins are **not deployable via `nd deploy`**. Instead, use [`nd export`](../../reference/nd_export.md) to package the assets you want to include, then install the exported package through your agent's plugin installation mechanism.
 
-```shell
+```shell {filename="Terminal"}
 nd export --assets skills/greeting,commands/hello --output ./my-plugin
 ```
 
@@ -75,7 +75,7 @@ You can also generate a marketplace listing with [`nd export marketplace`](../..
 
 Create the plugin directory structure inside your source. A plugin needs a `.claude-plugin/plugin.json` manifest and at least one nested asset:
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/plugins/my-toolbox/.claude-plugin
 mkdir -p ~/my-assets/plugins/my-toolbox/skills/greeting
 

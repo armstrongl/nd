@@ -6,13 +6,13 @@ weight: 260
 
 Restore deployments from a snapshot
 
-```
+```shell {filename="Terminal"}
 nd snapshot restore <name> [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Restore deployments from a snapshot
   nd snapshot restore before-update
 
@@ -22,13 +22,13 @@ nd snapshot restore <name> [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for restore
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

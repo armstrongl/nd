@@ -21,7 +21,7 @@ Skills are multi-file directory assets that package reusable coding-agent behavi
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 skills/
 ├── greeting/
 │   └── SKILL.md
@@ -39,7 +39,7 @@ The entry point is a file named `SKILL.md` at the root of the skill directory (e
 
 nd symlinks the entire skill directory into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `skills/greeting` produces a symlink in the active agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
 # Claude Code
 ~/.claude/skills/greeting → <source>/skills/greeting
 
@@ -67,7 +67,7 @@ To undeploy a skill, run [`nd remove`](../../reference/nd_remove.md) `skills/gre
 
 ## Create a skill
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/skills/greeting
 cat > ~/my-assets/skills/greeting/SKILL.md << 'EOF'
 # Greeting skill

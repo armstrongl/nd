@@ -21,7 +21,7 @@ Output styles are single-file assets that define formatting instructions for age
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 output-styles/
 ├── concise.md
 └── learning.md
@@ -31,7 +31,7 @@ output-styles/
 
 Each output style is a plain Markdown file describing the formatting behavior the agent should apply when the style is active. There is no required frontmatter.
 
-```markdown
+```markdown {filename="Markdown"}
 Respond with minimal text. Use bullet points. No explanations unless asked.
 Maximum 3 sentences per response.
 ```
@@ -62,7 +62,7 @@ To undeploy an output style, run [`nd remove`](../../reference/nd_remove.md) `ou
 
 ## Create an output style
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/output-styles
 
 cat > ~/my-assets/output-styles/concise.md << 'EOF'

@@ -21,7 +21,7 @@ A deployable asset that configures how a coding agent behaves. Agent assets are 
 
 Not to be confused with [coding agent](#coding-agent), which is the AI tool (like Claude Code) that consumes agent assets.
 
-```text
+```text {filename="Source layout"}
 my-source/
 └── agents/
     └── code-reviewer.md    # This is an agent asset
@@ -80,7 +80,7 @@ See [How nd works](how-nd-works.md#context-files-the-exception) for deployment d
 
 Create a symlink from a coding agent's config directory to an asset in a source. Deploying does not copy files — it creates a link so that edits to the source appear instantly in the deployed location.
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
@@ -104,7 +104,7 @@ Run `nd doctor` after editing config files or when deployments behave unexpected
 
 Package assets from a source into a standalone plugin directory or marketplace listing. Exporting is the deployment path for [plugins](#plugin) — unlike other asset types, plugins use `nd export` instead of symlink deployment.
 
-```shell
+```shell {filename="Terminal"}
 nd export                    # Export a plugin
 nd export marketplace        # Generate a marketplace listing
 ```
@@ -165,7 +165,7 @@ Like [hooks](#hook), output styles require manual registration in the coding age
 
 Lock a deployed asset so it persists across profile switches. nd neither removes nor redeploys pinned assets when you switch profiles.
 
-```shell
+```shell {filename="Terminal"}
 nd pin skills/greeting      # Lock the asset
 nd unpin skills/greeting    # Release the lock
 ```
@@ -182,7 +182,7 @@ Export plugins with `nd export` and generate marketplace listings with `nd expor
 
 A named collection of assets that you deploy and switch between as a group. Profiles work like browser profiles for your coding agent — for example, a "work" profile with enterprise tools and a "personal" profile with hobby project assets.
 
-```shell
+```shell {filename="Terminal"}
 nd profile create work --assets skills/jira,agents/reviewer
 nd profile switch personal
 ```
@@ -195,7 +195,7 @@ See [Profiles and snapshots](profiles-and-snapshots.md) for the full workflow.
 
 Delete a deployed symlink, disconnecting the asset from the coding agent's config directory. nd removes only the symlink, not the source file.
 
-```shell
+```shell {filename="Terminal"}
 nd remove skills/greeting
 ```
 
@@ -216,7 +216,7 @@ Where nd deploys an asset. nd supports two scopes:
 | `global` (default) | `~/.claude/` | `~/.copilot/` | Assets you want in every project |
 | `project` | `.claude/` | `.github/` | Assets specific to one project |
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting              # Global (default)
 nd deploy skills/greeting --scope project  # Project
 ```
@@ -229,7 +229,7 @@ A deployable asset that teaches a coding agent a reusable workflow or capability
 
 Skills are supported by Claude Code and Copilot CLI. Other coding agents may use different terminology for similar concepts (tools, instructions, prompts).
 
-```text
+```text {filename="Source layout"}
 my-source/
 └── skills/
     └── greeting/
@@ -242,7 +242,7 @@ A point-in-time record of all current deployments. Snapshots act as bookmarks yo
 
 nd creates auto-snapshots before destructive operations (profile switches, snapshot restores) as a safety net. nd retains the 5 most recent auto-snapshots.
 
-```shell
+```shell {filename="Terminal"}
 nd snapshot save before-experiment
 nd snapshot restore before-experiment
 ```
@@ -267,7 +267,7 @@ See [Create asset sources](creating-sources.md) for how to structure your own.
 
 Pull the latest changes from git sources and repair broken symlinks across all deployments. `nd sync` fixes [health status](#health-status) issues like broken, drifted, or orphaned symlinks.
 
-```shell
+```shell {filename="Terminal"}
 nd sync                        # Repair all deployments
 nd sync --source <source-id>   # Pull a git source and repair
 nd sync --dry-run              # Preview repairs without applying

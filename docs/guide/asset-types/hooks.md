@@ -21,7 +21,7 @@ Hooks are directory assets that define event-driven automation triggered by agen
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 hooks/
 └── pre-tool-lint/
     ├── hooks.json
@@ -32,7 +32,7 @@ hooks/
 
 Each hook is a directory containing a `hooks.json` configuration file and one or more executable scripts.
 
-```json
+```json {filename="hooks.json"}
 {
   "event": "PreToolUse",
   "description": "Run linter before tool use"
@@ -67,7 +67,7 @@ To undeploy a hook, run [`nd remove`](../../reference/nd_remove.md) `hooks/lint-
 
 ## Create a hook
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/hooks/lint-check
 
 cat > ~/my-assets/hooks/lint-check/hooks.json << 'EOF'

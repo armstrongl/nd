@@ -6,13 +6,13 @@ weight: 180
 
 List all profiles
 
-```
+```shell {filename="Terminal"}
 nd profile list [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # List all saved profiles
   nd profile list
 
@@ -22,13 +22,13 @@ nd profile list [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for list
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

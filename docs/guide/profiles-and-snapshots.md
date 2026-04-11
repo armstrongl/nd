@@ -28,7 +28,7 @@ A **profile** is a named collection of assets: like browser profiles for your co
 
 Specify exactly which assets belong in the profile with [`nd profile create`](../reference/nd_profile_create.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile create work --assets skills/enterprise-auth,skills/jira-integration,agents/code-reviewer
 ```
 
@@ -36,13 +36,13 @@ nd profile create work --assets skills/enterprise-auth,skills/jira-integration,a
 
 Capture whatever is currently deployed:
 
-```shell
+```shell {filename="Terminal"}
 nd profile create work --from-current
 ```
 
 Add a description:
 
-```shell
+```shell {filename="Terminal"}
 nd profile create work --from-current --description "Enterprise development setup"
 ```
 
@@ -50,7 +50,7 @@ nd profile create work --from-current --description "Enterprise development setu
 
 Add assets to an existing profile one at a time with [`nd profile add-asset`](../reference/nd_profile_add-asset.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile add-asset work skills/new-skill
 nd profile add-asset work commands/deploy-staging
 ```
@@ -59,7 +59,7 @@ nd profile add-asset work commands/deploy-staging
 
 List all profiles with [`nd profile list`](../reference/nd_profile_list.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile list
 ```
 
@@ -69,7 +69,7 @@ nd marks the active profile with `*`.
 
 Deploy all assets from a profile with [`nd profile deploy`](../reference/nd_profile_deploy.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile deploy work
 ```
 
@@ -77,7 +77,7 @@ This resolves each asset reference from your registered sources and creates syml
 
 Preview first:
 
-```shell
+```shell {filename="Terminal"}
 nd profile deploy work --dry-run
 ```
 
@@ -85,7 +85,7 @@ nd profile deploy work --dry-run
 
 Switch from the current active profile to another with [`nd profile switch`](../reference/nd_profile_switch.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile switch personal
 ```
 
@@ -101,7 +101,7 @@ Before switching, nd automatically saves a snapshot (safety net). After confirmi
 
 Delete a profile with [`nd profile delete`](../reference/nd_profile_delete.md):
 
-```shell
+```shell {filename="Terminal"}
 nd profile delete work
 ```
 
@@ -111,7 +111,7 @@ This removes the profile definition but does **not** remove any currently deploy
 
 **Pinned assets persist across profile switches.** Use this for assets you always want available regardless of which profile is active.
 
-```shell
+```shell {filename="Terminal"}
 # Pin an asset
 nd pin skills/greeting
 
@@ -131,7 +131,7 @@ A **snapshot** is a point-in-time record of all current deployments. Think of it
 
 Save a snapshot with [`nd snapshot save`](../reference/nd_snapshot_save.md):
 
-```shell
+```shell {filename="Terminal"}
 nd snapshot save before-experiment
 ```
 
@@ -139,7 +139,7 @@ nd snapshot save before-experiment
 
 List all snapshots with [`nd snapshot list`](../reference/nd_snapshot_list.md):
 
-```shell
+```shell {filename="Terminal"}
 nd snapshot list
 ```
 
@@ -149,7 +149,7 @@ The list shows both user-created and auto-created snapshots. nd tags auto-snapsh
 
 Restore a snapshot with [`nd snapshot restore`](../reference/nd_snapshot_restore.md):
 
-```shell
+```shell {filename="Terminal"}
 nd snapshot restore before-experiment
 ```
 
@@ -161,7 +161,7 @@ Run `nd snapshot restore` with no arguments to get an interactive picker.
 
 Delete a snapshot with [`nd snapshot delete`](../reference/nd_snapshot_delete.md):
 
-```shell
+```shell {filename="Terminal"}
 nd snapshot delete old-snapshot
 ```
 
@@ -173,7 +173,7 @@ nd automatically saves snapshots before destructive operations like profile swit
 
 Here is a complete workflow using profiles, pinning, and snapshots:
 
-```shell
+```shell {filename="Terminal"}
 # Create two profiles
 nd profile create work --assets skills/jira,skills/enterprise-auth,agents/reviewer
 nd profile create personal --assets skills/blog-writer,skills/recipe-helper

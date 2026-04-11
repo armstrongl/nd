@@ -23,7 +23,7 @@ Context assets provide persistent instructions or project conventions to coding 
 
 Each context asset is a directory containing a context file and an optional `_meta.yaml` sidecar.
 
-```text
+```text {filename="Source layout"}
 context/
 ├── go-project-rules/
 │   ├── CLAUDE.md
@@ -36,7 +36,7 @@ context/
 
 The context file (e.g., `CLAUDE.md` or `copilot-instructions.md`) contains the instructions or conventions in plain Markdown. The optional `_meta.yaml` sidecar carries metadata used by nd for listing and filtering.
 
-```yaml
+```yaml {filename="_meta.yaml"}
 # _meta.yaml
 description: "Project coding standards and conventions"
 tags: ["standards", "conventions"]
@@ -88,7 +88,7 @@ To undeploy a context asset, run [`nd remove`](../../reference/nd_remove.md) `co
 
 ## Create a context asset
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/context/go-standards
 
 cat > ~/my-assets/context/go-standards/CLAUDE.md << 'EOF'

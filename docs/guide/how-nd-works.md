@@ -24,7 +24,7 @@ nd supports multiple agents. When no `--agent` flag is provided, nd targets the 
 
 nd wires each deployed asset from your source into the target agent's config directory:
 
-```text
+```text {filename="Source layout"}
   your source               nd               agent config dir
 ┌────────────────┐                        ┌──────────────────┐
 │ ~/my-assets/   │  ─── nd deploy ───▶    │ Claude Code:     │
@@ -41,7 +41,7 @@ The same source can serve multiple agents. nd creates links into whichever agent
 
 Here is a source directory with two assets: a skill (directory) and a rule (file):
 
-```text
+```text {filename="Source layout"}
 ~/my-assets/
 ├── skills/
 │   └── greeting/
@@ -52,7 +52,7 @@ Here is a source directory with two assets: a skill (directory) and a rule (file
 
 After running `nd deploy skills/greeting rules/no-emojis`, your agent's config directory looks like this:
 
-```text
+```text {filename="Source layout"}
 ~/.claude/                                              # Claude Code (default)
 ├── skills/
 │   └── greeting -> ~/my-assets/skills/greeting         # directory symlink
@@ -68,7 +68,7 @@ The `->` arrow shows where the symlink points. `greeting` is a directory symlink
 
 Verify this:
 
-```shell
+```shell {filename="Terminal"}
 ls -la ~/.claude/skills/
 # greeting -> /Users/you/my-assets/skills/greeting
 ```
@@ -84,7 +84,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 **Global scope** (default) deploys to the agent's user-wide config directory:
 
-```text
+```text {filename="Deployment paths"}
 # Claude Code
 ~/.claude/skills/greeting -> ~/my-assets/skills/greeting
 
@@ -94,7 +94,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 **Project scope** deploys to the current project's config directory:
 
-```text
+```text {filename="Deployment paths"}
 # Claude Code
 ~/myproject/.claude/skills/greeting -> ~/my-assets/skills/greeting
 
@@ -104,7 +104,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 Use global scope for assets you want everywhere. Use project scope for assets that only make sense in a specific repo.
 
-```shell
+```shell {filename="Terminal"}
 # Global (default)
 nd deploy skills/greeting
 
@@ -127,13 +127,13 @@ Claude Code reads context from a file named `CLAUDE.md`.
 
 **Global scope:** deploys into the agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
 ~/.claude/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
 **Project scope:** deploys into the project root, NOT inside `.claude/`:
 
-```text
+```text {filename="Deployment paths"}
 ~/myproject/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
@@ -145,13 +145,13 @@ Copilot CLI reads context from a file named `copilot-instructions.md`.
 
 **Global scope:** deploys into the agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
 ~/.copilot/copilot-instructions.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
 **Project scope:** deploys into the project directory, NOT the project root:
 
-```text
+```text {filename="Deployment paths"}
 ~/myproject/.github/copilot-instructions.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
@@ -174,19 +174,19 @@ nd supports two symlink strategies. The default is absolute:
 
 **Absolute** (default): the symlink target is a full path:
 
-```text
+```text {filename="Deployment paths"}
 ~/.claude/skills/greeting -> /Users/you/my-assets/skills/greeting
 ```
 
 **Relative:** the symlink target is a relative path from the link's location:
 
-```text
+```text {filename="Deployment paths"}
 ~/.claude/skills/greeting -> ../../my-assets/skills/greeting
 ```
 
 Absolute symlinks show the full path, making them more readable when debugging. Use relative symlinks if you sync your dotfiles across machines where your home directory path differs (different usernames or OS layouts).
 
-```shell
+```shell {filename="Terminal"}
 # Deploy with relative symlinks
 nd deploy skills/greeting --relative
 

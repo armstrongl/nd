@@ -21,7 +21,7 @@ Agents are single-file assets that define the behavior, persona, or instructions
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 agents/
 ├── researcher.md
 └── code-reviewer.md
@@ -35,7 +35,7 @@ Each agent is a markdown file containing agent instructions, a system prompt, or
 
 nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `agents/researcher` produces a symlink in the active agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
 # Claude Code
 ~/.claude/agents/researcher.md → <source>/agents/researcher.md
 
@@ -61,7 +61,7 @@ To undeploy an agent, run [`nd remove`](../../reference/nd_remove.md) `agents/re
 
 ## Create an agent
 
-```shell
+```shell {filename="Terminal"}
 cat > ~/my-assets/agents/researcher.md << 'EOF'
 # Researcher agent
 
