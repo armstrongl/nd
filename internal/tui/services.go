@@ -20,7 +20,7 @@ type Services interface {
 
 	// Agent management
 	AgentRegistry() (*agent.Registry, error)
-	DefaultAgent() (*agent.Agent, error)
+	ActiveAgent() (*agent.Agent, error)
 
 	// Deployment
 	DeployEngine() (*deploy.Engine, error)

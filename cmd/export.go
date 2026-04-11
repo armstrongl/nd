@@ -174,7 +174,7 @@ Multiple assets can be comma-separated or the flag repeated.`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		agentAlias := ""
-		if ag, err := app.DefaultAgent(); err == nil {
+		if ag, err := app.ActiveAgent(); err == nil {
 			agentAlias = ag.SourceAlias
 		}
 		var names []string
@@ -443,7 +443,7 @@ func runExportInteractive(cmd *cobra.Command, app *App, flagName, flagDesc, flag
 
 	// Build asset choices (exclude plugins)
 	agentAlias := ""
-	if ag, err := app.DefaultAgent(); err == nil {
+	if ag, err := app.ActiveAgent(); err == nil {
 		agentAlias = ag.SourceAlias
 	}
 	allAssets := index.FilterByAgent(agentAlias)

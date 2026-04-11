@@ -33,8 +33,8 @@ func newStatusCmd(app *App) *cobra.Command {
 				return err
 			}
 
-			// Prune ghost deployments (best-effort)
-			if pruned, pruneErr := eng.Prune(); pruneErr != nil {
+			// Prune ghost deployments for all agents (best-effort pre-op cleanup)
+			if pruned, pruneErr := eng.PruneAll(); pruneErr != nil {
 				if !app.Quiet {
 					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
 				}

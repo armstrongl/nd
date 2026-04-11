@@ -11,14 +11,14 @@ import (
 
 func sampleState() state.DeploymentState {
 	return state.DeploymentState{
-		Version: 1,
+		Version: 2,
 		Deployments: []state.Deployment{
 			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "a",
-				Scope: nd.ScopeGlobal, Origin: nd.OriginManual, DeployedAt: time.Now()},
+				Agent: "claude-code", Scope: nd.ScopeGlobal, Origin: nd.OriginManual, DeployedAt: time.Now()},
 			{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "b",
-				Scope: nd.ScopeProject, ProjectPath: "/proj", Origin: nd.OriginProfile("go"), DeployedAt: time.Now()},
+				Agent: "claude-code", Scope: nd.ScopeProject, ProjectPath: "/proj", Origin: nd.OriginProfile("go"), DeployedAt: time.Now()},
 			{SourceID: "s2", AssetType: nd.AssetSkill, AssetName: "c",
-				Scope: nd.ScopeGlobal, Origin: nd.OriginPinned, DeployedAt: time.Now()},
+				Agent: "copilot", Scope: nd.ScopeGlobal, Origin: nd.OriginPinned, DeployedAt: time.Now()},
 		},
 	}
 }
@@ -52,5 +52,44 @@ func TestFindByProject(t *testing.T) {
 	proj := s.FindByProject("/proj")
 	if len(proj) != 1 {
 		t.Errorf("expected 1, got %d", len(proj))
+	}
+}
+
+func TestFindByAgent(t *testing.T) {
+	s := sampleState()
+	claude := s.FindByAgent("claude-code")
+	if len(claude) != 2 {
+		t.Errorf("expected 2 claude-code deployments, got %d", len(claude))
+	}
+	copilot := s.FindByAgent("copilot")
+	if len(copilot) != 1 {
+		t.Errorf("expected 1 copilot deployment, got %d", len(copilot))
+	}
+}
+
+func TestFindByAgentEmptyTreatsAsClaudeCode(t *testing.T) {
+	// Simulate a partially migrated record with empty Agent
+	s := state.DeploymentState{
+		Version: 2,
+		Deployments: []state.Deployment{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old",
+				Agent: "", Scope: nd.ScopeGlobal},
+		},
+	}
+	claude := s.FindByAgent("claude-code")
+	if len(claude) != 1 {
+		t.Errorf("empty Agent should match claude-code, got %d results", len(claude))
+	}
+	copilot := s.FindByAgent("copilot")
+	if len(copilot) != 0 {
+		t.Errorf("empty Agent should NOT match copilot, got %d results", len(copilot))
+	}
+}
+
+func TestFindByAgentNoMatches(t *testing.T) {
+	s := sampleState()
+	got := s.FindByAgent("windsurf")
+	if len(got) != 0 {
+		t.Errorf("expected 0 for unknown agent, got %d", len(got))
 	}
 }

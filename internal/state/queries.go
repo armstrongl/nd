@@ -48,3 +48,16 @@ func (s *DeploymentState) FindByProject(projectPath string) []Deployment {
 	}
 	return result
 }
+
+// FindByAgent returns all deployments for a given agent.
+// Treats empty Agent as "claude-code" for backward compatibility with
+// partially migrated state (v1 records that haven't been persisted yet).
+func (s *DeploymentState) FindByAgent(agentName string) []Deployment {
+	var result []Deployment
+	for _, d := range s.Deployments {
+		if d.Agent == agentName || (d.Agent == "" && agentName == "claude-code") {
+			result = append(result, d)
+		}
+	}
+	return result
+}

@@ -340,7 +340,7 @@ func (ds *deployScreen) startScan() tea.Cmd {
 		}
 
 		agentAlias := ""
-		if ag, err := svc.DefaultAgent(); err == nil {
+		if ag, err := svc.ActiveAgent(); err == nil {
 			agentAlias = ag.SourceAlias
 		}
 

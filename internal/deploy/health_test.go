@@ -624,3 +624,206 @@ func TestStatus(t *testing.T) {
 		}
 	}
 }
+
+// --- Agent-filtered tests (Unit 9) ---
+
+func TestStatusFiltersByAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "claude-skill",
+			SourcePath: "/src/skills/cs", LinkPath: "/home/.claude/skills/cs",
+			Scope: nd.ScopeGlobal, Agent: "claude-code"},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "copilot-skill",
+			SourcePath: "/src/skills/cp", LinkPath: "/home/.copilot/skills/cp",
+			Scope: nd.ScopeGlobal, Agent: "copilot"},
+	}
+
+	// Engine bound to copilot — should only see copilot's deployment
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(name string) (string, error) {
+		for _, d := range store.state.Deployments {
+			if d.LinkPath == name {
+				return d.SourcePath, nil
+			}
+		}
+		return "", os.ErrNotExist
+	})
+	engine.SetStat(func(string) (os.FileInfo, error) { return fakeFileInfo{}, nil })
+
+	entries, err := engine.Status()
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry (copilot only), got %d", len(entries))
+	}
+	if entries[0].Deployment.AssetName != "copilot-skill" {
+		t.Errorf("expected copilot-skill, got %q", entries[0].Deployment.AssetName)
+	}
+}
+
+func TestCheckFiltersByAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "claude-broken",
+			SourcePath: "/src/skills/cb", LinkPath: "/home/.claude/skills/cb",
+			Scope: nd.ScopeGlobal, Agent: "claude-code"},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "copilot-broken",
+			SourcePath: "/src/skills/cpb", LinkPath: "/home/.copilot/skills/cpb",
+			Scope: nd.ScopeGlobal, Agent: "copilot"},
+	}
+
+	// Engine bound to claude-code — should only report claude-code's issue
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist // all missing
+	})
+
+	checks, err := engine.Check()
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if len(checks) != 1 {
+		t.Fatalf("expected 1 issue (claude-code only), got %d", len(checks))
+	}
+	if checks[0].Deployment.AssetName != "claude-broken" {
+		t.Errorf("expected claude-broken, got %q", checks[0].Deployment.AssetName)
+	}
+}
+
+func TestSyncFiltersByAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "claude-missing",
+			SourcePath: "/src/skills/cm", LinkPath: "/home/.claude/skills/cm",
+			Scope: nd.ScopeGlobal, Agent: "claude-code"},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "copilot-missing",
+			SourcePath: "/src/skills/cpm", LinkPath: "/home/.copilot/skills/cpm",
+			Scope: nd.ScopeGlobal, Agent: "copilot"},
+	}
+
+	// Engine bound to claude-code — should only repair/remove claude-code's
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetStat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }) // source gone
+	engine.SetRemove(func(string) error { return nil })
+
+	result, err := engine.Sync()
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Fatalf("expected 1 removed (claude-code only), got %d", len(result.Removed))
+	}
+	if result.Removed[0].AssetName != "claude-missing" {
+		t.Errorf("expected claude-missing removed, got %q", result.Removed[0].AssetName)
+	}
+	// Copilot's deployment should still exist in state
+	if store.saved == nil {
+		t.Fatal("expected save")
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Fatalf("expected 1 remaining, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].AssetName != "copilot-missing" {
+		t.Errorf("expected copilot-missing to remain, got %q", store.saved.Deployments[0].AssetName)
+	}
+}
+
+func TestPruneFiltersByAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "claude-ghost",
+			SourcePath: "/src/skills/cg", LinkPath: "/home/.claude/skills/cg",
+			Scope: nd.ScopeGlobal, Agent: "claude-code"},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "copilot-ghost",
+			SourcePath: "/src/skills/cpg", LinkPath: "/home/.copilot/skills/cpg",
+			Scope: nd.ScopeGlobal, Agent: "copilot"},
+	}
+
+	// Engine bound to claude-code — Prune() should only prune claude-code's ghost
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist // all ghosts
+	})
+
+	count, err := engine.Prune()
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 pruned (claude-code only), got %d", count)
+	}
+	if store.saved == nil {
+		t.Fatal("expected save")
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Fatalf("expected 1 remaining, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].Agent != "copilot" {
+		t.Errorf("expected copilot deployment to remain, got agent=%q", store.saved.Deployments[0].Agent)
+	}
+}
+
+func TestPruneAllPrunesAllAgents(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "claude-ghost",
+			SourcePath: "/src/skills/cg", LinkPath: "/home/.claude/skills/cg",
+			Scope: nd.ScopeGlobal, Agent: "claude-code"},
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "copilot-ghost",
+			SourcePath: "/src/skills/cpg", LinkPath: "/home/.copilot/skills/cpg",
+			Scope: nd.ScopeGlobal, Agent: "copilot"},
+	}
+
+	// PruneAll should clean up ghosts from ALL agents
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist // all ghosts
+	})
+
+	count, err := engine.PruneAll()
+	if err != nil {
+		t.Fatalf("PruneAll: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 pruned (all agents), got %d", count)
+	}
+	if store.saved == nil {
+		t.Fatal("expected save")
+	}
+	if len(store.saved.Deployments) != 0 {
+		t.Errorf("expected 0 remaining, got %d", len(store.saved.Deployments))
+	}
+}
+
+func TestStatusEmptyAgentDefaultsClaudeCode(t *testing.T) {
+	store := newMockStore()
+	// Legacy deployment with empty Agent field
+	store.state.Deployments = []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "legacy",
+			SourcePath: "/src/skills/legacy", LinkPath: "/home/.claude/skills/legacy",
+			Scope: nd.ScopeGlobal, Agent: ""},
+	}
+
+	// Engine bound to claude-code — empty Agent should match
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return "/src/skills/legacy", nil
+	})
+	engine.SetStat(func(string) (os.FileInfo, error) { return fakeFileInfo{}, nil })
+
+	entries, err := engine.Status()
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry (empty agent defaults to claude-code), got %d", len(entries))
+	}
+}
