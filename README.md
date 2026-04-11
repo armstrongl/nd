@@ -10,13 +10,14 @@
 > [!WARNING]
 > nd is still in alpha and under active development. Please let me know if you encounter issues 🙂
 
-Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code with symlink-based deployment.
+Manage coding agent assets (skills, agents, commands, rules, and more) across tools like Claude Code and Copilot CLI with symlink-based deployment.
 
 ![nd demo](assets/napoleon-dynamite-skills.gif)
 
 ## What it does
 
 - **Built-in assets:** Ships with nd-specific skills, commands, and an agent — ready to use after `nd init`
+- **Multi-agent support:** Deploy to Claude Code, Copilot CLI, or other agents with `--agent`
 - **Register sources:** Point nd at local directories or git repos containing agent assets
 - **Deploy assets:** Create symlinks from agent config directories to source assets, keeping everything in sync
 - **Switch profiles:** Group assets into named profiles and switch between them instantly
@@ -102,6 +103,8 @@ Run any command with `--help` for detailed usage, or see the full [Command Refer
 
 Many commands support **interactive mode**: run without arguments to get a picker. Use `--json` for scripted output and `--yes` to skip confirmations.
 
+Use `--agent` to target a specific agent (e.g., `nd deploy --agent copilot`). Without it, nd uses the `default_agent` from your config.
+
 ## Configure
 
 nd uses a YAML config file at `~/.config/nd/config.yaml`. Key settings:
@@ -109,7 +112,7 @@ nd uses a YAML config file at `~/.config/nd/config.yaml`. Key settings:
 ```yaml
 version: 1
 default_scope: global       # or "project"
-default_agent: claude-code
+default_agent: claude-code  # also supports: copilot
 symlink_strategy: absolute  # or "relative"
 ```
 
@@ -122,6 +125,7 @@ See the full [configuration guide](docs/guide/configuration.md).
 - [Profiles & snapshots](docs/guide/profiles-and-snapshots.md): Advanced workflow management
 - [Configuration](docs/guide/configuration.md): Config reference, global flags, operation log
 - [Creating sources](docs/guide/creating-sources.md): Build your own asset library
+- [Glossary](docs/guide/glossary.md): Key terms including multi-agent concepts
 - [Command reference](docs/reference/nd.md): Auto-generated from source
 
 ## Contribute
