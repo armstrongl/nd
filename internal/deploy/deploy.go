@@ -592,8 +592,15 @@ func (e *Engine) removeOne(req RemoveRequest, st *state.DeploymentState) error {
 			}
 			// Agent filtering: if req.Agent is set, only match that agent's deployments.
 			// Empty req.Agent matches any (backward compat until callers thread agent through).
-			if req.Agent != "" && d.Agent != req.Agent {
-				continue
+			// Empty d.Agent is treated as "claude-code" for v1→v2 migration compat.
+			if req.Agent != "" {
+				dAgent := d.Agent
+				if dAgent == "" {
+					dAgent = "claude-code"
+				}
+				if dAgent != req.Agent {
+					continue
+				}
 			}
 			idx = i
 			break

@@ -22,12 +22,17 @@ type SyncResult struct {
 	Warnings []string
 }
 
-// deploymentsForAgent returns only the deployments belonging to the given agent.
+// isAgentDeployment reports whether a deployment belongs to the given agent.
 // Treats empty Agent field as "claude-code" for backward compatibility.
+func isAgentDeployment(d state.Deployment, agentName string) bool {
+	return d.Agent == agentName || (d.Agent == "" && agentName == "claude-code")
+}
+
+// deploymentsForAgent returns only the deployments belonging to the given agent.
 func deploymentsForAgent(deps []state.Deployment, agentName string) []state.Deployment {
 	var result []state.Deployment
 	for _, d := range deps {
-		if d.Agent == agentName || (d.Agent == "" && agentName == "claude-code") {
+		if isAgentDeployment(d, agentName) {
 			result = append(result, d)
 		}
 	}
@@ -130,7 +135,7 @@ func (e *Engine) pruneFiltered(agentOnly bool) (int, error) {
 		var keep []state.Deployment
 		for _, dep := range st.Deployments {
 			// Skip deployments that don't belong to this agent when filtering
-			if agentOnly && dep.Agent != e.agent.Name && (dep.Agent != "" || e.agent.Name != "claude-code") {
+			if agentOnly && !isAgentDeployment(dep, e.agent.Name) {
 				keep = append(keep, dep)
 				continue
 			}
@@ -169,16 +174,10 @@ func (e *Engine) Sync() (*SyncResult, error) {
 			return fmt.Errorf("load state: %w", err)
 		}
 
-		agentDeps := deploymentsForAgent(st.Deployments, e.agent.Name)
-		agentSet := make(map[string]bool, len(agentDeps))
-		for _, d := range agentDeps {
-			agentSet[d.LinkPath] = true
-		}
-
 		// Keep non-agent deployments untouched, process only agent's
 		var keep []state.Deployment
 		for _, dep := range st.Deployments {
-			if !agentSet[dep.LinkPath] {
+			if !isAgentDeployment(dep, e.agent.Name) {
 				keep = append(keep, dep)
 				continue
 			}

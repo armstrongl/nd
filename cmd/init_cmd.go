@@ -131,14 +131,15 @@ func initRegistry(app *App) *agent.Registry {
 func displayAgentDetection(w io.Writer, result agent.DetectionResult) {
 	line := "Detected agents:"
 	for i, ag := range result.Agents {
-		if i > 0 {
-			line += ","
-		}
 		status := "yes"
 		if !ag.Detected {
 			status = "no"
 		}
-		line += fmt.Sprintf(" %s (%s)", ag.Name, status)
+		if i > 0 {
+			line += fmt.Sprintf(", %s (%s)", ag.Name, status)
+		} else {
+			line += fmt.Sprintf(" %s (%s)", ag.Name, status)
+		}
 	}
 	printHuman(w, "%s\n", line)
 }

@@ -222,13 +222,9 @@ Asset references can be:
 					printHuman(w, "Deployed %s/%s\n", s.Deployment.AssetType, s.Deployment.AssetName)
 				}
 				unsupported := 0
-				agentName := ""
 				for _, f := range bulkResult.Failed {
 					if f.UnsupportedType {
 						unsupported++
-						if agentName == "" {
-							agentName = f.Err.Error() // will extract from error
-						}
 						continue
 					}
 					printHuman(cmd.ErrOrStderr(), "Failed: %s/%s: %v\n", f.AssetType, f.AssetName, f.Err)

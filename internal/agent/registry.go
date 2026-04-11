@@ -105,12 +105,6 @@ func (r *Registry) All() []Agent {
 	return result
 }
 
-// agentBinaries maps agent names to their expected binary names in PATH.
-var agentBinaries = map[string]string{
-	"claude-code": "claude",
-	"copilot":     "copilot",
-}
-
 // defaultRunCommand executes a binary with a 5-second timeout, capturing both stdout and stderr.
 func defaultRunCommand(name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -129,7 +123,7 @@ func (r *Registry) Detect() DetectionResult {
 	anyDetected := false
 
 	for i := range r.agents {
-		binary := agentBinaries[r.agents[i].Name]
+		binary := r.agents[i].Binary
 		if binary != "" {
 			if _, err := r.lookPath(binary); err == nil {
 				// Binary found in PATH — verify identity via version output
