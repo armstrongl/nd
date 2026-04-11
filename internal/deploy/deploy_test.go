@@ -1075,6 +1075,128 @@ func TestDeployForceReplace_ForeignSymlink(t *testing.T) {
 	}
 }
 
+// --- UnsupportedTypeError tests (Unit 7) ---
+
+func copilotAgent() *agent.Agent {
+	return &agent.Agent{
+		Name:                "copilot",
+		GlobalDir:           "/home/user/.copilot",
+		ProjectDir:          ".github",
+		SourceAlias:         "copilot",
+		Binary:              "copilot",
+		SupportedTypes:      []nd.AssetType{nd.AssetSkill, nd.AssetAgent, nd.AssetContext},
+		DefaultContextFile:  "copilot-instructions.md",
+		ContextInProjectDir: true,
+		VersionPattern:      `(?i)copilot|github.copilot`,
+		Detected:            true,
+		InPath:              true,
+	}
+}
+
+func TestDeployUnsupportedType_SingleDeploy(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetCommand, Name: "hello"},
+			SourcePath: "/sources/commands/hello",
+		},
+		Scope:  nd.ScopeGlobal,
+		Origin: nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if err == nil {
+		t.Fatal("expected error for unsupported type")
+	}
+	var ute *deploy.UnsupportedTypeError
+	if !errors.As(err, &ute) {
+		t.Fatalf("expected UnsupportedTypeError, got %T: %v", err, err)
+	}
+	if ute.AgentName != "copilot" {
+		t.Errorf("agent name: got %q, want %q", ute.AgentName, "copilot")
+	}
+	if ute.AssetType != nd.AssetCommand {
+		t.Errorf("asset type: got %q, want %q", ute.AssetType, nd.AssetCommand)
+	}
+}
+
+func TestDeployUnsupportedType_BulkSkips(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	engine.SetSymlink(func(_, _ string) error { return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{
+			Asset: asset.Asset{
+				Identity:   asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+				SourcePath: "/s/skills/review",
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+		{
+			Asset: asset.Asset{
+				Identity:   asset.Identity{SourceID: "s", Type: nd.AssetCommand, Name: "hello"},
+				SourcePath: "/s/commands/hello",
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+		{
+			Asset: asset.Asset{
+				Identity:   asset.Identity{SourceID: "s", Type: nd.AssetOutputStyle, Name: "minimal"},
+				SourcePath: "/s/output-styles/minimal",
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+	}
+
+	result, err := engine.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk: %v", err)
+	}
+	if len(result.Succeeded) != 1 {
+		t.Errorf("succeeded: got %d, want 1", len(result.Succeeded))
+	}
+	if len(result.Failed) != 2 {
+		t.Fatalf("failed: got %d, want 2", len(result.Failed))
+	}
+	for _, f := range result.Failed {
+		if !f.UnsupportedType {
+			t.Errorf("expected UnsupportedType=true for %s", f.AssetType)
+		}
+	}
+}
+
+func TestDeployClaudeCodeSupportsAllTypes(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetSymlink(func(_, _ string) error { return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	for _, at := range nd.DeployableAssetTypes() {
+		req := deploy.DeployRequest{
+			Asset: asset.Asset{
+				Identity:   asset.Identity{SourceID: "s", Type: at, Name: "test-" + string(at)},
+				SourcePath: "/s/" + string(at) + "/test",
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		}
+		if at == nd.AssetContext {
+			req.Asset.ContextFile = &asset.ContextInfo{FolderName: "test", FileName: "CLAUDE.md"}
+		}
+		_, err := engine.Deploy(req)
+		if err != nil {
+			t.Errorf("claude-code should support %s, got: %v", at, err)
+		}
+	}
+}
+
 func TestDeployForceReplace_PlainFile(t *testing.T) {
 	store := newMockStore()
 	engine := deploy.New(store, testAgent(), t.TempDir())
@@ -1106,5 +1228,208 @@ func TestDeployForceReplace_PlainFile(t *testing.T) {
 	}
 	if removed == "" {
 		t.Error("expected conflicting plain file to be removed before deploying")
+	}
+}
+
+// --- Context rename tests (Unit 8) ---
+
+func TestDeployCopilotContextRename(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	var created []symCall
+	engine.SetSymlink(func(o, n string) error { created = append(created, symCall{o, n}); return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/CLAUDE.md",
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+		},
+		Scope:       nd.ScopeProject,
+		ProjectRoot: "/project",
+		Origin:      nd.OriginManual,
+	}
+
+	result, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	if len(created) != 1 {
+		t.Fatalf("expected 1 symlink, got %d", len(created))
+	}
+	// Copilot: context deploys to .github/copilot-instructions.md (renamed + project dir)
+	want := filepath.Join("/project", ".github", "copilot-instructions.md")
+	if created[0].newname != want {
+		t.Errorf("link path: got %q, want %q", created[0].newname, want)
+	}
+	// SourcePath should still point to original file
+	if result.Deployment.SourcePath != "/sources/context/rules/CLAUDE.md" {
+		t.Errorf("source path should be original, got %q", result.Deployment.SourcePath)
+	}
+}
+
+func TestDeployCopilotContextGlobal(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	var created []symCall
+	engine.SetSymlink(func(o, n string) error { created = append(created, symCall{o, n}); return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/CLAUDE.md",
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+		},
+		Scope:  nd.ScopeGlobal,
+		Origin: nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	want := filepath.Join("/home/user/.copilot", "copilot-instructions.md")
+	if created[0].newname != want {
+		t.Errorf("link path: got %q, want %q", created[0].newname, want)
+	}
+}
+
+func TestDeployContextNoRenameGroupDir(t *testing.T) {
+	store := newMockStore()
+	ag := copilotAgent()
+	engine := deploy.New(store, ag, t.TempDir())
+
+	var created []symCall
+	engine.SetSymlink(func(o, n string) error { created = append(created, symCall{o, n}); return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	// Asset has GroupDir matching agent's SourceAlias — filename already correct
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/copilot/copilot-instructions.md",
+			GroupDir:    ag.SourceAlias,
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "copilot-instructions.md"},
+		},
+		Scope:       nd.ScopeProject,
+		ProjectRoot: "/project",
+		Origin:      nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	// Should use the source filename directly, no rename
+	want := filepath.Join("/project", ".github", "copilot-instructions.md")
+	if created[0].newname != want {
+		t.Errorf("link path: got %q, want %q", created[0].newname, want)
+	}
+}
+
+func TestDeployContextNoRenameLocalMd(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	var created []symCall
+	engine.SetSymlink(func(o, n string) error { created = append(created, symCall{o, n}); return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	// .local.md files should NOT be renamed
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "local-rules"},
+			SourcePath:  "/sources/context/local-rules/CLAUDE.local.md",
+			ContextFile: &asset.ContextInfo{FolderName: "local-rules", FileName: "CLAUDE.local.md"},
+		},
+		Scope:       nd.ScopeProject,
+		ProjectRoot: "/project",
+		Origin:      nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	// Should keep original filename (no rename for .local.md)
+	want := filepath.Join("/project", ".github", "CLAUDE.local.md")
+	if created[0].newname != want {
+		t.Errorf("link path: got %q, want %q", created[0].newname, want)
+	}
+}
+
+func TestDeployContextClaudeCodeNoRename(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	var created []symCall
+	engine.SetSymlink(func(o, n string) error { created = append(created, symCall{o, n}); return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/CLAUDE.md",
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+		},
+		Scope:       nd.ScopeProject,
+		ProjectRoot: "/project",
+		Origin:      nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	// Claude-code has empty DefaultContextFile — no rename
+	want := filepath.Join("/project", "CLAUDE.md")
+	if created[0].newname != want {
+		t.Errorf("link path: got %q, want %q", created[0].newname, want)
+	}
+}
+
+func TestDeployBulkContextCollision(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, copilotAgent(), t.TempDir())
+
+	engine.SetSymlink(func(_, _ string) error { return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	// Two context assets that both rename to copilot-instructions.md
+	reqs := []deploy.DeployRequest{
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "s1", Type: nd.AssetContext, Name: "rules-a"},
+				SourcePath:  "/s1/context/rules-a/CLAUDE.md",
+				ContextFile: &asset.ContextInfo{FolderName: "rules-a", FileName: "CLAUDE.md"},
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "s2", Type: nd.AssetContext, Name: "rules-b"},
+				SourcePath:  "/s2/context/rules-b/AGENTS.md",
+				ContextFile: &asset.ContextInfo{FolderName: "rules-b", FileName: "AGENTS.md"},
+			},
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+	}
+
+	_, err := engine.DeployBulk(reqs)
+	if err == nil {
+		t.Fatal("expected collision error")
+	}
+	if !strings.Contains(err.Error(), "context collision") {
+		t.Errorf("expected context collision error, got: %v", err)
 	}
 }

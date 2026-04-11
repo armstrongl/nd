@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -113,12 +114,23 @@ type DeployResult struct {
 	BackedUp   string
 }
 
+// UnsupportedTypeError is returned when an agent does not support a given asset type.
+type UnsupportedTypeError struct {
+	AgentName string
+	AssetType nd.AssetType
+}
+
+func (e *UnsupportedTypeError) Error() string {
+	return fmt.Sprintf("asset type %s is not supported by agent %s", e.AssetType, e.AgentName)
+}
+
 // DeployError describes a failed deployment within a bulk operation.
 type DeployError struct {
-	AssetName  string
-	AssetType  nd.AssetType
-	SourcePath string
-	Err        error
+	AssetName       string
+	AssetType       nd.AssetType
+	SourcePath      string
+	Err             error
+	UnsupportedType bool // true when the failure is due to agent type incompatibility
 }
 
 func (e *DeployError) Error() string {
@@ -185,12 +197,26 @@ func (e *Engine) deployOne(req DeployRequest, st *state.DeploymentState) (*Deplo
 		return nil, fmt.Errorf("asset type %q is not deployable via symlink; use nd export", req.Asset.Type)
 	}
 
+	if !e.agent.SupportsType(req.Asset.Type) {
+		return nil, &UnsupportedTypeError{AgentName: e.agent.Name, AssetType: req.Asset.Type}
+	}
+
 	contextFile := ""
 	if req.Asset.Type == nd.AssetContext {
 		if req.Asset.ContextFile == nil {
 			return nil, fmt.Errorf("context asset %q missing ContextFile info", req.Asset.Name)
 		}
 		contextFile = req.Asset.ContextFile.FileName
+
+		// Rename context file for target agent if needed.
+		// Skip rename when: agent has no DefaultContextFile, asset has a GroupDir
+		// matching the agent (already correct), or the file is .local.md.
+		if e.agent.DefaultContextFile != "" &&
+			contextFile != e.agent.DefaultContextFile &&
+			req.Asset.GroupDir != e.agent.SourceAlias &&
+			!nd.IsLocalOnlyContext(contextFile) {
+			contextFile = e.agent.DefaultContextFile
+		}
 	}
 
 	linkPath, err := e.agent.DeployPath(req.Asset.Type, req.Asset.Name, req.Scope, req.ProjectRoot, contextFile)
@@ -258,6 +284,47 @@ func (e *Engine) deployOne(req DeployRequest, st *state.DeploymentState) (*Deplo
 	}
 
 	return &result, nil
+}
+
+// contextTargetFile returns the effective context filename after rename logic.
+func (e *Engine) contextTargetFile(req DeployRequest) string {
+	if req.Asset.Type != nd.AssetContext || req.Asset.ContextFile == nil {
+		return ""
+	}
+	cf := req.Asset.ContextFile.FileName
+	if e.agent.DefaultContextFile != "" &&
+		cf != e.agent.DefaultContextFile &&
+		req.Asset.GroupDir != e.agent.SourceAlias &&
+		!nd.IsLocalOnlyContext(cf) {
+		return e.agent.DefaultContextFile
+	}
+	return cf
+}
+
+// checkContextCollisions scans context deploy requests for duplicate target
+// paths after rename. Returns an error listing collisions. Single deploys
+// can't collide so this is only called from DeployBulk.
+func (e *Engine) checkContextCollisions(reqs []DeployRequest) error {
+	type entry struct {
+		name string
+		path string
+	}
+	seen := make(map[string]entry)
+	for _, req := range reqs {
+		cf := e.contextTargetFile(req)
+		if cf == "" {
+			continue
+		}
+		target, err := e.agent.DeployPath(req.Asset.Type, req.Asset.Name, req.Scope, req.ProjectRoot, cf)
+		if err != nil {
+			continue // deployOne will catch this
+		}
+		if prev, ok := seen[target]; ok {
+			return fmt.Errorf("context collision: %q and %q both deploy to %s", prev.name, req.Asset.Name, target)
+		}
+		seen[target] = entry{name: req.Asset.Name, path: target}
+	}
+	return nil
 }
 
 // handleConflict checks for existing files/symlinks at linkPath and handles them.
@@ -407,15 +474,25 @@ func (e *Engine) DeployBulk(reqs []DeployRequest) (*BulkDeployResult, error) {
 
 		e.autoSnapshot(st.Deployments)
 
+		// Pre-scan context requests for target path collisions after rename.
+		if err := e.checkContextCollisions(reqs); err != nil {
+			return err
+		}
+
 		for _, req := range reqs {
 			dr, err := e.deployOne(req, st)
 			if err != nil {
-				result.Failed = append(result.Failed, DeployError{
+				de := DeployError{
 					AssetName:  req.Asset.Name,
 					AssetType:  req.Asset.Type,
 					SourcePath: req.Asset.SourcePath,
 					Err:        err,
-				})
+				}
+				var ute *UnsupportedTypeError
+				if errors.As(err, &ute) {
+					de.UnsupportedType = true
+				}
+				result.Failed = append(result.Failed, de)
 				continue
 			}
 			result.Succeeded = append(result.Succeeded, *dr)
