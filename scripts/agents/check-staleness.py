@@ -217,9 +217,9 @@ def _build_flagged_entry(
 
 def check_all_docs(docs_dir: str, default_max_age: int, repo_root: str) -> list[dict]:
     """Check all docs for staleness. Returns list of flagged doc reports."""
-    pattern = os.path.join(docs_dir, "*.md")
+    pattern = os.path.join(docs_dir, "**/*.md")
     flagged = []
-    for filepath in sorted(glob.glob(pattern)):
+    for filepath in sorted(glob.glob(pattern, recursive=True)):
         result = _check_single_doc(filepath, default_max_age, repo_root)
         if result is None:
             continue
@@ -239,7 +239,6 @@ def load_default_max_age(repo_root: str) -> int:
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        return config.get("defaults", {}).get("maxAgeDays", 90)
     except yaml.YAMLError:
         return 90
 
