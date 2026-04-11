@@ -43,11 +43,11 @@ nd stores all data under `~/.config/nd/`:
 ## Full annotated example
 
 ```yaml
-# Schema version (always 1)
+# Config schema version (always 1)
 version: 1
 
 # Default deployment scope: "global" or "project"
-# Global deploys to ~/.claude/, project deploys to .claude/
+# Default Claude Code paths: global deploys to ~/.claude/, project deploys to .claude/
 default_scope: global
 
 # Default coding agent to target
@@ -74,12 +74,18 @@ sources:
 # context_types: ["CLAUDE.md", "AGENTS.md"]
 
 # Agent configuration overrides (optional)
-# Only needed if your agent uses non-standard directories
+# nd ships with built-in defaults for Claude Code and Copilot CLI.
+# Only needed if your agent uses non-standard directories.
 agents:
   - name: claude-code
     global_dir: ~/.claude
     project_dir: .claude
+  - name: copilot
+    global_dir: ~/.copilot
+    project_dir: .github
 ```
+
+nd includes two built-in agents: Claude Code (default) and Copilot CLI. The `agents` array is for overriding their default directories, not for registering new agents.
 
 ## Config key reference
 
@@ -100,6 +106,7 @@ agents:
 | `agents[].name` | string | -- | Agent name |
 | `agents[].global_dir` | string | -- | Agent's global config directory |
 | `agents[].project_dir` | string | -- | Agent's project config directory |
+| `agents[].source_alias` | string | -- | Alias for agent-specific source resolution |
 
 ## Config merging
 
@@ -171,6 +178,7 @@ These flags work with every nd command and override config file settings for a s
 | `--verbose` / `-v` | Show detailed output on stderr |
 | `--quiet` / `-q` | Suppress non-error output |
 | `--scope` / `-s` | Set deployment scope: `global` or `project` |
+| `--agent` | Target a specific agent (e.g., `claude-code`, `copilot`) |
 | `--config` | Override config file path |
 | `--no-color` | Disable colored output |
 
