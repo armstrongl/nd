@@ -21,11 +21,14 @@ func testInitAgent(t *testing.T, tmp string) *agent.Agent {
 	agentDir := filepath.Join(tmp, ".claude")
 	os.MkdirAll(agentDir, 0o755)
 	return &agent.Agent{
-		Name:       "claude-code",
-		GlobalDir:  agentDir,
-		ProjectDir: ".claude",
-		Detected:   true,
-		InPath:     true,
+		Name:           "claude-code",
+		GlobalDir:      agentDir,
+		ProjectDir:     ".claude",
+		Binary:         "claude",
+		SupportedTypes: nd.DeployableAssetTypes(),
+		VersionPattern: `(?i)claude`,
+		Detected:       true,
+		InPath:         true,
 	}
 }
 
