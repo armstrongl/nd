@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reads frontmatter from docs/guide/*.md and regenerates the AGENTS.md index table."""
+"""Reads frontmatter from docs/guide/**/*.md and regenerates the AGENTS.md index table."""
 
 import argparse
 import glob

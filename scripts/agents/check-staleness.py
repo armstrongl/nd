@@ -239,8 +239,20 @@ def load_default_max_age(repo_root: str) -> int:
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        return config.get("defaults", {}).get("maxAgeDays", 90)
     except yaml.YAMLError:
+        return 90
+
+    if not isinstance(config, dict):
+        return 90
+
+    raw_value = config.get("defaults", {}).get("maxAgeDays", 90)
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        print(
+            f"Warning: invalid defaults.maxAgeDays in {config_path!r}: {raw_value!r} — using 90",
+            file=sys.stderr,
+        )
         return 90
 
 
