@@ -21,7 +21,7 @@ Commands are single-file assets that define custom slash commands available to c
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 commands/
 ├── deploy-all.md
 └── review-pr.md
@@ -35,7 +35,7 @@ Each command is a markdown file whose base filename becomes the slash command na
 
 nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `commands/deploy-all` produces:
 
-```text
+```text {filename="Deployment paths"}
 ~/.claude/commands/deploy-all.md → <source>/commands/deploy-all.md
 ```
 
@@ -57,7 +57,7 @@ To undeploy a command, run [`nd remove`](../../reference/nd_remove.md) `commands
 
 ## Create a command
 
-```shell
+```shell {filename="Terminal"}
 cat > ~/my-assets/commands/deploy-all.md << 'EOF'
 Deploy all available assets from all sources using nd deploy.
 List assets first with nd list, then deploy each one.

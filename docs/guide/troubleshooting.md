@@ -28,7 +28,7 @@ Start with [`nd doctor`](../reference/nd_doctor.md) to identify the category of 
 | Agents | Each configured agent is detected on the system; global config directory exists |
 | Git | `git` binary is available in `$PATH` |
 
-```shell
+```shell {filename="Terminal"}
 # Run all checks
 nd doctor
 
@@ -53,7 +53,7 @@ nd doctor --json
 
 Use [`nd sync`](../reference/nd_sync.md) to repair broken symlinks:
 
-```shell
+```shell {filename="Terminal"}
 # Repair all broken symlinks
 nd sync
 
@@ -79,7 +79,7 @@ nd doctor
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Verify the registered path
 nd source list
 
@@ -104,7 +104,7 @@ Use [`nd settings edit`](../reference/nd_settings_edit.md) to fix source paths. 
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Validate config (doctor checks this first)
 nd doctor
 
@@ -131,7 +131,7 @@ If a project config exists, check `.nd/config.yaml` in your project root. Projec
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check origin of each deployed asset
 nd status
 
@@ -152,7 +152,7 @@ The `nd status` output shows the origin of each asset: `manual`, `pinned`, or th
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check for backed-up context files
 ls ~/.config/nd/backups/
 
@@ -174,7 +174,7 @@ See [Context files](asset-types/context.md) for the special scoping rules that d
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check if the agent binary exists
 which claude        # Claude Code
 which copilot       # Copilot CLI
@@ -194,13 +194,13 @@ nd settings edit
 
 **Fix:** Use the `type/name` format to disambiguate:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
 Or use the `--type` flag:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy --type skills greeting
 ```
 
@@ -212,7 +212,7 @@ nd deploy --type skills greeting
 
 **Fix:** Pass `--yes` to skip the confirmation:
 
-```shell
+```shell {filename="Terminal"}
 nd source remove my-assets --yes
 ```
 
@@ -224,7 +224,7 @@ nd source remove my-assets --yes
 
 **Fix:** Use `nd settings edit` to modify your existing config. If you need to start fresh, delete the config first:
 
-```shell
+```shell {filename="Terminal"}
 rm ~/.config/nd/config.yaml && nd init
 ```
 
@@ -236,7 +236,7 @@ rm ~/.config/nd/config.yaml && nd init
 
 **Fix:** Specify the profile name explicitly:
 
-```shell
+```shell {filename="Terminal"}
 nd profile deploy my-setup
 ```
 
@@ -250,7 +250,7 @@ Or switch to a profile first with [`nd profile switch`](../reference/nd_profile_
 
 **Fix:** Move or remove the conflicting file, then retry the deploy:
 
-```shell
+```shell {filename="Terminal"}
 # Claude Code example (Copilot CLI equivalent: ~/.copilot/copilot-instructions.md)
 mv ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak
 nd deploy context/my-rules

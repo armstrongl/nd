@@ -42,7 +42,7 @@ nd stores all data under `~/.config/nd/`:
 
 ## Full annotated example
 
-```yaml
+```yaml {filename="config.yaml"}
 # Config schema version (always 1)
 version: 1
 
@@ -123,7 +123,7 @@ For sources, global sources appear first (higher priority), followed by project 
 
 Create `.nd/config.yaml` in your project root to override settings per-project:
 
-```yaml
+```yaml {filename=".nd/config.yaml"}
 version: 1
 default_scope: project
 sources:
@@ -152,13 +152,13 @@ If you have not set `$EDITOR` or `$VISUAL`, `nd settings edit` uses `vi`.
 
 Open your config in your default editor with [`nd settings edit`](../reference/nd_settings_edit.md):
 
-```shell
+```shell {filename="Terminal"}
 nd settings edit
 ```
 
 After editing, validate your config with [`nd doctor`](../reference/nd_doctor.md):
 
-```shell
+```shell {filename="Terminal"}
 nd doctor
 ```
 
@@ -184,7 +184,7 @@ These flags work with every nd command and override config file settings for a s
 
 Example scripted workflow:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --yes --json | jq '.status'
 ```
 
@@ -194,7 +194,7 @@ nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/op
 
 ### View the log
 
-```shell
+```shell {filename="Terminal"}
 # Last 10 operations
 tail -10 ~/.config/nd/logs/operations.log
 

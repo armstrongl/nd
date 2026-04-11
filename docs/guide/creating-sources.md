@@ -19,7 +19,7 @@ An asset source is a directory that organizes coding agent assets by type. nd su
 
 nd discovers assets by looking for directories named after asset types:
 
-```text
+```text {filename="Source layout"}
 my-assets/
 ├── skills/
 │   ├── greeting/           # Directory asset
@@ -82,7 +82,7 @@ Context files have special deployment rules. The target path depends on which ag
 
 Context files can include a `_meta.yaml` sidecar for metadata:
 
-```yaml
+```yaml {filename="_meta.yaml"}
 description: "Project coding standards and conventions"
 tags: ["standards", "conventions"]
 ```
@@ -91,7 +91,7 @@ tags: ["standards", "conventions"]
 
 For sources that don't follow the convention-based directory structure, create an `nd-source.yaml` manifest at the source root:
 
-```yaml
+```yaml {filename="nd-source.yaml"}
 # nd-source.yaml
 version: 1
 paths:
@@ -109,7 +109,7 @@ When an `nd-source.yaml` manifest is present, it **overrides** convention-based 
 
 To share your asset source, push it to git:
 
-```shell
+```shell {filename="Terminal"}
 cd my-assets
 git init
 git add .
@@ -120,7 +120,7 @@ git push -u origin main
 
 Others can add it with [`nd source add`](../reference/nd_source_add.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source add you/my-assets
 # or
 nd source add https://github.com/you/my-assets.git
@@ -132,7 +132,7 @@ nd clones git sources to `~/.config/nd/sources/`. Sync them with [`nd sync`](../
 
 Remove a registered source with [`nd source remove`](../reference/nd_source_remove.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source remove <source-id>
 ```
 

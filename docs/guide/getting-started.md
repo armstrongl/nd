@@ -22,7 +22,7 @@ This guide takes you from zero to your first deployed asset in about 5 minutes.
 
 Choose your preferred method:
 
-```shell
+```shell {filename="Terminal"}
 # Homebrew (macOS/Linux)
 brew install armstrongl/tap/nd
 
@@ -35,7 +35,7 @@ git clone https://github.com/armstrongl/nd.git && cd nd && go build -o nd .
 
 Verify the installation with [`nd version`](../reference/nd_version.md):
 
-```shell
+```shell {filename="Terminal"}
 nd version
 ```
 
@@ -43,7 +43,7 @@ nd version
 
 If you installed nd via Homebrew, update it with:
 
-```shell
+```shell {filename="Terminal"}
 brew update && brew upgrade nd
 ```
 
@@ -55,7 +55,7 @@ nd also notifies you when a newer version is available — the message appears a
 
 Create the nd configuration directory and default config:
 
-```shell
+```shell {filename="Terminal"}
 nd init
 ```
 
@@ -69,7 +69,7 @@ If a config file already exists, `nd init` exits with an error. Use [`nd setting
 
 Browse the built-in assets with [`nd list`](../reference/nd_list.md):
 
-```shell
+```shell {filename="Terminal"}
 nd list
 ```
 
@@ -77,7 +77,7 @@ nd list
 
 nd ships with a **builtin** source containing nd-specific assets. To add your own assets, register a **source** with [`nd source add`](../reference/nd_source_add.md): a local directory or git repository containing agent assets organized by type.
 
-```shell
+```shell {filename="Terminal"}
 # Local directory
 nd source add ~/my-coding-assets
 
@@ -94,13 +94,13 @@ nd scans the source for assets organized in convention-based directories (`skill
 
 List all assets discovered from your sources:
 
-```shell
+```shell {filename="Terminal"}
 nd list
 ```
 
 Filter by type:
 
-```shell
+```shell {filename="Terminal"}
 nd list --type skills
 ```
 
@@ -110,13 +110,13 @@ Assets marked with `*` are already deployed.
 
 Deploy an asset by creating a symlink in your agent's config directory:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
 Deploy multiple assets at once:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
@@ -126,7 +126,7 @@ nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills
 
 **Deploy by type:**
 
-```shell
+```shell {filename="Terminal"}
 nd deploy --type skills greeting
 ```
 
@@ -135,7 +135,7 @@ nd deploy --type skills greeting
 - **Global** (`--scope global`, default): Deploys to your agent's global config directory (e.g., `~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
 - **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.claude/` for Claude Code, `.github/` for Copilot CLI)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --scope project
 ```
 
@@ -143,7 +143,7 @@ nd deploy skills/greeting --scope project
 
 If you have multiple agents installed, nd deploys to the default agent. Use `--agent` to target a different one:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --agent copilot
 ```
 
@@ -154,7 +154,7 @@ Note that not all agents support every asset type. Copilot CLI supports skills, 
 - **Absolute** (default): Symlinks use absolute paths
 - **Relative** (`--relative`): Symlinks use relative paths (better for portable setups)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --relative
 ```
 
@@ -164,7 +164,7 @@ Change the default strategy in your config file (`symlink_strategy: relative`).
 
 Check that everything is healthy with [`nd status`](../reference/nd_status.md):
 
-```shell
+```shell {filename="Terminal"}
 nd status
 ```
 
@@ -172,7 +172,7 @@ The output shows your deployed assets with health indicators (checkmarks for hea
 
 For a full health check, run [`nd doctor`](../reference/nd_doctor.md):
 
-```shell
+```shell {filename="Terminal"}
 nd doctor
 ```
 
@@ -182,7 +182,7 @@ nd doctor
 
 Enable tab-completion for your shell with [`nd completion`](../reference/nd_completion.md):
 
-```shell
+```shell {filename="Terminal"}
 # Print completion script
 nd completion bash
 nd completion zsh
@@ -199,7 +199,7 @@ nd completion zsh --install-dir ~/.my-completions
 
 For zsh, add this to your `~/.zshrc` if not already present:
 
-```shell
+```shell {filename="Terminal"}
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
 ```
@@ -208,7 +208,7 @@ autoload -Uz compinit && compinit
 
 Open your config file in your default editor:
 
-```shell
+```shell {filename="Terminal"}
 nd settings edit
 ```
 
@@ -216,7 +216,7 @@ nd settings edit
 
 To remove all nd-managed symlinks from your agent's config directory, run [`nd uninstall`](../reference/nd_uninstall.md):
 
-```shell
+```shell {filename="Terminal"}
 nd uninstall
 ```
 
