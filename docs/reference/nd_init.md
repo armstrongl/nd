@@ -37,6 +37,7 @@ nd init [flags]
 ## Options inherited from parent commands
 
 ```
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format
