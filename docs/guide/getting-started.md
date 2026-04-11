@@ -59,7 +59,7 @@ Create the nd configuration directory and default config:
 nd init
 ```
 
-This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. nd also detects all installed coding agents (Claude Code, Copilot CLI, and others) and selects a default agent to deploy to.
+This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. nd also detects installed coding agents (Claude Code and Copilot CLI) and selects a default agent to deploy to.
 
 [`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent) to the detected default agent. Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
 

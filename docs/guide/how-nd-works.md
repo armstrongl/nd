@@ -18,7 +18,7 @@ nd doesn't copy files. It creates symlinks.
 
 When you run [`nd deploy`](../reference/nd_deploy.md) `skills/greeting`, nd creates a symlink from your agent's config directory back to the original source. The source stays where it is. Edit the source, and the change shows up instantly in the deployed location: no redeploy needed.
 
-nd supports multiple agents. By default it targets **Claude Code**, but you can target **Copilot CLI** with the `--agent copilot` flag on any command. Each agent has its own config directories, supported asset types, and context file conventions.
+nd supports multiple agents. When no `--agent` flag is provided, nd targets the configured default agent if detected, falling back to the first detected agent. You can target a specific agent with the `--agent` flag on any command (e.g., `--agent copilot`). Each agent has its own config directories, supported asset types, and context file conventions.
 
 ## The mental model
 
