@@ -130,7 +130,7 @@ func (e *Engine) pruneFiltered(agentOnly bool) (int, error) {
 		var keep []state.Deployment
 		for _, dep := range st.Deployments {
 			// Skip deployments that don't belong to this agent when filtering
-			if agentOnly && dep.Agent != e.agent.Name && !(dep.Agent == "" && e.agent.Name == "claude-code") {
+			if agentOnly && dep.Agent != e.agent.Name && (dep.Agent != "" || e.agent.Name != "claude-code") {
 				keep = append(keep, dep)
 				continue
 			}
