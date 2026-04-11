@@ -17,7 +17,7 @@ Manage coding agent assets (skills, agents, commands, rules, and more) across to
 ## What it does
 
 - **Built-in assets:** Ships with nd-specific skills, commands, and an agent — ready to use after `nd init`
-- **Multi-agent support:** Deploy to Claude Code, Copilot CLI, or other agents with `--agent`
+- **Multi-agent support:** Deploy to Claude Code or Copilot CLI with `--agent`
 - **Register sources:** Point nd at local directories or git repos containing agent assets
 - **Deploy assets:** Create symlinks from agent config directories to source assets, keeping everything in sync
 - **Switch profiles:** Group assets into named profiles and switch between them instantly

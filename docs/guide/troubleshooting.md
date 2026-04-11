@@ -177,7 +177,7 @@ See [Context files](asset-types/context.md) for the special scoping rules that d
 ```shell
 # Check if the agent binary exists
 which claude        # Claude Code
-which copilot-cli   # Copilot CLI
+which copilot       # Copilot CLI
 
 # Create the global config directory if needed (Claude Code shown; Copilot CLI uses ~/.copilot/)
 mkdir -p ~/.claude

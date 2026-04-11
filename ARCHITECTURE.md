@@ -111,7 +111,7 @@ Agent detection and registry.
 
 - `Registry`: Detect installed coding agents, lookup by name, select default
 - `Agent`: Agent metadata: `Name`, `Binary`, `SupportedTypes`, `DefaultContextFile`, `ContextInProjectDir`, `VersionPattern`, global_dir, project_dir, detected, in_path
-- Two built-in agents: `claude-code` (~/.claude) and `copilot-cli` (~/.copilot)
+- Two built-in agents: `claude-code` (~/.claude) and `copilot` (~/.copilot)
 - Binary verification: the registry runs `runCommand` to confirm each agent's binary is installed and reachable
 - Testability: `SetLookPath()` / `SetStat()` / `SetRunCommand()` for injecting stubs
 
@@ -145,8 +145,8 @@ Cobra commands and application wiring.
 
 Bubble Tea v2 dashboard.
 
-- `app/`: Main TUI application
-- `components/`: Reusable UI components (tables, pickers, dialogs)
+- Flat package structure (no subpackages): all screens, list utilities, and theme code live directly under `internal/tui/`
+- `tui.Services` interface decouples TUI from `cmd.App`
 - Dashboard-centric design with tabbed asset views
 
 ## Data Flow Example
@@ -155,7 +155,7 @@ Bubble Tea v2 dashboard.
 
 ```text
 cmd/deploy.go
-  -> app.Agent()                    -- resolve target agent (claude-code, copilot-cli)
+  -> app.Agent()                    -- resolve target agent (claude-code, copilot)
   -> app.SourceManager().Scan()     -- discover assets from all sources
   -> asset.Index.Lookup()           -- find "skills/greeting" in index
   -> app.DeployEngine().Deploy()    -- create symlink, set dep.Agent

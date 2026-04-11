@@ -52,7 +52,7 @@ A source embedded inside the nd binary. The builtin source ships nd-specific ass
 
 ## Coding agent
 
-An AI-powered development tool that reads assets from a config directory. nd natively supports two built-in agents: Claude Code (default) and Copilot CLI. Additional agents (Cursor, Windsurf, and others) can be configured via the `agents[]` config array.
+An AI-powered development tool that reads assets from a config directory. nd natively supports two built-in agents: Claude Code (default) and Copilot CLI. The `agents[]` config array can override settings for these built-in agents but does not currently support adding new ones.
 
 Not to be confused with [agent (asset type)](#agent-asset-type), which is a file you deploy *to* a coding agent.
 

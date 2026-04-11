@@ -45,7 +45,7 @@ target_project: "my-project"
 target_agent: "claude-code"
 ```
 
-The `target_agent` field controls which coding agent this context asset targets. Set it to `claude-code` (default) or `copilot` to indicate the intended agent. nd uses this when filtering or listing assets.
+The `target_agent` field indicates which coding agent this context asset is intended for. Set it to `claude-code` (default) or `copilot` to document the intended agent for the asset's metadata.
 
 ## Deploy behavior
 

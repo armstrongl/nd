@@ -150,7 +150,7 @@ Use `--agent` to deploy to a particular agent:
 nd deploy skills/greeting --agent copilot
 ```
 
-When no `--agent` flag is provided, nd deploys to the default agent (Claude Code).
+When no `--agent` flag is provided, nd deploys to the configured default agent if it is detected. Otherwise, nd falls back to the first detected agent.
 
 > **Note:** Not all agents support all asset types. Copilot CLI supports only skills, agents, and context. Attempting to deploy an unsupported type (such as commands or output-styles) to an incompatible agent produces an error.
 
