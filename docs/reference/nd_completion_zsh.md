@@ -20,13 +20,13 @@ Then add to ~/.zshrc (if not already present):
   fpath+=~/.zfunc
   autoload -Uz compinit && compinit
 
-```
+```shell {filename="Terminal"}
 nd completion zsh [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Print zsh completion script
   nd completion zsh
 
@@ -39,7 +39,7 @@ nd completion zsh [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help                 help for zsh
       --install              install to standard location
       --install-dir string   override install directory
@@ -47,7 +47,7 @@ nd completion zsh [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

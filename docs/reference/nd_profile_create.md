@@ -6,13 +6,13 @@ weight: 150
 
 Create a new profile
 
-```
+```shell {filename="Terminal"}
 nd profile create <name> [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Create a profile from current deployments
   nd profile create my-setup
 
@@ -22,7 +22,7 @@ nd profile create <name> [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
       --assets string        comma-separated list of assets (type/name)
       --description string   profile description
       --from-current         create profile from current deployments
@@ -31,7 +31,7 @@ nd profile create <name> [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

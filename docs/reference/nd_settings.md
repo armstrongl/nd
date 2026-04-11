@@ -8,19 +8,19 @@ Manage nd settings
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   nd settings edit
 ```
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for settings
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

@@ -10,13 +10,13 @@ Napoleon Dynamite - coding agent asset manager
 
 nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.
 
-```
+```shell {filename="Terminal"}
 nd [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Deploy an asset
   nd deploy skills/greeting
 
@@ -32,7 +32,7 @@ nd [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

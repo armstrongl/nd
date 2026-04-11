@@ -12,20 +12,20 @@ Generate a marketplace directory structure from one or more previously exported 
 
 Each --plugins path must point to a directory containing a .claude-plugin/plugin.json file.
 
-```
+```shell {filename="Terminal"}
 nd export marketplace [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Generate marketplace from exported plugins
   nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace
 ```
 
 ## Options
 
-```
+```text {filename="Flags"}
       --description string   marketplace description
       --email string         owner email
   -h, --help                 help for marketplace
@@ -38,7 +38,7 @@ nd export marketplace [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

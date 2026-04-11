@@ -14,13 +14,13 @@ Asset references can be:
   name Search all types for matching name
   type/name Search specific type (e.g., skills/greeting)
 
-```
+```shell {filename="Terminal"}
 nd deploy <asset> [assets...] [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Deploy a single asset
   nd deploy skills/greeting
 
@@ -45,7 +45,7 @@ nd deploy <asset> [assets...] [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
       --absolute      use absolute symlinks (overrides config)
   -h, --help          help for deploy
       --relative      use relative symlinks (overrides config)
@@ -54,7 +54,7 @@ nd deploy <asset> [assets...] [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

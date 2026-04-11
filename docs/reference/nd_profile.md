@@ -12,7 +12,7 @@ Create, list, deploy, and switch between named profiles.
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   nd profile create my-setup
   nd profile list
   nd profile switch my-setup
@@ -20,13 +20,13 @@ Create, list, deploy, and switch between named profiles.
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for profile
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes

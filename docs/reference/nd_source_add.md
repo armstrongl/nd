@@ -6,13 +6,13 @@ weight: 290
 
 Register a new asset source
 
-```
+```shell {filename="Terminal"}
 nd source add <path|url> [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Add a local directory
   nd source add ~/my-assets
 
@@ -31,14 +31,14 @@ nd source add <path|url> [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
       --alias string   human-readable alias for the source
   -h, --help           help for add
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
       --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
