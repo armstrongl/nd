@@ -36,8 +36,8 @@ func TestMockServices_DefaultReturnValues(t *testing.T) {
 		}
 	})
 
-	t.Run("DefaultAgent returns claude-code", func(t *testing.T) {
-		ag, err := m.DefaultAgent()
+	t.Run("ActiveAgent returns claude-code", func(t *testing.T) {
+		ag, err := m.ActiveAgent()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

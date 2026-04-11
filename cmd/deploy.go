@@ -48,7 +48,8 @@ Asset references can be:
   # Script-friendly: skip prompts, output JSON
   nd deploy skills/greeting --yes --json`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,how-nd-works,asset-types/context",
+			"docs.guides":  "getting-started,how-nd-works,profiles-and-snapshots,creating-sources,asset-types/context",
+			"docs.related": "nd remove,nd list,nd status",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -67,7 +68,7 @@ Asset references can be:
 					return fmt.Errorf("scan sources: %w", err)
 				}
 				agentAlias := ""
-				if ag, err := app.DefaultAgent(); err == nil {
+				if ag, err := app.ActiveAgent(); err == nil {
 					agentAlias = ag.SourceAlias
 				}
 				var completions []string
@@ -114,8 +115,8 @@ Asset references can be:
 				return err
 			}
 
-			// Prune ghost deployments (best-effort)
-			if pruned, pruneErr := eng.Prune(); pruneErr != nil {
+			// Prune ghost deployments for all agents (best-effort pre-op cleanup)
+			if pruned, pruneErr := eng.PruneAll(); pruneErr != nil {
 				if !app.Quiet {
 					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
 				}
@@ -220,8 +221,21 @@ Asset references can be:
 				for _, s := range bulkResult.Succeeded {
 					printHuman(w, "Deployed %s/%s\n", s.Deployment.AssetType, s.Deployment.AssetName)
 				}
+				unsupported := 0
 				for _, f := range bulkResult.Failed {
+					if f.UnsupportedType {
+						unsupported++
+						continue
+					}
 					printHuman(cmd.ErrOrStderr(), "Failed: %s/%s: %v\n", f.AssetType, f.AssetName, f.Err)
+				}
+				if unsupported > 0 {
+					ag, _ := app.ActiveAgent()
+					name := "unknown"
+					if ag != nil {
+						name = ag.Name
+					}
+					printHuman(cmd.ErrOrStderr(), "Skipped %d asset(s) (unsupported by agent %s)\n", unsupported, name)
 				}
 				// Print settings reminder once if any deployed type needs it
 				settingsTypes := make(map[nd.AssetType]bool)
@@ -254,7 +268,7 @@ Asset references can be:
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		agentAlias := ""
-		if ag, err := app.DefaultAgent(); err == nil {
+		if ag, err := app.ActiveAgent(); err == nil {
 			agentAlias = ag.SourceAlias
 		}
 		var names []string

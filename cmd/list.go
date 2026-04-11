@@ -33,7 +33,8 @@ func newListCmd(app *App) *cobra.Command {
   # Output as JSON for scripting
   nd list --json`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,asset-types/skills,asset-types/agents,asset-types/commands,asset-types/rules",
+			"docs.guides":  "getting-started,creating-sources,asset-types/skills,asset-types/agents,asset-types/commands,asset-types/rules",
+			"docs.related": "nd deploy",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,7 +69,7 @@ func newListCmd(app *App) *cobra.Command {
 			}
 
 			agentAlias := ""
-			if ag, err := app.DefaultAgent(); err == nil {
+			if ag, err := app.ActiveAgent(); err == nil {
 				agentAlias = ag.SourceAlias
 			}
 			all := index.FilterByAgent(agentAlias)

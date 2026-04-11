@@ -28,7 +28,8 @@ func newRemoveCmd(app *App) *cobra.Command {
   # Preview what would be removed
   nd remove skills/greeting --dry-run`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started",
+			"docs.guides":  "getting-started,how-nd-works,profiles-and-snapshots",
+			"docs.related": "nd deploy,nd status",
 		},
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

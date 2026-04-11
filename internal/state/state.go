@@ -26,6 +26,7 @@ type Deployment struct {
 	Scope       nd.Scope           `yaml:"scope"                    json:"scope"`
 	ProjectPath string             `yaml:"project_path,omitempty"   json:"project_path,omitempty"`
 	Origin      nd.DeployOrigin    `yaml:"origin"                   json:"origin"`
+	Agent       string             `yaml:"agent"                    json:"agent"`
 	Strategy    nd.SymlinkStrategy `yaml:"strategy,omitempty"       json:"strategy,omitempty"`
 	DeployedAt  time.Time          `yaml:"deployed_at"              json:"deployed_at"`
 }

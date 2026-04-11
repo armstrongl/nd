@@ -21,6 +21,7 @@ type App struct {
 	Scope       nd.Scope
 	ProjectRoot string
 	BackupDir   string
+	AgentFlag   string // --agent flag override
 	Verbose     bool
 	Quiet       bool
 	JSON        bool
@@ -39,6 +40,8 @@ type App struct {
 
 	// initAgent overrides agent detection during init (test use only).
 	initAgent *agent.Agent
+	// initRegistry overrides the agent registry during init (test use only).
+	initRegistry *agent.Registry
 }
 
 // SourceManager returns the source manager, creating it on first call.
@@ -67,11 +70,23 @@ func (a *App) AgentRegistry() (*agent.Registry, error) {
 	return a.reg, nil
 }
 
-// DefaultAgent returns the default detected agent.
-func (a *App) DefaultAgent() (*agent.Agent, error) {
+// ActiveAgent returns the active agent, resolving in order:
+// (1) --agent flag, (2) config default_agent, (3) first detected agent.
+func (a *App) ActiveAgent() (*agent.Agent, error) {
 	reg, err := a.AgentRegistry()
 	if err != nil {
 		return nil, err
+	}
+	if a.AgentFlag != "" {
+		ag, err := reg.Get(a.AgentFlag)
+		if err != nil {
+			return nil, fmt.Errorf("unknown agent %q; available agents: use 'nd doctor' to list", a.AgentFlag)
+		}
+		reg.Detect()
+		if !ag.Detected {
+			return nil, fmt.Errorf("agent %q is not detected on this system; install it or check config", a.AgentFlag)
+		}
+		return ag, nil
 	}
 	return reg.Default()
 }
@@ -81,7 +96,7 @@ func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if a.eng != nil {
 		return a.eng, nil
 	}
-	ag, err := a.DefaultAgent()
+	ag, err := a.ActiveAgent()
 	if err != nil {
 		return nil, err
 	}

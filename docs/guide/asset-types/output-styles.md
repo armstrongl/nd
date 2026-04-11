@@ -13,6 +13,8 @@ tags:
   - deployment
 ---
 
+Use output styles when you want to control how the agent formats its responses — for example, terse bullet points for experienced users or detailed explanations for learners. Unlike rules, which constrain agent behavior broadly, output styles focus specifically on presentation and tone.
+
 Output styles are single-file assets that define formatting instructions for agent output, deployed as symlinks and activated via manual `settings.json` registration.
 
 ## Directory layout
@@ -34,7 +36,7 @@ Maximum 3 sentences per response.
 
 ## Deploy behavior
 
-nd symlinks the `.md` file into the target scope directory. After deployment, you must manually add the style to your agent's `settings.json` to activate it. nd prints a reminder after deploying this asset type.
+nd symlinks the `.md` file into the target scope directory (see [How nd works](../how-nd-works.md) for details on the symlink strategy). After running [`nd deploy`](../../reference/nd_deploy.md), you must manually add the style to your agent's `settings.json` to activate it. nd prints a reminder after deploying this asset type.
 
 ## Scope rules
 
@@ -47,9 +49,14 @@ nd symlinks the `.md` file into the target scope directory. After deployment, yo
 
 After running `nd deploy`, open your agent's `settings.json` and add the style to the output styles configuration. The exact key depends on your agent; for Claude Code it lives under the `outputStyles` array.
 
+To undeploy an output style, run [`nd remove`](../../reference/nd_remove.md) `output-styles/concise`.
+
 ## Related
 
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
+- [Hooks](hooks.md) — another asset type that requires manual `settings.json` registration
+- [Rules](rules.md) — constrain agent behavior broadly, complementing output-specific formatting
+- [Glossary: Output style](../glossary.md#output-style) — terminology definition
 
 ## Create an output style
 

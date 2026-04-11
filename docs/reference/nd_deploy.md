@@ -68,9 +68,14 @@ nd deploy <asset> [assets...] [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd remove](nd_remove.md) - Remove deployed assets
+- [nd list](nd_list.md) - List available assets from all sources
+- [nd status](nd_status.md) - Show deployment status and health
 
 ## Guides
 
 - [Getting started](../guide/getting-started.md)
 - [How nd works](../guide/how-nd-works.md)
+- [Profiles and snapshots](../guide/profiles-and-snapshots.md)
+- [Create sources](../guide/creating-sources.md)
 - [Context files](../guide/asset-types/context.md)

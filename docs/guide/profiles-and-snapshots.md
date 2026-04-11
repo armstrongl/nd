@@ -26,7 +26,7 @@ A **profile** is a named collection of assets: like browser profiles for your co
 
 ### From an asset list
 
-Specify exactly which assets belong in the profile:
+Specify exactly which assets belong in the profile with [`nd profile create`](../reference/nd_profile_create.md):
 
 ```shell
 nd profile create work --assets skills/enterprise-auth,skills/jira-integration,agents/code-reviewer
@@ -48,7 +48,7 @@ nd profile create work --from-current --description "Enterprise development setu
 
 ## Build profiles incrementally
 
-Add assets to an existing profile one at a time:
+Add assets to an existing profile one at a time with [`nd profile add-asset`](../reference/nd_profile_add-asset.md):
 
 ```shell
 nd profile add-asset work skills/new-skill
@@ -56,6 +56,8 @@ nd profile add-asset work commands/deploy-staging
 ```
 
 ## List profiles
+
+List all profiles with [`nd profile list`](../reference/nd_profile_list.md):
 
 ```shell
 nd profile list
@@ -65,7 +67,7 @@ nd marks the active profile with `*`.
 
 ## Deploy a profile
 
-Deploy all assets from a profile:
+Deploy all assets from a profile with [`nd profile deploy`](../reference/nd_profile_deploy.md):
 
 ```shell
 nd profile deploy work
@@ -81,7 +83,7 @@ nd profile deploy work --dry-run
 
 ## Switch profiles
 
-Switch from the current active profile to another:
+Switch from the current active profile to another with [`nd profile switch`](../reference/nd_profile_switch.md):
 
 ```shell
 nd profile switch personal
@@ -96,6 +98,8 @@ This shows a diff preview of what changes:
 Before switching, nd automatically saves a snapshot (safety net). After confirming, it removes old profile assets and deploys new ones.
 
 ## Delete profiles
+
+Delete a profile with [`nd profile delete`](../reference/nd_profile_delete.md):
 
 ```shell
 nd profile delete work
@@ -115,6 +119,8 @@ nd pin skills/greeting
 nd unpin skills/greeting
 ```
 
+See the [`nd pin`](../reference/nd_pin.md) and [`nd unpin`](../reference/nd_unpin.md) reference pages for full details.
+
 When switching profiles, nd skips pinned assets entirely: nd neither removes nor redeploys them.
 
 ## Snapshots
@@ -123,11 +129,15 @@ A **snapshot** is a point-in-time record of all current deployments. Think of it
 
 ### Save a snapshot
 
+Save a snapshot with [`nd snapshot save`](../reference/nd_snapshot_save.md):
+
 ```shell
 nd snapshot save before-experiment
 ```
 
 ### List snapshots
+
+List all snapshots with [`nd snapshot list`](../reference/nd_snapshot_list.md):
 
 ```shell
 nd snapshot list
@@ -136,6 +146,8 @@ nd snapshot list
 The list shows both user-created and auto-created snapshots. nd tags auto-snapshots (created before destructive operations) with `(auto)`.
 
 ### Restore a snapshot
+
+Restore a snapshot with [`nd snapshot restore`](../reference/nd_snapshot_restore.md):
 
 ```shell
 nd snapshot restore before-experiment
@@ -146,6 +158,8 @@ This removes all current deployments and redeploys the snapshot's assets. nd sav
 Run `nd snapshot restore` with no arguments to get an interactive picker.
 
 ### Delete a snapshot
+
+Delete a snapshot with [`nd snapshot delete`](../reference/nd_snapshot_delete.md):
 
 ```shell
 nd snapshot delete old-snapshot
@@ -187,3 +201,11 @@ nd profile switch work
 ```
 
 Pinned assets (`skills/greeting`, `rules/no-emojis`) persist through every switch.
+
+## Next steps
+
+- **[How nd works](how-nd-works.md):** Understand symlinks, scopes, and what happens on disk
+- **[User guide](user-guide.md):** Core workflows for deploying, removing, and listing assets
+- **[Configuration](configuration.md):** Customize default scope, symlink strategy, and other settings
+- **[`nd profile` reference](../reference/nd_profile.md):** Full flag and option reference for all profile subcommands
+- **[Troubleshooting](troubleshooting.md):** Fix profile switch problems, missing assets, and other issues

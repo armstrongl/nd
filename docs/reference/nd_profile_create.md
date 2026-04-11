@@ -49,3 +49,4 @@ nd profile create <name> [flags]
 ## Guides
 
 - [Profiles and snapshots](../guide/profiles-and-snapshots.md)
+- [Getting started](../guide/getting-started.md)

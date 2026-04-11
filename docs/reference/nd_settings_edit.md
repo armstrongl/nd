@@ -43,5 +43,7 @@ nd settings edit [flags]
 ## Guides
 
 - [Configuration](../guide/configuration.md)
+- [Getting started](../guide/getting-started.md)
+- [Troubleshoot](../guide/troubleshooting.md)
 - [Hooks](../guide/asset-types/hooks.md)
 - [Output styles](../guide/asset-types/output-styles.md)

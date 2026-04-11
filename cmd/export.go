@@ -174,7 +174,7 @@ Multiple assets can be comma-separated or the flag repeated.`,
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		agentAlias := ""
-		if ag, err := app.DefaultAgent(); err == nil {
+		if ag, err := app.ActiveAgent(); err == nil {
 			agentAlias = ag.SourceAlias
 		}
 		var names []string
@@ -219,6 +219,9 @@ func newExportMarketplaceCmd(app *App) *cobra.Command {
 Each --plugins path must point to a directory containing a .claude-plugin/plugin.json file.`,
 		Example: `  # Generate marketplace from exported plugins
   nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace`,
+		Annotations: map[string]string{
+			"docs.guides": "creating-sources,asset-types/plugins",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -440,7 +443,7 @@ func runExportInteractive(cmd *cobra.Command, app *App, flagName, flagDesc, flag
 
 	// Build asset choices (exclude plugins)
 	agentAlias := ""
-	if ag, err := app.DefaultAgent(); err == nil {
+	if ag, err := app.ActiveAgent(); err == nil {
 		agentAlias = ag.SourceAlias
 	}
 	allAssets := index.FilterByAgent(agentAlias)

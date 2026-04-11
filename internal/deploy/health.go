@@ -22,8 +22,25 @@ type SyncResult struct {
 	Warnings []string
 }
 
+// isAgentDeployment reports whether a deployment belongs to the given agent.
+// Treats empty Agent field as "claude-code" for backward compatibility.
+func isAgentDeployment(d state.Deployment, agentName string) bool {
+	return d.Agent == agentName || (d.Agent == "" && agentName == "claude-code")
+}
+
+// deploymentsForAgent returns only the deployments belonging to the given agent.
+func deploymentsForAgent(deps []state.Deployment, agentName string) []state.Deployment {
+	var result []state.Deployment
+	for _, d := range deps {
+		if isAgentDeployment(d, agentName) {
+			result = append(result, d)
+		}
+	}
+	return result
+}
+
 // Check detects deployment health issues (FR-013).
-// Returns only unhealthy entries. Empty slice means all healthy.
+// Returns only unhealthy entries for the active agent. Empty slice means all healthy.
 func (e *Engine) Check() ([]state.HealthCheck, error) {
 	var issues []state.HealthCheck
 
@@ -33,7 +50,7 @@ func (e *Engine) Check() ([]state.HealthCheck, error) {
 			return fmt.Errorf("load state: %w", err)
 		}
 
-		for _, dep := range st.Deployments {
+		for _, dep := range deploymentsForAgent(st.Deployments, e.agent.Name) {
 			if hc := e.checkOne(dep); hc.Status != state.HealthOK {
 				issues = append(issues, hc)
 			}
@@ -87,10 +104,22 @@ func (e *Engine) checkOne(dep state.Deployment) state.HealthCheck {
 	return hc
 }
 
-// Prune removes ghost deployments whose symlinks no longer exist on disk.
-// Returns the number of records pruned. Only ENOENT triggers removal;
-// other errors (e.g., EACCES) keep the record.
+// Prune removes ghost deployments for the active agent whose symlinks no
+// longer exist on disk. Returns the number of records pruned. Only ENOENT
+// triggers removal; other errors (e.g., EACCES) keep the record.
 func (e *Engine) Prune() (int, error) {
+	return e.pruneFiltered(true)
+}
+
+// PruneAll removes ghost deployments for ALL agents regardless of the
+// engine's bound agent. Use this for pre-operation cleanup where stale
+// records from any agent should be removed.
+func (e *Engine) PruneAll() (int, error) {
+	return e.pruneFiltered(false)
+}
+
+// pruneFiltered implements prune with optional agent filtering.
+func (e *Engine) pruneFiltered(agentOnly bool) (int, error) {
 	pruned := 0
 
 	err := e.store.WithLock(func() error {
@@ -105,6 +134,11 @@ func (e *Engine) Prune() (int, error) {
 
 		var keep []state.Deployment
 		for _, dep := range st.Deployments {
+			// Skip deployments that don't belong to this agent when filtering
+			if agentOnly && !isAgentDeployment(dep, e.agent.Name) {
+				keep = append(keep, dep)
+				continue
+			}
 			_, err := e.lstat(dep.LinkPath)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -130,7 +164,7 @@ func (e *Engine) Prune() (int, error) {
 	return pruned, nil
 }
 
-// Sync repairs detected deployment issues (FR-014).
+// Sync repairs detected deployment issues for the active agent (FR-014).
 func (e *Engine) Sync() (*SyncResult, error) {
 	var result SyncResult
 
@@ -140,20 +174,24 @@ func (e *Engine) Sync() (*SyncResult, error) {
 			return fmt.Errorf("load state: %w", err)
 		}
 
+		// Keep non-agent deployments untouched, process only agent's
 		var keep []state.Deployment
 		for _, dep := range st.Deployments {
+			if !isAgentDeployment(dep, e.agent.Name) {
+				keep = append(keep, dep)
+				continue
+			}
+
 			hc := e.checkOne(dep)
 			switch hc.Status {
 			case state.HealthOK:
 				keep = append(keep, dep)
 
 			case state.HealthBroken, state.HealthOrphaned:
-				// Source gone: remove symlink and state entry
 				_ = e.remove(dep.LinkPath)
 				result.Removed = append(result.Removed, dep)
 
 			case state.HealthMissing:
-				// Symlink deleted externally: re-create if source exists
 				if _, err := e.stat(dep.SourcePath); err == nil {
 					_ = e.mkdirAll(filepath.Dir(dep.LinkPath), 0o755)
 					if err := e.symlink(dep.SourcePath, dep.LinkPath); err == nil {
@@ -165,12 +203,10 @@ func (e *Engine) Sync() (*SyncResult, error) {
 						result.Removed = append(result.Removed, dep)
 					}
 				} else {
-					// Source also gone
 					result.Removed = append(result.Removed, dep)
 				}
 
 			case state.HealthDrifted:
-				// Re-create symlink to correct target
 				_ = e.remove(dep.LinkPath)
 				if err := e.symlink(dep.SourcePath, dep.LinkPath); err == nil {
 					result.Repaired = append(result.Repaired, dep)
@@ -178,7 +214,7 @@ func (e *Engine) Sync() (*SyncResult, error) {
 				} else {
 					result.Warnings = append(result.Warnings,
 						fmt.Sprintf("Failed to repair %s: %v", dep.LinkPath, err))
-					keep = append(keep, dep) // keep entry, it might be fixable later
+					keep = append(keep, dep)
 				}
 			}
 		}
@@ -193,7 +229,7 @@ func (e *Engine) Sync() (*SyncResult, error) {
 	return &result, nil
 }
 
-// Status returns all deployments with their health status (FR-015).
+// Status returns deployments for the active agent with their health status (FR-015).
 // Returns a flat list; grouping by type is the caller's responsibility.
 func (e *Engine) Status() ([]StatusEntry, error) {
 	var entries []StatusEntry
@@ -204,7 +240,7 @@ func (e *Engine) Status() ([]StatusEntry, error) {
 			return fmt.Errorf("load state: %w", err)
 		}
 
-		for _, dep := range st.Deployments {
+		for _, dep := range deploymentsForAgent(st.Deployments, e.agent.Name) {
 			hc := e.checkOne(dep)
 			entries = append(entries, StatusEntry{
 				Deployment: dep,

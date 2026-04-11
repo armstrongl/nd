@@ -23,7 +23,8 @@ func newDoctorCmd(app *App) *cobra.Command {
   # Output as JSON for CI
   nd doctor --json`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started,troubleshooting",
+			"docs.guides":  "getting-started,troubleshooting",
+			"docs.related": "nd status,nd sync",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

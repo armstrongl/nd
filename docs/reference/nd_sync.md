@@ -46,6 +46,8 @@ nd sync [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd source add](nd_source_add.md) - Register a new asset source
+- [nd status](nd_status.md) - Show deployment status and health
 
 ## Guides
 

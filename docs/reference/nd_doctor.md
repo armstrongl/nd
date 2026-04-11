@@ -42,6 +42,8 @@ nd doctor [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd status](nd_status.md) - Show deployment status and health
+- [nd sync](nd_sync.md) - Repair symlinks and optionally pull git sources
 
 ## Guides
 

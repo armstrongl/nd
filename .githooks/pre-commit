@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
-# Pre-commit hook: delegates to pre-commit, which manages rumdl automatically.
+# Pre-commit hook: runs Go linting and delegates to pre-commit framework.
 set -euo pipefail
 
+# Go linting (only when Go files are staged)
+STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+if [ -n "$STAGED_GO" ]; then
+  if command -v golangci-lint &>/dev/null; then
+    echo "Running golangci-lint..."
+    if ! golangci-lint run ./...; then
+      echo ""
+      echo "Go lint failed. Fix the issues above before committing."
+      exit 1
+    fi
+  else
+    echo "warning: golangci-lint not found, skipping Go lint"
+  fi
+fi
+
+# Markdown linting via pre-commit framework
 if ! command -v pre-commit &>/dev/null; then
   echo "pre-commit not found. Install with: pip install -r requirements.txt"
   exit 1
 fi
 
-exec pre-commit run
+pre-commit run
 

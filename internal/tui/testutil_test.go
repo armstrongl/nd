@@ -63,7 +63,7 @@ func (m *mockServices) AgentRegistry() (*agent.Registry, error) {
 	return nil, nil
 }
 
-func (m *mockServices) DefaultAgent() (*agent.Agent, error) {
+func (m *mockServices) ActiveAgent() (*agent.Agent, error) {
 	if m.defaultAgentFn != nil {
 		return m.defaultAgentFn()
 	}

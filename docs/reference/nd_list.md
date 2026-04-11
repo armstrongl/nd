@@ -54,10 +54,12 @@ nd list [flags]
 ## Related
 
 - [nd](nd.md) - Napoleon Dynamite - coding agent asset manager
+- [nd deploy](nd_deploy.md) - Deploy assets by creating symlinks
 
 ## Guides
 
 - [Getting started](../guide/getting-started.md)
+- [Create sources](../guide/creating-sources.md)
 - [Skills](../guide/asset-types/skills.md)
 - [Agents](../guide/asset-types/agents.md)
 - [Commands](../guide/asset-types/commands.md)

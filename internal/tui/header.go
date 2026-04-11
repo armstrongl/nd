@@ -59,7 +59,7 @@ func (h Header) Refresh(svc Services) Header {
 	}
 	h.Scope = string(svc.GetScope())
 
-	if ag, err := svc.DefaultAgent(); err == nil && ag != nil {
+	if ag, err := svc.ActiveAgent(); err == nil && ag != nil {
 		h.Agent = ag.Name
 	}
 

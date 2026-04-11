@@ -14,7 +14,7 @@ tags:
   - doctor
 ---
 
-Start with `nd doctor` to identify the category of problem, then find the matching section below.
+Start with [`nd doctor`](../reference/nd_doctor.md) to identify the category of problem, then find the matching section below.
 
 ## Run nd doctor
 
@@ -40,7 +40,7 @@ nd doctor --json
 
 ## Broken symlinks
 
-**Symptoms:** `nd status` shows unhealthy assets with an `✗` indicator. `nd doctor` reports deployment issues.
+**Symptoms:** [`nd status`](../reference/nd_status.md) shows unhealthy assets with an `✗` indicator. `nd doctor` reports deployment issues.
 
 **Common causes:**
 
@@ -50,6 +50,8 @@ nd doctor --json
 - Source was removed from nd but symlinks remain
 
 **Fix:**
+
+Use [`nd sync`](../reference/nd_sync.md) to repair broken symlinks:
 
 ```shell
 # Repair all broken symlinks
@@ -67,7 +69,7 @@ nd doctor
 
 ## Missing assets
 
-**Symptoms:** `nd list` does not show expected assets. `nd source list` shows the source but it reports zero assets.
+**Symptoms:** [`nd list`](../reference/nd_list.md) does not show expected assets. [`nd source list`](../reference/nd_source_list.md) shows the source but it reports zero assets.
 
 **Common causes:**
 
@@ -88,7 +90,7 @@ ls <source-path>/
 nd settings edit
 ```
 
-The expected directory names are: `skills/`, `agents/`, `commands/`, `output-styles/`, `rules/`, `context/`, `plugins/`, `hooks/`. See [Create asset sources](creating-sources.md) for the full convention.
+Use [`nd settings edit`](../reference/nd_settings_edit.md) to fix source paths. The expected directory names are: `skills/`, `agents/`, `commands/`, `output-styles/`, `rules/`, `context/`, `plugins/`, `hooks/`. See [Create asset sources](creating-sources.md) for the full convention.
 
 ## Configuration problems
 
@@ -140,7 +142,7 @@ nd unpin skills/greeting
 nd profile add-asset my-setup skills/greeting
 ```
 
-The `nd status` output shows the origin of each asset: `manual`, `pinned`, or the profile name. Only assets with a profile origin are managed during switches. See [Profiles and snapshots](profiles-and-snapshots.md) for the full workflow.
+The `nd status` output shows the origin of each asset: `manual`, `pinned`, or the profile name. Use [`nd unpin`](../reference/nd_unpin.md) to release pinned assets back to profile management, or [`nd profile add-asset`](../reference/nd_profile_add-asset.md) to add missing assets to a profile. Only assets with a profile origin are managed during switches. See [Profiles and snapshots](profiles-and-snapshots.md) for the full workflow.
 
 ## Context file conflicts
 
@@ -185,7 +187,7 @@ nd settings edit
 
 ## Ambiguous asset name
 
-**Symptoms:** `nd deploy greeting` fails with `ambiguous asset "greeting" — matches: ...`
+**Symptoms:** [`nd deploy`](../reference/nd_deploy.md) `greeting` fails with `ambiguous asset "greeting" — matches: ...`
 
 **Cause:** Multiple assets share the same name across different types or sources (e.g., `skills/greeting` and `commands/greeting`).
 
@@ -205,7 +207,7 @@ nd deploy --type skills greeting
 
 **Symptoms:** A command fails with `confirmation required but stdin is not a terminal (use --yes to skip)`.
 
-**Cause:** nd requires interactive confirmation for destructive operations (remove, uninstall, profile switch). In non-TTY environments (pipes, scripts, CI), there is no terminal to prompt.
+**Cause:** nd requires interactive confirmation for destructive operations ([`nd remove`](../reference/nd_remove.md), [`nd uninstall`](../reference/nd_uninstall.md), profile switch). In non-TTY environments (pipes, scripts, CI), there is no terminal to prompt.
 
 **Fix:** Pass `--yes` to skip the confirmation:
 
@@ -215,7 +217,7 @@ nd source remove my-assets --yes
 
 ## Config already exists
 
-**Symptoms:** `nd init` fails with `config already exists at ~/.config/nd/config.yaml; edit with 'nd settings edit'`.
+**Symptoms:** [`nd init`](../reference/nd_init.md) fails with `config already exists at ~/.config/nd/config.yaml; edit with 'nd settings edit'`.
 
 **Cause:** nd has already been initialized. `nd init` refuses to overwrite an existing config to prevent accidental data loss.
 
@@ -227,7 +229,7 @@ rm ~/.config/nd/config.yaml && nd init
 
 ## No active profile
 
-**Symptoms:** `nd profile deploy` (with no name argument) fails with `no active profile; use 'nd profile deploy <name>' instead`.
+**Symptoms:** [`nd profile deploy`](../reference/nd_profile_deploy.md) (with no name argument) fails with `no active profile; use 'nd profile deploy <name>' instead`.
 
 **Cause:** You ran `nd profile deploy` without specifying a profile name, and no profile is currently active. nd only knows which profile to redeploy if one was previously activated.
 
@@ -237,7 +239,7 @@ rm ~/.config/nd/config.yaml && nd init
 nd profile deploy my-setup
 ```
 
-Or switch to a profile first with `nd profile switch my-setup`.
+Or switch to a profile first with [`nd profile switch`](../reference/nd_profile_switch.md) `my-setup`.
 
 ## Deploy conflict
 
@@ -259,3 +261,11 @@ For context files specifically, nd automatically backs up the existing file to `
 **Symptoms:** `nd doctor` reports git is not available. `nd sync` cannot pull git sources.
 
 **Fix:** Install git and ensure it is in your `$PATH`. On macOS, `xcode-select --install` installs git. On Linux, use your package manager (`apt install git`, `dnf install git`).
+
+## Related pages
+
+- **[`nd doctor` reference](../reference/nd_doctor.md):** Full flag and option reference for the doctor command
+- **[`nd sync` reference](../reference/nd_sync.md):** Full reference for repairing symlinks and pulling git sources
+- **[Configuration](configuration.md):** Config file locations, merging order, and all available settings
+- **[How nd works](how-nd-works.md):** Understand symlinks, scopes, and what happens on disk
+- **[Profiles and snapshots](profiles-and-snapshots.md):** Profile switching, pinning, and snapshot workflows

@@ -21,7 +21,8 @@ func newStatusCmd(app *App) *cobra.Command {
   # Show project-scope deployments
   nd status --scope project`,
 		Annotations: map[string]string{
-			"docs.guides": "getting-started",
+			"docs.guides":  "getting-started,troubleshooting",
+			"docs.related": "nd doctor,nd deploy",
 		},
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -32,8 +33,8 @@ func newStatusCmd(app *App) *cobra.Command {
 				return err
 			}
 
-			// Prune ghost deployments (best-effort)
-			if pruned, pruneErr := eng.Prune(); pruneErr != nil {
+			// Prune ghost deployments for all agents (best-effort pre-op cleanup)
+			if pruned, pruneErr := eng.PruneAll(); pruneErr != nil {
 				if !app.Quiet {
 					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
 				}
