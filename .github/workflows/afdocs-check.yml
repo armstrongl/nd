@@ -127,3 +127,9 @@ jobs:
           gh issue close "${{ steps.find_issue.outputs.number }}" \
             --repo "$GITHUB_REPOSITORY" \
             --comment "AFDocs check passed in [run ${GITHUB_RUN_ID}](${WORKFLOW_URL})."
+
+      - name: Fail workflow on compliance failure
+        if: steps.json_check.outputs.exit_code != '0'
+        run: |
+          echo "AFDocs compliance check failed (exit code: ${{ steps.json_check.outputs.exit_code }})"
+          exit 1
