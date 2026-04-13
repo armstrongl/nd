@@ -1,4 +1,4 @@
-# nd
+# Napoleon Dynamite (`nd`) 
 
 <!-- rumdl-disable MD044 -->
 [![CI](https://github.com/armstrongl/nd/actions/workflows/ci.yml/badge.svg)](https://github.com/armstrongl/nd/actions/workflows/ci.yml)
