@@ -6,13 +6,13 @@ weight: 340
 
 Remove all nd-managed symlinks and optionally config
 
-```
+```shell {filename="Terminal"}
 nd uninstall [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Remove all nd-managed symlinks
   nd uninstall
 
@@ -22,13 +22,14 @@ nd uninstall [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for uninstall
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

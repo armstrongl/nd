@@ -15,11 +15,13 @@ tags:
 
 Use output styles when you want to control how the agent formats its responses — for example, terse bullet points for experienced users or detailed explanations for learners. Unlike rules, which constrain agent behavior broadly, output styles focus specifically on presentation and tone.
 
+Output styles are a Claude Code-only asset type. Copilot CLI does not support output styles.
+
 Output styles are single-file assets that define formatting instructions for agent output, deployed as symlinks and activated via manual `settings.json` registration.
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 output-styles/
 ├── concise.md
 └── learning.md
@@ -29,7 +31,7 @@ output-styles/
 
 Each output style is a plain Markdown file describing the formatting behavior the agent should apply when the style is active. There is no required frontmatter.
 
-```markdown
+```markdown {filename="Markdown"}
 Respond with minimal text. Use bullet points. No explanations unless asked.
 Maximum 3 sentences per response.
 ```
@@ -60,7 +62,7 @@ To undeploy an output style, run [`nd remove`](../../reference/nd_remove.md) `ou
 
 ## Create an output style
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/output-styles
 
 cat > ~/my-assets/output-styles/concise.md << 'EOF'

@@ -38,11 +38,12 @@ These flags work with every command:
 | `--quiet` / `-q` | Suppress non-error output |
 | `--scope` / `-s` | Set deployment scope: `global` or `project` |
 | `--config` | Override config file path |
+| `--agent` | Target a specific agent (e.g., `claude-code`, `copilot`) |
 | `--no-color` | Disable colored output |
 
 Example scripted workflow:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --yes --json | jq '.status'
 ```
 
@@ -52,7 +53,7 @@ nd deploy skills/greeting --yes --json | jq '.status'
 
 Add a source with [`nd source add`](../reference/nd_source_add.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source add ~/my-assets
 nd source add ~/my-assets --alias my-stuff
 ```
@@ -61,7 +62,7 @@ nd scans the directory for convention-based subdirectories (`skills/`, `agents/`
 
 ### Add a git repository
 
-```shell
+```shell {filename="Terminal"}
 # GitHub shorthand
 nd source add owner/repo
 
@@ -78,7 +79,7 @@ Git sources are cloned to `~/.config/nd/sources/` and can be synced later.
 
 List registered sources with [`nd source list`](../reference/nd_source_list.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source list
 ```
 
@@ -88,7 +89,7 @@ Output shows source ID, type (`local`, `git`, or `builtin`), asset count, and pa
 
 Pull the latest changes from a git source with [`nd sync`](../reference/nd_sync.md):
 
-```shell
+```shell {filename="Terminal"}
 nd sync --source <source-id>
 ```
 
@@ -98,7 +99,7 @@ This runs `git pull --ff-only` and then repairs any broken symlinks.
 
 Remove a source with [`nd source remove`](../reference/nd_source_remove.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source remove <source-id>
 ```
 
@@ -112,7 +113,7 @@ For a visual walkthrough of what deploy does on disk, see [How nd works](how-nd-
 
 ### Single asset
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
@@ -120,13 +121,13 @@ Asset references use the format `type/name`. If the name is unique across types,
 
 ### Filter by type
 
-```shell
+```shell {filename="Terminal"}
 nd deploy --type skills greeting
 ```
 
 ### Multiple assets
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
@@ -134,19 +135,31 @@ Bulk operations continue on per-asset failure and report a summary.
 
 ### Scopes
 
-- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/`)
-- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` in project root)
+- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` for Claude Code, `.github/` for Copilot CLI)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --scope project
 ```
+
+### Target a specific agent
+
+Use `--agent` to deploy to a particular agent:
+
+```shell {filename="Terminal"}
+nd deploy skills/greeting --agent copilot
+```
+
+When no `--agent` flag is provided, nd deploys to the configured default agent if it is detected. Otherwise, nd falls back to the first detected agent.
+
+> **Note:** Not all agents support all asset types. Copilot CLI supports only skills, agents, and context. Attempting to deploy an unsupported type (such as commands or output-styles) to an incompatible agent produces an error.
 
 ### Symlink strategy
 
 - **Absolute** (default): Symlinks use absolute paths
 - **Relative** (`--relative`): Symlinks use relative paths (better for portable setups)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --relative
 ```
 
@@ -154,7 +167,7 @@ The default strategy can be changed in your config file (`symlink_strategy: rela
 
 ## Remove assets
 
-```shell
+```shell {filename="Terminal"}
 nd remove skills/greeting
 ```
 
@@ -168,7 +181,7 @@ Run `nd remove` with no arguments to get an interactive picker of deployed asset
 
 Use [`nd list`](../reference/nd_list.md) to browse assets:
 
-```shell
+```shell {filename="Terminal"}
 # All assets
 nd list
 
@@ -188,7 +201,7 @@ Assets marked with `*` are currently deployed.
 
 Run [`nd status`](../reference/nd_status.md) to see what is deployed:
 
-```shell
+```shell {filename="Terminal"}
 nd status
 ```
 
@@ -201,7 +214,7 @@ Shows all deployed assets with:
 
 ### JSON output
 
-```shell
+```shell {filename="Terminal"}
 nd list --json
 nd status --json
 ```
@@ -210,7 +223,7 @@ nd status --json
 
 Open your config file in your default editor (`$EDITOR`, `$VISUAL`, or `vi`) with [`nd settings edit`](../reference/nd_settings_edit.md):
 
-```shell
+```shell {filename="Terminal"}
 nd settings edit
 ```
 
@@ -220,19 +233,19 @@ See [Configuration](configuration.md) for all available settings.
 
 Fix broken symlinks across all deployments:
 
-```shell
+```shell {filename="Terminal"}
 nd sync
 ```
 
 Sync a specific git source (pull + repair):
 
-```shell
+```shell {filename="Terminal"}
 nd sync --source <source-id>
 ```
 
 Preview what would be repaired:
 
-```shell
+```shell {filename="Terminal"}
 nd sync --dry-run
 ```
 
@@ -240,7 +253,7 @@ nd sync --dry-run
 
 Run a comprehensive health check with [`nd doctor`](../reference/nd_doctor.md):
 
-```shell
+```shell {filename="Terminal"}
 nd doctor
 ```
 
@@ -258,7 +271,7 @@ nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/op
 
 ### View the log
 
-```shell
+```shell {filename="Terminal"}
 # Last 10 operations
 tail -10 ~/.config/nd/logs/operations.log
 
@@ -294,7 +307,7 @@ Dry-run operations (`--dry-run`) do not write log entries.
 
 Generate and install shell completions with [`nd completion`](../reference/nd_completion.md):
 
-```shell
+```shell {filename="Terminal"}
 # Print completion script
 nd completion bash
 nd completion zsh
@@ -311,7 +324,7 @@ nd completion zsh --install-dir ~/.my-completions
 
 For zsh, ensure your `~/.zshrc` includes:
 
-```shell
+```shell {filename="Terminal"}
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
 ```
@@ -320,7 +333,7 @@ autoload -Uz compinit && compinit
 
 Remove all nd-managed symlinks from agent config directories with [`nd uninstall`](../reference/nd_uninstall.md):
 
-```shell
+```shell {filename="Terminal"}
 nd uninstall
 ```
 

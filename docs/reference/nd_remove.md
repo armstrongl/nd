@@ -6,13 +6,13 @@ weight: 200
 
 Remove deployed assets
 
-```
+```shell {filename="Terminal"}
 nd remove <asset> [assets...] [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Remove a deployed asset
   nd remove skills/greeting
 
@@ -28,13 +28,14 @@ nd remove <asset> [assets...] [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for remove
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

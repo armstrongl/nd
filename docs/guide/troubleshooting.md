@@ -28,7 +28,7 @@ Start with [`nd doctor`](../reference/nd_doctor.md) to identify the category of 
 | Agents | Each configured agent is detected on the system; global config directory exists |
 | Git | `git` binary is available in `$PATH` |
 
-```shell
+```shell {filename="Terminal"}
 # Run all checks
 nd doctor
 
@@ -53,7 +53,7 @@ nd doctor --json
 
 Use [`nd sync`](../reference/nd_sync.md) to repair broken symlinks:
 
-```shell
+```shell {filename="Terminal"}
 # Repair all broken symlinks
 nd sync
 
@@ -79,7 +79,7 @@ nd doctor
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Verify the registered path
 nd source list
 
@@ -104,7 +104,7 @@ Use [`nd settings edit`](../reference/nd_settings_edit.md) to fix source paths. 
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Validate config (doctor checks this first)
 nd doctor
 
@@ -131,7 +131,7 @@ If a project config exists, check `.nd/config.yaml` in your project root. Projec
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check origin of each deployed asset
 nd status
 
@@ -148,11 +148,11 @@ The `nd status` output shows the origin of each asset: `manual`, `pinned`, or th
 
 **Symptoms:** Deploying a context file reports that a backup was created.
 
-**Explanation:** Only one context file can occupy each target location (e.g., `~/.claude/CLAUDE.md`). When you deploy a second context file to the same path, nd backs up the existing one to `~/.config/nd/backups/` before replacing it.
+**Explanation:** Only one context file can occupy each target location (e.g., `~/.claude/CLAUDE.md` for Claude Code, or `~/.copilot/copilot-instructions.md` for Copilot CLI). When you deploy a second context file to the same path, nd backs up the existing one to `~/.config/nd/backups/` before replacing it.
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check for backed-up context files
 ls ~/.config/nd/backups/
 
@@ -174,11 +174,12 @@ See [Context files](asset-types/context.md) for the special scoping rules that d
 
 **Fix:**
 
-```shell
+```shell {filename="Terminal"}
 # Check if the agent binary exists
-which claude
+which claude        # Claude Code
+which copilot       # Copilot CLI
 
-# Create the global config directory if needed
+# Create the global config directory if needed (Claude Code shown; Copilot CLI uses ~/.copilot/)
 mkdir -p ~/.claude
 
 # Verify agent configuration
@@ -193,13 +194,13 @@ nd settings edit
 
 **Fix:** Use the `type/name` format to disambiguate:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
 Or use the `--type` flag:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy --type skills greeting
 ```
 
@@ -211,7 +212,7 @@ nd deploy --type skills greeting
 
 **Fix:** Pass `--yes` to skip the confirmation:
 
-```shell
+```shell {filename="Terminal"}
 nd source remove my-assets --yes
 ```
 
@@ -223,7 +224,7 @@ nd source remove my-assets --yes
 
 **Fix:** Use `nd settings edit` to modify your existing config. If you need to start fresh, delete the config first:
 
-```shell
+```shell {filename="Terminal"}
 rm ~/.config/nd/config.yaml && nd init
 ```
 
@@ -235,7 +236,7 @@ rm ~/.config/nd/config.yaml && nd init
 
 **Fix:** Specify the profile name explicitly:
 
-```shell
+```shell {filename="Terminal"}
 nd profile deploy my-setup
 ```
 
@@ -245,16 +246,29 @@ Or switch to a profile first with [`nd profile switch`](../reference/nd_profile_
 
 **Symptoms:** `nd deploy` fails with `conflict at <path>: existing <kind> blocks deployment of <asset>`.
 
-**Cause:** A file or symlink that nd does not manage already exists at the target location. This happens when you have manually created a file where nd wants to place a symlink (e.g., a hand-written `CLAUDE.md` at `~/.claude/CLAUDE.md`).
+**Cause:** A file or symlink that nd does not manage already exists at the target location. This happens when you have manually created a file where nd wants to place a symlink (e.g., a hand-written `CLAUDE.md` at `~/.claude/CLAUDE.md`, or `copilot-instructions.md` at `~/.copilot/copilot-instructions.md` for Copilot CLI).
 
 **Fix:** Move or remove the conflicting file, then retry the deploy:
 
-```shell
+```shell {filename="Terminal"}
+# Claude Code example (Copilot CLI equivalent: ~/.copilot/copilot-instructions.md)
 mv ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak
 nd deploy context/my-rules
 ```
 
 For context files specifically, nd automatically backs up the existing file to `~/.config/nd/backups/` and replaces it. Conflicts only block deployment for non-context asset types.
+
+## Copilot CLI path differences
+
+nd supports multiple agents, each with its own directory layout. If you switched from Claude Code to Copilot CLI (or use both), note these differences:
+
+| | Claude Code | Copilot CLI |
+|---|---|---|
+| Global config directory | `~/.claude/` | `~/.copilot/` |
+| Project config directory | `.claude/` | `.github/` |
+| Context file name | `CLAUDE.md` | `copilot-instructions.md` |
+
+Most troubleshooting steps in this guide show Claude Code paths. Substitute the Copilot CLI equivalents when debugging Copilot deployments. Use `nd doctor` to confirm which agents nd detects and where it expects their directories.
 
 ## Git not found
 

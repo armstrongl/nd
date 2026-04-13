@@ -15,11 +15,13 @@ tags:
 
 Use agents when you want to define a distinct persona or set of instructions that shapes how a coding agent behaves across an entire session. Unlike rules, which enforce individual constraints, an agent file provides holistic behavioral identity.
 
+Both Claude Code and Copilot CLI support agent assets.
+
 Agents are single-file assets that define the behavior, persona, or instructions for a named coding agent.
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 agents/
 ├── researcher.md
 └── code-reviewer.md
@@ -31,18 +33,22 @@ Each agent is a markdown file containing agent instructions, a system prompt, or
 
 ## Deploy behavior
 
-nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `agents/researcher` produces:
+nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `agents/researcher` produces a symlink in the active agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
+# Claude Code
 ~/.claude/agents/researcher.md → <source>/agents/researcher.md
+
+# Copilot CLI
+~/.copilot/agents/researcher.md → <source>/agents/researcher.md
 ```
 
 ## Scope rules
 
-| Scope | Target path |
-|-------|-------------|
-| Global | `~/.claude/agents/<name>.md` |
-| Project | `.claude/agents/<name>.md` |
+| Scope | Claude Code | Copilot CLI |
+|-------|-------------|-------------|
+| Global | `~/.claude/agents/<name>.md` | `~/.copilot/agents/<name>.md` |
+| Project | `.claude/agents/<name>.md` | `.github/agents/<name>.md` |
 
 To undeploy an agent, run [`nd remove`](../../reference/nd_remove.md) `agents/researcher`.
 
@@ -55,7 +61,7 @@ To undeploy an agent, run [`nd remove`](../../reference/nd_remove.md) `agents/re
 
 ## Create an agent
 
-```shell
+```shell {filename="Terminal"}
 cat > ~/my-assets/agents/researcher.md << 'EOF'
 # Researcher agent
 

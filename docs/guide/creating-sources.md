@@ -19,7 +19,7 @@ An asset source is a directory that organizes coding agent assets by type. nd su
 
 nd discovers assets by looking for directories named after asset types:
 
-```text
+```text {filename="Source layout"}
 my-assets/
 ├── skills/
 │   ├── greeting/           # Directory asset
@@ -61,17 +61,28 @@ Not every directory needs to be present. nd only discovers assets in directories
 
 ## Context files
 
-Context files have special deployment rules:
+Context files have special deployment rules. The target path depends on which agent is targeted:
 
-- **Global scope:** Deployed to the agent's global directory (e.g., `~/.claude/CLAUDE.md`)
+**Claude Code (default):**
+
+- **Global scope:** Deployed to `~/.claude/CLAUDE.md`
 - **Project scope:** Deployed to the project root directly (e.g., `./CLAUDE.md`), not inside `.claude/`
+
+**Copilot CLI:**
+
+- **Global scope:** Deployed to `~/.copilot/copilot-instructions.md`
+- **Project scope:** Deployed inside the project agent directory (e.g., `.github/copilot-instructions.md`)
+
+**Both agents:**
+
 - **Local files** (`*.local.md`): Deploy only at project scope
+- **Renaming:** When deploying to Copilot CLI, nd automatically renames context files to `copilot-instructions.md` if the source file uses a different name (e.g., `CLAUDE.md`). The source directory always uses `CLAUDE.md` by convention; the deployed filename is determined by the target agent.
 
 ### _meta.yaml
 
 Context files can include a `_meta.yaml` sidecar for metadata:
 
-```yaml
+```yaml {filename="_meta.yaml"}
 description: "Project coding standards and conventions"
 tags: ["standards", "conventions"]
 ```
@@ -80,7 +91,7 @@ tags: ["standards", "conventions"]
 
 For sources that don't follow the convention-based directory structure, create an `nd-source.yaml` manifest at the source root:
 
-```yaml
+```yaml {filename="nd-source.yaml"}
 # nd-source.yaml
 version: 1
 paths:
@@ -98,7 +109,7 @@ When an `nd-source.yaml` manifest is present, it **overrides** convention-based 
 
 To share your asset source, push it to git:
 
-```shell
+```shell {filename="Terminal"}
 cd my-assets
 git init
 git add .
@@ -109,7 +120,7 @@ git push -u origin main
 
 Others can add it with [`nd source add`](../reference/nd_source_add.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source add you/my-assets
 # or
 nd source add https://github.com/you/my-assets.git
@@ -121,7 +132,7 @@ nd clones git sources to `~/.config/nd/sources/`. Sync them with [`nd sync`](../
 
 Remove a registered source with [`nd source remove`](../reference/nd_source_remove.md):
 
-```shell
+```shell {filename="Terminal"}
 nd source remove <source-id>
 ```
 

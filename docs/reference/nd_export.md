@@ -13,13 +13,13 @@ Export one or more nd-managed assets into the Claude Code plugin format.
 Assets are specified with --assets in type/name format (e.g., skills/greeting).
 Multiple assets can be comma-separated or the flag repeated.
 
-```
+```shell {filename="Terminal"}
 nd export [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Export assets as a Claude Code plugin
   nd export --assets skills/greeting,commands/hello --output ./my-plugin
 
@@ -29,7 +29,7 @@ nd export [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
       --assets strings       assets to export (type/name format, comma-separated)
       --author string        author name
       --description string   plugin description
@@ -45,7 +45,8 @@ nd export [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

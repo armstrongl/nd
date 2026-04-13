@@ -15,11 +15,13 @@ tags:
 
 Use hooks when you want to run scripts automatically in response to agent lifecycle events, such as linting before a tool executes or logging after a response completes. Unlike commands, which require manual invocation, hooks fire automatically when their event occurs.
 
+Hooks are a Claude Code-only asset type. Copilot CLI does not support hooks.
+
 Hooks are directory assets that define event-driven automation triggered by agent lifecycle events, deployed as symlinked directories and activated via manual `settings.json` registration.
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 hooks/
 └── pre-tool-lint/
     ├── hooks.json
@@ -30,7 +32,7 @@ hooks/
 
 Each hook is a directory containing a `hooks.json` configuration file and one or more executable scripts.
 
-```json
+```json {filename="hooks.json"}
 {
   "event": "PreToolUse",
   "description": "Run linter before tool use"
@@ -65,7 +67,7 @@ To undeploy a hook, run [`nd remove`](../../reference/nd_remove.md) `hooks/lint-
 
 ## Create a hook
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/hooks/lint-check
 
 cat > ~/my-assets/hooks/lint-check/hooks.json << 'EOF'

@@ -6,13 +6,13 @@ weight: 120
 
 Pin an asset to prevent profile switches from removing it
 
-```
+```shell {filename="Terminal"}
 nd pin <asset> [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # Pin an asset to survive profile switches
   nd pin skills/greeting
 
@@ -22,13 +22,14 @@ nd pin <asset> [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for pin
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

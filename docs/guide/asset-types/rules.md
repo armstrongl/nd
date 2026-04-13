@@ -15,11 +15,13 @@ tags:
 
 Use rules when you want to enforce a specific constraint or convention that the agent must follow in every interaction — such as "never use emojis" or "always write tests." Unlike context, which provides broad project knowledge, each rule targets a single, enforceable behavior.
 
+Rules are a Claude Code-only asset type. Copilot CLI does not support rules.
+
 Rules are assets that define behavioral constraints or conventions a coding agent must follow throughout a session. A rule can be a single Markdown file or a directory.
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 rules/
 ├── no-emojis.md
 ├── always-test.md
@@ -35,7 +37,7 @@ Each rule is a markdown file whose base filename describes the constraint it enc
 
 nd symlinks the individual file into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `rules/no-emojis` produces:
 
-```text
+```text {filename="Deployment paths"}
 ~/.claude/rules/no-emojis.md → <source>/rules/no-emojis.md
 ```
 
@@ -57,7 +59,7 @@ To undeploy a rule, run [`nd remove`](../../reference/nd_remove.md) `rules/no-em
 
 ## Create a rule
 
-```shell
+```shell {filename="Terminal"}
 cat > ~/my-assets/rules/no-emojis.md << 'EOF'
 Never use emojis in code comments, commit messages, or documentation unless the user explicitly requests them.
 EOF

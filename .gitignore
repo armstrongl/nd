@@ -4,6 +4,8 @@ coverage.out
 staleness-report.json
 staleness-output.json
 .venv/
+__pycache__/
+*.pyc
 site/public/
 site/resources/
 site/.hugo_build.lock

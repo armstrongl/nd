@@ -12,7 +12,7 @@ Add, remove, and list asset source directories.
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   nd source add ~/my-assets
   nd source list
   nd source remove my-assets
@@ -20,13 +20,14 @@ Add, remove, and list asset source directories.
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help   help for source
 ```
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

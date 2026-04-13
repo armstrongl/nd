@@ -205,8 +205,11 @@
   color: #a6adc8;
 }
 
-.nd-code-header + div .chroma {
-  border-radius: 0 0 0.375rem 0.375rem;
+.hextra-code-block .nd-code-header + div,
+.hextra-code-block .nd-code-header + div .highlight,
+.hextra-code-block .nd-code-header + div pre:not(.lntable pre),
+.hextra-code-block .nd-code-header + div .chroma {
+  border-radius: 0 0 0.375rem 0.375rem !important;
 }
 
 .nd-dots {

@@ -42,12 +42,12 @@ nd stores all data under `~/.config/nd/`:
 
 ## Full annotated example
 
-```yaml
-# Schema version (always 1)
+```yaml {filename="config.yaml"}
+# Config schema version (always 1)
 version: 1
 
 # Default deployment scope: "global" or "project"
-# Global deploys to ~/.claude/, project deploys to .claude/
+# Default Claude Code paths: global deploys to ~/.claude/, project deploys to .claude/
 default_scope: global
 
 # Default coding agent to target
@@ -74,12 +74,18 @@ sources:
 # context_types: ["CLAUDE.md", "AGENTS.md"]
 
 # Agent configuration overrides (optional)
-# Only needed if your agent uses non-standard directories
+# nd ships with built-in defaults for Claude Code and Copilot CLI.
+# Only needed if your agent uses non-standard directories.
 agents:
   - name: claude-code
     global_dir: ~/.claude
     project_dir: .claude
+  - name: copilot
+    global_dir: ~/.copilot
+    project_dir: .github
 ```
+
+nd includes two built-in agents: Claude Code (default) and Copilot CLI. The `agents` array is for overriding their default directories, not for registering new agents.
 
 ## Config key reference
 
@@ -100,6 +106,7 @@ agents:
 | `agents[].name` | string | -- | Agent name |
 | `agents[].global_dir` | string | -- | Agent's global config directory |
 | `agents[].project_dir` | string | -- | Agent's project config directory |
+| `agents[].source_alias` | string | -- | Alias for agent-specific source resolution |
 
 ## Config merging
 
@@ -116,7 +123,7 @@ For sources, global sources appear first (higher priority), followed by project 
 
 Create `.nd/config.yaml` in your project root to override settings per-project:
 
-```yaml
+```yaml {filename=".nd/config.yaml"}
 version: 1
 default_scope: project
 sources:
@@ -145,13 +152,13 @@ If you have not set `$EDITOR` or `$VISUAL`, `nd settings edit` uses `vi`.
 
 Open your config in your default editor with [`nd settings edit`](../reference/nd_settings_edit.md):
 
-```shell
+```shell {filename="Terminal"}
 nd settings edit
 ```
 
 After editing, validate your config with [`nd doctor`](../reference/nd_doctor.md):
 
-```shell
+```shell {filename="Terminal"}
 nd doctor
 ```
 
@@ -171,12 +178,13 @@ These flags work with every nd command and override config file settings for a s
 | `--verbose` / `-v` | Show detailed output on stderr |
 | `--quiet` / `-q` | Suppress non-error output |
 | `--scope` / `-s` | Set deployment scope: `global` or `project` |
+| `--agent` | Target a specific agent (e.g., `claude-code`, `copilot`) |
 | `--config` | Override config file path |
 | `--no-color` | Disable colored output |
 
 Example scripted workflow:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --yes --json | jq '.status'
 ```
 
@@ -186,7 +194,7 @@ nd records every mutating operation to a JSONL log file at `~/.config/nd/logs/op
 
 ### View the log
 
-```shell
+```shell {filename="Terminal"}
 # Last 10 operations
 tail -10 ~/.config/nd/logs/operations.log
 

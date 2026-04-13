@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reads frontmatter from docs/guide/*.md and regenerates the AGENTS.md index table."""
+"""Reads frontmatter from docs/guide/**/*.md and regenerates the AGENTS.md index table."""
 
 import argparse
 import glob
@@ -82,13 +82,15 @@ def build_index_table(docs_dir: str, staleness_data: dict | None = None) -> str:
     if staleness_data is None:
         staleness_data = {}
 
-    pattern = os.path.join(docs_dir, "*.md")
-    files = sorted(glob.glob(pattern))
+    pattern = os.path.join(docs_dir, "**/*.md")
+    files = sorted(glob.glob(pattern, recursive=True))
 
     rows = []
     for filepath in files:
         fm = parse_frontmatter(filepath)
         if not fm:
+            continue
+        if not fm.get("lastValidated"):
             continue
         # Use path relative to repo root (parent of docs_dir's parent)
         rel_path = os.path.relpath(filepath, os.path.dirname(os.path.dirname(docs_dir)))

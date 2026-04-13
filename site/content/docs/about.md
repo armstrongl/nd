@@ -18,9 +18,9 @@ nd creates symlinks from your agent's config directory to asset sources (local d
 
 ## Install
 
-```shell
+```shell {filename="Terminal"}
 # Homebrew (macOS/Linux)
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 
 # Go install
 go install github.com/armstrongl/nd@latest

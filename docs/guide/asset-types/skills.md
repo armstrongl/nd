@@ -15,11 +15,13 @@ tags:
 
 Use skills when you want to teach the agent a complex, multi-step behavior that may need supporting files like examples, templates, or reference data. Unlike commands, which are single-file slash-command instructions, skills bundle everything the agent needs into one deployable directory.
 
+Both Claude Code and Copilot CLI support skills.
+
 Skills are multi-file directory assets that package reusable coding-agent behaviors into a named, self-contained directory.
 
 ## Directory layout
 
-```text
+```text {filename="Source layout"}
 skills/
 ├── greeting/
 │   └── SKILL.md
@@ -35,20 +37,24 @@ The entry point is a file named `SKILL.md` at the root of the skill directory (e
 
 ## Deploy behavior
 
-nd symlinks the entire skill directory into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `skills/greeting` produces:
+nd symlinks the entire skill directory into the target location (see [How nd works](../how-nd-works.md) for details on the symlink strategy). Running [`nd deploy`](../../reference/nd_deploy.md) `skills/greeting` produces a symlink in the active agent's config directory:
 
-```text
+```text {filename="Deployment paths"}
+# Claude Code
 ~/.claude/skills/greeting → <source>/skills/greeting
+
+# Copilot CLI
+~/.copilot/skills/greeting → <source>/skills/greeting
 ```
 
 The agent sees the full directory contents through the symlink.
 
 ## Scope rules
 
-| Scope | Target path |
-|-------|-------------|
-| Global | `~/.claude/skills/<name>` |
-| Project | `.claude/skills/<name>` |
+| Scope | Claude Code | Copilot CLI |
+|-------|-------------|-------------|
+| Global | `~/.claude/skills/<name>` | `~/.copilot/skills/<name>` |
+| Project | `.claude/skills/<name>` | `.github/skills/<name>` |
 
 To undeploy a skill, run [`nd remove`](../../reference/nd_remove.md) `skills/greeting`.
 
@@ -61,7 +67,7 @@ To undeploy a skill, run [`nd remove`](../../reference/nd_remove.md) `skills/gre
 
 ## Create a skill
 
-```shell
+```shell {filename="Terminal"}
 mkdir -p ~/my-assets/skills/greeting
 cat > ~/my-assets/skills/greeting/SKILL.md << 'EOF'
 # Greeting skill

@@ -6,13 +6,13 @@ weight: 110
 
 List available assets from all sources
 
-```
+```shell {filename="Terminal"}
 nd list [flags]
 ```
 
 ## Examples
 
-```
+```shell {filename="Terminal"}
   # List all available assets
   nd list
 
@@ -31,7 +31,7 @@ nd list [flags]
 
 ## Options
 
-```
+```text {filename="Flags"}
   -h, --help             help for list
       --pattern string   filter by name pattern
       --source string    filter by source ID
@@ -40,7 +40,8 @@ nd list [flags]
 
 ## Options inherited from parent commands
 
-```
+```text {filename="Flags"}
+      --agent string    target agent (e.g., claude-code, copilot)
       --config string   path to config file (default "~/.config/nd/config.yaml")
       --dry-run         show what would happen without making changes
       --json            output in JSON format

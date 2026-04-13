@@ -22,9 +22,9 @@ This guide takes you from zero to your first deployed asset in about 5 minutes.
 
 Choose your preferred method:
 
-```shell
+```shell {filename="Terminal"}
 # Homebrew (macOS/Linux)
-brew install --cask armstrongl/tap/nd
+brew install armstrongl/tap/nd
 
 # Go install
 go install github.com/armstrongl/nd@latest
@@ -35,7 +35,7 @@ git clone https://github.com/armstrongl/nd.git && cd nd && go build -o nd .
 
 Verify the installation with [`nd version`](../reference/nd_version.md):
 
-```shell
+```shell {filename="Terminal"}
 nd version
 ```
 
@@ -43,7 +43,7 @@ nd version
 
 If you installed nd via Homebrew, update it with:
 
-```shell
+```shell {filename="Terminal"}
 brew update && brew upgrade nd
 ```
 
@@ -55,21 +55,21 @@ nd also notifies you when a newer version is available — the message appears a
 
 Create the nd configuration directory and default config:
 
-```shell
+```shell {filename="Terminal"}
 nd init
 ```
 
-This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state.
+This creates `~/.config/nd/config.yaml` with sensible defaults and sets up directories for profiles, snapshots, and state. nd also detects installed coding agents (Claude Code and Copilot CLI) and selects a default agent to deploy to.
 
-[`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent). Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
+[`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent) to the detected default agent. Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
 
-If nd cannot detect your coding agent (e.g., Claude Code is not installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install your agent and run `nd deploy --source builtin` afterward.
+If nd cannot detect any coding agent (e.g., none are installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install an agent and run `nd deploy --source builtin` afterward.
 
 If a config file already exists, `nd init` exits with an error. Use [`nd settings edit`](../reference/nd_settings_edit.md) to modify an existing configuration.
 
 Browse the built-in assets with [`nd list`](../reference/nd_list.md):
 
-```shell
+```shell {filename="Terminal"}
 nd list
 ```
 
@@ -77,7 +77,7 @@ nd list
 
 nd ships with a **builtin** source containing nd-specific assets. To add your own assets, register a **source** with [`nd source add`](../reference/nd_source_add.md): a local directory or git repository containing agent assets organized by type.
 
-```shell
+```shell {filename="Terminal"}
 # Local directory
 nd source add ~/my-coding-assets
 
@@ -94,13 +94,13 @@ nd scans the source for assets organized in convention-based directories (`skill
 
 List all assets discovered from your sources:
 
-```shell
+```shell {filename="Terminal"}
 nd list
 ```
 
 Filter by type:
 
-```shell
+```shell {filename="Terminal"}
 nd list --type skills
 ```
 
@@ -110,41 +110,51 @@ Assets marked with `*` are already deployed.
 
 Deploy an asset by creating a symlink in your agent's config directory:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting
 ```
 
 Deploy multiple assets at once:
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting commands/hello agents/researcher
 ```
 
 Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — [`nd remove`](../reference/nd_remove.md), [`nd profile switch`](../reference/nd_profile_switch.md), [`nd snapshot restore`](../reference/nd_snapshot_restore.md), and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
-nd creates a symlink from your agent's config directory (`~/.claude/skills/greeting`) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 **Deploy by type:**
 
-```shell
+```shell {filename="Terminal"}
 nd deploy --type skills greeting
 ```
 
 **Scopes:**
 
-- **Global** (`--scope global`, default): Deploys to your agent's global config directory (`~/.claude/`)
-- **Project** (`--scope project`): Deploys to the project-level config directory (`.claude/` in the project root)
+- **Global** (`--scope global`, default): Deploys to your agent's global config directory (e.g., `~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.claude/` for Claude Code, `.github/` for Copilot CLI)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --scope project
 ```
+
+**Target a specific agent:**
+
+If you have multiple agents installed, nd deploys to the default agent. Use `--agent` to target a different one:
+
+```shell {filename="Terminal"}
+nd deploy skills/greeting --agent copilot
+```
+
+Note that not all agents support every asset type. Copilot CLI supports skills, agents, and context only.
 
 **Symlink strategy:**
 
 - **Absolute** (default): Symlinks use absolute paths
 - **Relative** (`--relative`): Symlinks use relative paths (better for portable setups)
 
-```shell
+```shell {filename="Terminal"}
 nd deploy skills/greeting --relative
 ```
 
@@ -154,7 +164,7 @@ Change the default strategy in your config file (`symlink_strategy: relative`).
 
 Check that everything is healthy with [`nd status`](../reference/nd_status.md):
 
-```shell
+```shell {filename="Terminal"}
 nd status
 ```
 
@@ -162,7 +172,7 @@ The output shows your deployed assets with health indicators (checkmarks for hea
 
 For a full health check, run [`nd doctor`](../reference/nd_doctor.md):
 
-```shell
+```shell {filename="Terminal"}
 nd doctor
 ```
 
@@ -172,7 +182,7 @@ nd doctor
 
 Enable tab-completion for your shell with [`nd completion`](../reference/nd_completion.md):
 
-```shell
+```shell {filename="Terminal"}
 # Print completion script
 nd completion bash
 nd completion zsh
@@ -189,7 +199,7 @@ nd completion zsh --install-dir ~/.my-completions
 
 For zsh, add this to your `~/.zshrc` if not already present:
 
-```shell
+```shell {filename="Terminal"}
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
 ```
@@ -198,7 +208,7 @@ autoload -Uz compinit && compinit
 
 Open your config file in your default editor:
 
-```shell
+```shell {filename="Terminal"}
 nd settings edit
 ```
 
@@ -206,7 +216,7 @@ nd settings edit
 
 To remove all nd-managed symlinks from your agent's config directory, run [`nd uninstall`](../reference/nd_uninstall.md):
 
-```shell
+```shell {filename="Terminal"}
 nd uninstall
 ```
 
