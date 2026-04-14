@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install rumdl
-        run: pip install rumdl==0.1.64
+        run: pip install rumdl==0.1.69
       - name: Lint
         run: rumdl check .
 
