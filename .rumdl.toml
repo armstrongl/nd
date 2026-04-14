@@ -45,7 +45,7 @@ punctuation = ".,;:!"
 # Sentence-case headings (capitalize first word and proper nouns only).
 [MD063]
 style = "sentence-case"
-ignore-words = ["nd", "Napoleon Dynamite"]
+ignore-words = ["nd", "Napoleon", "Dynamite"]
 preserve-cased-words = true
 
 # --- List rules ---
