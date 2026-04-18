@@ -1,10 +1,11 @@
-# nd
+# Napoleon Dynamite (`nd`) 
 
 <!-- rumdl-disable MD044 -->
 [![CI](https://github.com/armstrongl/nd/actions/workflows/ci.yml/badge.svg)](https://github.com/armstrongl/nd/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/github/go-mod/go-version/armstrongl/nd)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/armstrongl/nd)](https://github.com/armstrongl/nd/releases)
+[![AFDocs check](https://github.com/armstrongl/nd/actions/workflows/afdocs-check.yml/badge.svg)](https://github.com/armstrongl/nd/actions/workflows/afdocs-check.yml)
 <!-- rumdl-enable MD044 -->
 
 > [!WARNING]
