@@ -1,0 +1,81 @@
+# See https://driangle.github.io/taskmd/reference/configuration.html
+dir: ./tasks
+id:
+  strategy: random
+  length: 6
+web:
+  port: 3000
+  auto_open_browser: true
+worklogs: true
+
+scopes:
+  cli:
+    description: "CLI entry point and command routing"
+    paths:
+      - "cmd/"
+  tui:
+    description: "Terminal UI screens and components"
+    paths:
+      - "internal/tui/"
+  core:
+    description: "Core domain types and logic"
+    paths:
+      - "internal/nd/"
+  deploy:
+    description: "Asset deployment and symlink management"
+    paths:
+      - "internal/deploy/"
+  source:
+    description: "Source management and scanning"
+    paths:
+      - "internal/source/"
+      - "internal/sourcemanager/"
+  config:
+    description: "Configuration and profile handling"
+    paths:
+      - "internal/config/"
+      - "internal/profile/"
+  agent:
+    description: "Multi-agent support"
+    paths:
+      - "internal/agent/"
+  asset:
+    description: "Asset type resolution and built-in assets"
+    paths:
+      - "internal/asset/"
+      - "internal/builtin/"
+  backup:
+    description: "Backup and snapshot functionality"
+    paths:
+      - "internal/backup/"
+  doctor:
+    description: "Diagnostic and health checks"
+    paths:
+      - "internal/doctor/"
+  export:
+    description: "Export functionality"
+    paths:
+      - "internal/export/"
+  state:
+    description: "State tracking and operation log"
+    paths:
+      - "internal/state/"
+      - "internal/oplog/"
+  output:
+    description: "Output formatting"
+    paths:
+      - "internal/output/"
+  docs:
+    description: "Documentation and site content"
+    paths:
+      - "docs/"
+      - "site/"
+  ci:
+    description: "CI/CD workflows and scripts"
+    paths:
+      - ".github/"
+      - "scripts/"
+  tests:
+    description: "Integration test suite"
+    paths:
+      - "tests/"
