@@ -21,10 +21,10 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 | [Create asset sources](docs/guide/creating-sources.md) | Load when modifying source scanning, asset type discovery, manifest parsing, or the directory convention. | 2026-04-05 | current | `internal/sourcemanager/**`<br>`internal/asset/**` |
 | [Get started](docs/guide/getting-started.md) | Load when setting up nd for the first time, troubleshooting installation, or onboarding a new user. | 2026-04-05 | current | `cmd/init.go`<br>`cmd/source.go`<br>`cmd/deploy.go` |
 | [Glossary](docs/guide/glossary.md) | Load when encountering unfamiliar nd terminology or when disambiguating overloaded terms like agent, context, or command. | 2026-04-03 | current | `internal/nd/**`<br>`internal/asset/**` |
-| [Hooks](docs/guide/asset-types/hooks.md) | Load when modifying hook scanning, hook deployment, or settings.JSON hook registration. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
+| [Hooks](docs/guide/asset-types/hooks.md) | Load when modifying hook scanning, hook deployment, or settings.json hook registration. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
 | [How nd works](docs/guide/how-nd-works.md) | Load when modifying symlink creation, deploy logic, scope handling, or debugging broken deployments. | 2026-04-05 | current | `internal/deploy/**`<br>`cmd/deploy.go`<br>`cmd/remove.go` |
-| [Output styles](docs/guide/asset-types/output-styles.md) | Load when modifying output style scanning, deployment, or settings.JSON registration behavior. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
-| [Plugins](docs/guide/asset-types/plugins.md) | Load when modifying plugin scanning, export workflow, or plugin.JSON manifest handling. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/export/**`<br>`cmd/export.go` |
+| [Output styles](docs/guide/asset-types/output-styles.md) | Load when modifying output style scanning, deployment, or settings.json registration behavior. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
+| [Plugins](docs/guide/asset-types/plugins.md) | Load when modifying plugin scanning, export workflow, or plugin.json manifest handling. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/export/**`<br>`cmd/export.go` |
 | [Profiles and snapshots](docs/guide/profiles-and-snapshots.md) | Load when modifying profile CRUD, snapshot save/restore, profile switching, or pinning logic. | 2026-04-05 | current | `internal/profile/**`<br>`cmd/profile.go`<br>`cmd/snapshot.go`<br>`cmd/pin.go`<br>`cmd/unpin.go` |
 | [Rules](docs/guide/asset-types/rules.md) | Load when modifying rule file scanning, rule deployment, or the rules asset type. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
 | [Skills](docs/guide/asset-types/skills.md) | Load when modifying skill directory scanning, skill deployment, or the skills asset type. | 2026-04-04 | current | `internal/sourcemanager/scanner.go`<br>`internal/deploy/**` |
@@ -35,7 +35,7 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 
 ## Documented solutions
 
-`docs/solutions/` and `.claude/docs/solutions/` contain documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when implementing or debugging in documented areas.
+If `docs/solutions/` or `.claude/docs/solutions/` are present in the current checkout, use them for documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). If those paths are absent, proceed without them.
 
 ## Vexp <!-- vexp v1.2.30 -->
 

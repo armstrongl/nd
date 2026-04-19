@@ -57,7 +57,7 @@ Run with `taskmd verify <ID>`:
 verify:
   - type: bash
     run: "go test ./..."
-    dir: "apps/cli"          # optional working directory
+
   - type: assert
     check: "API returns paginated results"  # agent-evaluated, not executed
 ```
@@ -128,14 +128,14 @@ A valid task **must**:
 
 ```markdown
 ---
-id: "015"
+id: "a3f9x2"
 title: "Implement user authentication"
 status: in-progress
 priority: high
 effort: large
 type: feature
 phase: "v1.0"
-dependencies: ["012", "013"]
+dependencies: ["b7k2m1", "c8n4p6"]
 tags: [auth, security, api]
 created_at: 2026-02-08
 verify:

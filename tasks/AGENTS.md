@@ -1,6 +1,6 @@
 # Working with taskmd tasks
 
-This project uses [taskmd](https://github.com/driangle/taskmd) for task management. Tasks are Markdown files with YAML frontmatter. See `TASKMD_SPEC.md` for the full field reference.
+This project uses [taskmd](https://github.com/driangle/taskmd) for task management. Tasks are Markdown files with YAML frontmatter. See `TASKMD_SPEC.md` for a trimmed field reference, or run `taskmd spec --stdout` for the full spec.
 
 ## Task file format
 
