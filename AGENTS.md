@@ -6,7 +6,7 @@ The index below lists all available guide documentation. Read the description co
 
 Load a doc if its description matches the concepts, components, or tasks involved in your current work. The description field is written as a trigger condition: "Load when [conditions]." If the conditions match your task, load the doc. If they do not, skip it.
 
-If no doc in the index is relevant to your task, proceed without loading any. The absence of a relevant doc is useful signal — it may mean the area you are working in is undocumented. Note this if it affects your ability to complete the task accurately.
+If no doc in the index is relevant to your task, proceed without loading any. The absence of a relevant doc is useful signal: it may mean the area you are working in is undocumented. Note this if it affects your ability to complete the task accurately.
 
 Reference docs for individual CLI commands are in `docs/reference/` and are auto-generated.
 
@@ -33,33 +33,37 @@ Reference docs for individual CLI commands are in `docs/reference/` and are auto
 
 <!-- AGENTS-INDEX-END -->
 
+## Documented solutions
+
+If `docs/solutions/` or `.claude/docs/solutions/` are present in the current checkout, use them for documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). If those paths are absent, proceed without them.
+
 ## Vexp <!-- vexp v1.2.30 -->
 
-**MANDATORY: use `run_pipeline` — do NOT grep or glob the codebase.**
+**MANDATORY: use `run_pipeline`: do NOT grep or glob the codebase.**
 vexp returns pre-indexed, graph-ranked context in a single call.
 
 ### Workflow
 
-1. `run_pipeline` with your task description — ALWAYS FIRST (replaces all other tools)
+1. `run_pipeline` with your task description: ALWAYS FIRST (replaces all other tools)
 2. Make targeted changes based on the context returned
 3. `run_pipeline` again only if you need more context
 
 ### Available MCP tools
 
-- `run_pipeline` — **PRIMARY TOOL**. Runs capsule + impact + memory in 1 call.
+- `run_pipeline`: **PRIMARY TOOL**. Runs capsule + impact + memory in 1 call.
   Auto-detects intent. Includes file content. Example: `run_pipeline({ "task": "fix auth bug" })`
-- `get_context_capsule` — lightweight, for simple questions only
-- `get_impact_graph` — impact analysis of a specific symbol
-- `search_logic_flow` — execution paths between functions
-- `get_skeleton` — compact file structure
-- `index_status` — indexing status
-- `get_session_context` — recall observations from sessions
-- `search_memory` — cross-session search
-- `save_observation` — persist insights (prefer run_pipeline's observation param)
+- `get_context_capsule`: lightweight, for simple questions only
+- `get_impact_graph`: impact analysis of a specific symbol
+- `search_logic_flow`: execution paths between functions
+- `get_skeleton`: compact file structure
+- `index_status`: indexing status
+- `get_session_context`: recall observations from sessions
+- `search_memory`: cross-session search
+- `save_observation`: persist insights (prefer run_pipeline's observation param)
 
 ### Agentic search
 
-- Do NOT use built-in file search, grep, or codebase indexing — always call `run_pipeline` first
+- Do NOT use built-in file search, grep, or codebase indexing: always call `run_pipeline` first
 - If you spawn sub-agents or background tasks, pass them the context from `run_pipeline`
   rather than letting them search the codebase independently
 
