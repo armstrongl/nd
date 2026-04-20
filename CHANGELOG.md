@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/armstrongl/nd/compare/v0.6.0...v0.7.0) (2026-04-20)
+
+
+### Features
+
+* add multi-agent support starting with Copilot CLI ([#92](https://github.com/armstrongl/nd/issues/92)) ([2d9e66c](https://github.com/armstrongl/nd/commit/2d9e66cb807871c79df669b3438be6b6f3248ce2))
+* add taskmd task management setup ([#105](https://github.com/armstrongl/nd/issues/105)) ([70b37fb](https://github.com/armstrongl/nd/commit/70b37fbd3a282d4aa09e6033bb2f3d00a1807630))
+* **ci:** add automated AFDocs compliance checking ([#103](https://github.com/armstrongl/nd/issues/103)) ([5975966](https://github.com/armstrongl/nd/commit/597596637c91c762d4a18df816b1ce7040b5842b))
+
+
+### Bug Fixes
+
+* **scripts:** recursive doc discovery and artifact hygiene ([#99](https://github.com/armstrongl/nd/issues/99)) ([f877b15](https://github.com/armstrongl/nd/commit/f877b15947e44642091dcf2da504d3d754f25f12))
+
 ## [0.6.0](https://github.com/armstrongl/nd/compare/v0.5.0...v0.6.0) (2026-04-10)
 
 
