@@ -31,6 +31,9 @@ cache = true
 "docs/reference/**" = ["MD041", "MD063"]
 "site/layouts/**" = ["MD041"]
 "ARCHITECTURE.md" = ["MD063"]
+# Worklogs are taskmd-generated; headings are ISO-8601 timestamps
+# (must not be sentence-cased) and entries start at level 2.
+"tasks/**/.worklogs/**" = ["MD041", "MD063"]
 
 # --- Heading rules ---
 

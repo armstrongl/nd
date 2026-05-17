@@ -1,14 +1,17 @@
 ---
 title: "Fix nd deploy listing stale cached assets"
 id: "7s19kh"
-status: pending
+status: cancelled
 priority: medium
 type: bug
 tags: ["cli", "deploy"]
 created_at: "2026-04-20"
+cancelled_at: 2026-05-17
 ---
 
 ## Fix nd deploy listing stale cached assets
+
+> **⚠ Superseded by r8j6i9** — folded into `tasks/cli/r8j6i9-expand-stale-cache.md`, which corrects this task's disproven root-cause hypothesis. This task is cancelled; do not action it.
 
 ### Objective
 

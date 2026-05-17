@@ -83,7 +83,9 @@ taskmd verify <id>                       # Run acceptance checks
 
 ## Worklogs
 
-When worklogs are enabled (`worklogs: true` in `.taskmd.yaml`), record progress with:
+Worklogs are always available -- no config key is required. Entries are stored
+per task under a `.worklogs/` directory alongside the task files. Record
+progress with:
 
 ```bash
 taskmd worklog <id> --add "Started implementation. Approach: ..."

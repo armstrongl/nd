@@ -1,14 +1,17 @@
 ---
 title: "Fix nd completion shell detection"
 id: "9awxuj"
-status: pending
+status: cancelled
 priority: medium
 type: bug
 tags: ["cli", "completions"]
 created_at: "2026-04-20"
+cancelled_at: 2026-05-17
 ---
 
 ## Fix nd completion shell detection
+
+> **⚠ Superseded by 37uilg** — folded into `tasks/cli/37uilg-expand-parent-cmd-rune.md`, which generalizes this exact fix across all parent commands. This task is cancelled; do not action it.
 
 ### Objective
 

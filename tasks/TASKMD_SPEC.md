@@ -110,8 +110,9 @@ When introducing a new phase, add it to the `phases` list in `.taskmd.yaml` befo
 | Key | Values | Description |
 |-----|--------|-------------|
 | `workflow` | `solo` (default), `pr-review` | `pr-review`: tasks go through `in-review` with a linked PR |
-| `worklogs` | `true` / `false` | Enable worklog entries |
 | `id` | `sequential`, `prefixed`, `random`, `ulid` | ID generation strategy for `taskmd add` |
+
+Worklogs are always available and need no config key; entries are stored per task under a `.worklogs/` directory.
 
 ## Validation
 

@@ -6,7 +6,6 @@ id:
 web:
   port: 3000
   auto_open_browser: true
-worklogs: true
 
 scopes:
   cli:

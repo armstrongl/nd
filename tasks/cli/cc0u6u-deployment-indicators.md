@@ -41,3 +41,17 @@ Improve asset discoverability in the TUI browse and deploy screens by adding vis
 ### References
 
 - https://GitHub.com/armstrongl/nd/issues/81
+
+### Merged scope (from 7l7r5d)
+
+Absorbed from cancelled task `7l7r5d` (both tasks create/own `internal/tui/glyphs.go`; splitting guarantees a merge conflict). Beyond the deployed/new badges above, centralize and replace every other ad-hoc marker in one module.
+
+- [ ] Create `internal/tui/glyphs.go` exporting `GlyphDeployed`, `GlyphNew`, `GlyphActive`, `GlyphPinned`, `GlyphScrollUp/Down`, `GlyphDryRun` + styled render helpers with plain-text fallback (the file the items above reference)
+- [ ] `internal/tui/profile.go:406` -- replace `marker = "*"` with styled `GlyphActive`
+- [ ] `internal/tui/profile.go:258-259` -- replace `" (active)"` literal with the same active badge as :406
+- [ ] `internal/tui/pin.go:158-159` -- replace `" [pinned]"` literal with `GlyphPinned` badge
+- [ ] `internal/tui/doctor.go:346` -- replace `Render("!")` with a warning glyph constant
+- [ ] `internal/tui/deploy.go:548`, `remove.go:423`, `header.go:28` -- replace repeated `"[DRY RUN]"` literals with one constant
+- [ ] `internal/tui/scroll.go:32,36` and `browse.go:239,267` -- replace `"↑"`/`"↓"` literals with scroll glyph constants
+
+Added acceptance: active profile / pinned / dry-run / scroll indicators use the shared constants and render consistently across all screens.

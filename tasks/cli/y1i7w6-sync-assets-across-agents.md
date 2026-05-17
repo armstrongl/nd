@@ -6,6 +6,7 @@ priority: high
 type: feature
 tags: ["deploy", "multi-agent"]
 created_at: "2026-04-20"
+dependencies: ["wui1vo"]
 ---
 
 ## Sync deployed assets across agents

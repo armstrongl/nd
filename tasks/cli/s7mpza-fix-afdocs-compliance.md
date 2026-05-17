@@ -1,14 +1,17 @@
 ---
 title: "Fix AFDocs compliance check"
 id: "s7mpza"
-status: pending
+status: cancelled
 priority: medium
 type: bug
 tags: ["ci", "docs"]
 created_at: "2026-04-20"
+cancelled_at: 2026-05-17
 ---
 
 ## Fix AFDocs compliance check
+
+> **⚠ Superseded by 9vq5ht** — folded into `tasks/cli/9vq5ht-expand-md-html-parity-rootcause.md`, which carries the structural root cause for the same issue #104. This task is cancelled; do not action it.
 
 ### Objective
 
