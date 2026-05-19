@@ -222,9 +222,10 @@ constants and `InputActive()` lines as the source of truth for which steps exist
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/75
+- Close this issue when the task is completed.
 - Seed task (defines `?` overlay + interfaces; status `pending`):
   `tasks/cli/6bije3-tui-help-instructions.md` (dependency id `6bije3`)
-- GitHub issue: https://GitHub.com/armstrongl/nd/issues/75
 - Help interfaces + bar: `internal/tui/helpbar.go` (`HelpItem` 5-9,
   `HelpProvider` 12-14, `FullHelpProvider` 19-21, `HelpBar.View` 27-34,
   `defaultHelp` 36-52)

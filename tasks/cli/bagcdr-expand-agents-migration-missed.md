@@ -41,5 +41,7 @@ Pattern expansion of seed bbd9oy. The seed enumerates the registry, `agent_test.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/124
+- Close this issue when the task is completed.
 - Seed task: bbd9oy -- `tasks/cli/bbd9oy-update-nd-to-deploy-to-agents-type-by-default.md`
 - `internal/nd/project.go` (highest-risk missed file), `internal/export/plugin.go`, `internal/agent/registry.go` (already in seed)

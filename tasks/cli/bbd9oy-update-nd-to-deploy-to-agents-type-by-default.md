@@ -270,6 +270,8 @@ Final checks:
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/127
+- Close this issue when the task is completed.
 - Cancelled, merged-in task: `bagcdr` —
   `tasks/cli/bagcdr-expand-agents-migration-missed.md` (status `cancelled`;
   do not action separately; its scope is folded here).

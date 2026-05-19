@@ -160,6 +160,8 @@ spaces of indent) for the notice copy. Style the message body with
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/111
+- Close this issue when the task is completed.
 - Root cause: `internal/tui/main_menu.go:127-129`
   (`(*mainMenuScreen).handleSelection`, full func `internal/tui/main_menu.go:102-136`).
 - Stale test to rewrite: `internal/tui/main_menu_test.go:126-139`

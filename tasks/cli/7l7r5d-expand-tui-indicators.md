@@ -40,5 +40,7 @@ Pattern expansion of seed cc0u6u. Deployment and status markers are rendered wit
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/115
+- Close this issue when the task is completed.
 - Seed task: cc0u6u -- `tasks/cli/cc0u6u-deployment-indicators.md`
 - `internal/tui/theme.go:51-60`, `browse.go`, `profile.go`, `pin.go`, `scroll.go`

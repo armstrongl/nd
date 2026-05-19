@@ -277,6 +277,8 @@ behavior; do not duplicate `internal/deploy`/`internal/state` package tests.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/118
+- Close this issue when the task is completed.
 - Missing audit report: `.claude/reports/2026-03-23-tui-phases4-6-audit.md`
   does **not** exist in the repo (only `scope-switching-flow-analysis.md` is
   present in `.claude/reports/`); the checklist above is authoritative.

@@ -236,6 +236,8 @@ for sites 2–5 (see Tasks).
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/131
+- Close this issue when the task is completed.
 - Seed/dependency `47kdob` (export fix + message-screen pattern):
   `tasks/cli/47kdob-fix-handle-selection-export.md`. Root site:
   `internal/tui/main_menu.go:127-129`.

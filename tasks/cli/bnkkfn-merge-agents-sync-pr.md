@@ -95,6 +95,8 @@ Many such PRs exist; most are superseded and closed.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/129
+- Close this issue when the task is completed.
 - PR #101 (close, do not merge): https://GitHub.com/armstrongl/nd/pull/101
   — branch `agents/sync-fc302ec5c1c17be885adb6c2d3d010d24836a5bc`, base
   `improve-docs`.

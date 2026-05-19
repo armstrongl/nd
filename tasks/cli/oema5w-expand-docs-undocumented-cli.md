@@ -203,6 +203,8 @@ Scope notes (verified 2026-05-17 against the repo — do not re-investigate):
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/136
+- Close this issue when the task is completed.
 - Seed/coordination tasks: rrts5a —
   `tasks/cli/rrts5a-docs-tier2-content-gaps.md` (Tier 2, T2-4/T2-5/T2-7);
   ahfhih — `tasks/cli/ahfhih-docs-tier3-new-content.md` (Tier 3,

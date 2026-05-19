@@ -219,6 +219,8 @@ goroutines are sufficient and deterministic):
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/135
+- Close this issue when the task is completed.
 - Bug type: net-new, found during a codebase sweep — there is no seed
   file and no numbered seed pattern; do not search for one.
 - `internal/state/lock.go:12-111` — `state.FileLock`: `NewFileLock`

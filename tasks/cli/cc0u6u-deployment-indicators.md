@@ -227,6 +227,7 @@ assets first" — users cannot tell at a glance what is live or what is new.
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/81
+- Close this issue when the task is completed.
 - Merged-from (cancelled): `tasks/cli/7l7r5d-expand-tui-indicators.md`
 - Browse marker + deployed-set: `internal/tui/browse.go:92-100,242-264`
 - Glyph constants today: `internal/tui/theme.go:51-60`; styles: `theme.go:28-49`

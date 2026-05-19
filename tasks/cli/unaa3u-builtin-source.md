@@ -193,6 +193,8 @@ verification checklist; only the items in **Unit 7** require new code.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/126
+- Close this issue when the task is completed.
 - Plan (executed): `docs/plans/2026-04-02-002-feat-builtin-source-plan.md`
   (requirements trace R1–R8 at lines 20-27; integration-coverage gap at
   line 348; deferred prompt-UX decision at line 80).

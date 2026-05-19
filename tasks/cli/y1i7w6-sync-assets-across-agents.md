@@ -266,8 +266,8 @@ classifying each source deployment as: `Create` (will deploy),
 
 ### References
 
-- Issue: https://GitHub.com/armstrongl/nd/issues/80 (title: "Sync deployed
-  assets and configs across all agents")
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/80
+- Close this issue when the task is completed.
 - Dependency tasks (provide the multi-agent engine plumbing this builds on):
   `tasks/cli/wui1vo-expand-single-agent-assumptions.md` (adds
   `App.DeployEngineFor`, threads target agent through deploy/state),

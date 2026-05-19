@@ -56,5 +56,6 @@ The workflow exits non-zero due to two findings:
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/104
+- Close this issue when the task is completed.
 - Workflow file: `.github/workflows/afdocs-check.yml`
 - AFDocs spec: https://agentdocsspec.com/spec/

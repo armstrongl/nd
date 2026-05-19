@@ -167,6 +167,8 @@ reporting the wrong version.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/116
+- Close this issue when the task is completed.
 - Seed / blocking dependency: **ps3zxi** —
   `tasks/cli/ps3zxi-merge-v070-release.md` (review/merge release-please PR #93 for
   v0.7.0; this task generalizes its "version bumps correct" checklist item into a

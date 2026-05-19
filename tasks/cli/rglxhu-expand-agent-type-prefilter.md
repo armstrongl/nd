@@ -162,6 +162,8 @@ Do not change `internal/agent/agent.go:26-33` (`SupportsType`) — reuse it.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/123
+- Close this issue when the task is completed.
 - Seed task: `y1i7w6` — `tasks/cli/y1i7w6-sync-assets-across-agents.md`
   (subtasks at lines 22-23 require the supported-type filter and a
   "blocked: type not supported" plan category this task delivers).

@@ -176,10 +176,8 @@ agent", "the agent's config directory") OR show both agents.
 
 ### References
 
-- GitHub issue: https://GitHub.com/armstrongl/nd/issues/77 ("Update docs to be
-  non-specific to Claude Code"): replace hardcoded `.claude/` paths in
-  prose/examples with generic placeholders, remove Claude-Code-assuming prose,
-  treat docs as a reusable template.
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/77
+- Close this issue when the task is completed.
 - Agent registry (source of truth for supported agents + their dirs):
   `internal/agent/registry.go:35-58` (`claude-code` and `copilot` only).
 - Canonical agent IDs in CLI: `cmd/root.go:57` (`--agent` flag help),

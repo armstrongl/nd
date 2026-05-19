@@ -180,6 +180,8 @@ a valid project.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/107
+- Close this issue when the task is completed.
 - `cmd/app.go:152-168` — `App.ResolveProjectRoot()` (the on-demand resolver to
   expose through `Services`).
 - `cmd/app.go:197-199` — `App.GetProjectRoot()` (returns cached value only).

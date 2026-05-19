@@ -271,6 +271,8 @@ the full-reconcile `cmd/sync.go:92`), dry-run no-log for plain deploy (`:160`),
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/130
+- Close this issue when the task is completed.
 - Sibling/seed task: `agtaqm` -- `tasks/cli/agtaqm-test-coverage-gaps.md`
   (TUI-only; this task extends, does not duplicate it).
 - Engine + `mockStore` harness: `internal/deploy/deploy.go`,

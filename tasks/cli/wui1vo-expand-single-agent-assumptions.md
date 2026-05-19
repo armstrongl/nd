@@ -223,6 +223,8 @@ model. Do not modify `cmd/doctor.go`.**
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/132
+- Close this issue when the task is completed.
 - Dependency seed (prerequisite, defines `DeployEngineFor` +
   `DefaultDeployAgents` + the deploy picker):
   `tasks/cli/ba5xah-select-deploy-agents.md`

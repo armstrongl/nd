@@ -118,6 +118,8 @@ Affected write paths (all route through `nd.AtomicWrite`):
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/117
+- Close this issue when the task is completed.
 - Bug site: `internal/nd/atomic.go:45-50` (`os.Rename` then `return nil`, no
   directory fsync); parent dir already computed at `internal/nd/atomic.go:12`.
 - Doc comment making the crash-safety claim: `internal/nd/atomic.go:9-10`.

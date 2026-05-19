@@ -109,6 +109,7 @@ completions are out of scope for that path. Keeping the new logic in
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/78
+- Close this issue when the task is completed.
 - Related (independent, do not depend on): `tasks/cli/37uilg-expand-parent-cmd-rune.md` — bare `nd completion` `$SHELL` auto-detect (issue #62)
 - Insertion point: `cmd/init_cmd.go:33-72` (`newInitCmd` RunE); shared setup helper boundary `cmd/init_cmd.go:78` / `cmd/root.go:228`
 - Reuse: `installCompletion` `cmd/completion.go:190`; default dirs `cmd/completion.go:162,174,182`; `confirm` `cmd/helpers.go:58`; `isTerminal` `cmd/helpers.go:115`

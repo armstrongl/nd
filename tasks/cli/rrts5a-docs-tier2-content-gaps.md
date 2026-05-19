@@ -70,6 +70,8 @@ There is no `.claude/CLAUDE.md` style file. The enforced doc style rules live in
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/125
+- Close this issue when the task is completed.
 - Audit context only: PR #45 / `better-docs` branch, Tier 2 findings (2026-04-05). Do not require the branch to exist; ground everything in the live repo below.
 - `docs/guide/getting-started.md:64-68` (init prompt), `:101` (single "Filter by type"), `:215-223` (uninstall) — T2-1, T2-4, T2-3.
 - `docs/guide/troubleshooting.md:189-259` — the 5 T2-2 entries.

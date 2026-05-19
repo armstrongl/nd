@@ -151,6 +151,8 @@ deploy in the envelope). Do not implement the rest of `wdisqq` here.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/106
+- Close this issue when the task is completed.
 - Seed task: `unaa3u` — `tasks/cli/unaa3u-builtin-source.md` (Unit 6 defines
   the `[Y/n/list]` prompt, default Yes, `n: skip`, `list`, `--json` asset list).
 - Plan: `docs/plans/2026-04-02-002-feat-builtin-source-plan.md`, Unit 6,

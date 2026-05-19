@@ -55,4 +55,5 @@ The deploy command's interactive picker and `ValidArgsFunction` call `app.ScanIn
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/60
+- Close this issue when the task is completed.
 - Source: `cmd/deploy.go`, `cmd/app.go` (`ScanIndex`), `internal/sourcemanager/`

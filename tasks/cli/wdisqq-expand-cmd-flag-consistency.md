@@ -291,6 +291,8 @@ the exact site and the change.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/128
+- Close this issue when the task is completed.
 - Canonical pattern to mirror: `cmd/deploy.go:54-87` (JSON-then-non-TTY guard
   at `:58-64`), `cmd/remove.go:35-57` (`:39-45`).
 - Helpers: `confirm` `cmd/helpers.go:58-73`; `promptChoice`

@@ -51,4 +51,5 @@ Running `nd completion` with no subcommand should auto-detect the user's shell f
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/62
+- Close this issue when the task is completed.
 - Source: `cmd/completion.go`

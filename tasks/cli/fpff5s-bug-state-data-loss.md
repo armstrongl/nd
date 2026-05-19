@@ -94,6 +94,8 @@ Confirm the second-resolution backup collision separately:
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/133
+- Close this issue when the task is completed.
 - Root-cause sites: `internal/state/store.go:74-97` (`handleCorrupt`, `Save`), `internal/state/store.go:31-57` (`Load`), `internal/state/state.go:35-46` (`Identity`, `Validate`), `internal/deploy/deploy.go:420-462` (`backupExistingFile`, `pruneBackups`), `internal/deploy/deploy.go:466-507` (`DeployBulk`).
 - Save/atomic-write path: `internal/nd/atomic.go:11` (`AtomicWrite`), called from `internal/state/store.go:96`.
 - `Validate()` pattern to mirror: `internal/profile/profile.go:43-51`; consumed at `internal/profile/store.go:62` and `:164`.

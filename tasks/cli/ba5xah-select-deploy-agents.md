@@ -231,7 +231,8 @@ and wire the snapshot saver the same way `DeployEngine()` does
 
 ### References
 
-- Issue: https://GitHub.com/armstrongl/nd/issues/79
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/79
+- Close this issue when the task is completed.
 - Config struct + merge: `internal/config/config.go:8-46`,
   `internal/config/validation.go:26-101`,
   `internal/sourcemanager/config.go:78-122`

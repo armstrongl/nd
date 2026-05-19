@@ -124,7 +124,9 @@ not duplicate that logic in the parent.
 
 ### References
 
-- Cancelled seed (folded in here): `tasks/cli/9awxuj-fix-completion-shell.md`; GitHub issue https://GitHub.com/armstrongl/nd/issues/62
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/62
+- Close this issue when the task is completed.
+- Cancelled seed (folded in here): `tasks/cli/9awxuj-fix-completion-shell.md`
 - Parent commands: `cmd/completion.go:12`, `cmd/source.go:15`, `cmd/profile.go:14`, `cmd/snapshot.go:14`, `cmd/settings.go:11`
 - List/edit subcommands to delegate to: `cmd/source.go:263`, `cmd/profile.go:213`, `cmd/snapshot.go:232`, `cmd/settings.go:25`; completion subcommands `cmd/completion.go:36/77/123`
 - Only existing parent `RunE` precedent: `cmd/root.go:44-50` (`cmd.Help()` fallback)

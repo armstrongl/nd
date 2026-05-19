@@ -202,6 +202,8 @@ Scope decision:
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/77
+- Close this issue when the task is completed.
 - Seed task (prerequisite, do together): `tasks/cli/vkerqg-docs-agent-agnostic.md`;
   GitHub issue https://GitHub.com/armstrongl/nd/issues/77
 - Root cause for `docs/reference/`: `cmd/export.go:36,37,41,216`;

@@ -139,6 +139,8 @@ second call returns a nil command.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/108
+- Close this issue when the task is completed.
 - Bug location: `internal/tui/profile.go:344-356` (`updateCreateForm`),
   `internal/tui/snapshot.go:263-275` (`updateSaveForm`),
   `internal/tui/source.go:287-303` (`updateAddForm`).

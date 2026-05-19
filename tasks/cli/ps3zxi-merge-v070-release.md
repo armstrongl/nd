@@ -129,6 +129,8 @@ fixes) that is currently unreleased and unavailable to `brew`/binary users.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/120
+- Close this issue when the task is completed.
 - PR #93: <https://github.com/armstrongl/nd/pull/93>
 - release-please config: `release-please-config.json`,
   `.release-please-manifest.json`

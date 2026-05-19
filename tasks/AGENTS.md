@@ -49,6 +49,22 @@ taskmd add "Task title"                  # Create a new task
 taskmd verify <id>                       # Run acceptance checks
 ```
 
+## Sync GitHub issues locally
+
+Use the local helper when you want task creation to open a GitHub issue and task
+completion to close it:
+
+```shell
+scripts/taskmd-issue-sync.py add "Task title" --group cli --template feature
+scripts/taskmd-issue-sync.py set <id> --status completed
+```
+
+- `add`: runs `taskmd add`, creates a GitHub issue, and writes the issue link
+  plus the close-on-completion note into the task file
+- `set ... --status completed` (or `--done`): runs `taskmd set` and closes the
+  linked GitHub issue
+- Requires `gh auth login`
+
 ## Task workflow
 
 ### Starting a task

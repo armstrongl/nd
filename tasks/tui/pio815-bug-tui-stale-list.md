@@ -174,6 +174,8 @@ mutation handlers actually span lines 125-146 as listed above.)
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/112
+- Close this issue when the task is completed.
 - Bug location: `internal/tui/profile.go:118` (slice set) vs.
   `internal/tui/profile.go:135-142` (`profileCreatedMsg`, no reload);
   `internal/tui/snapshot.go:115` vs. `internal/tui/snapshot.go:118-125`

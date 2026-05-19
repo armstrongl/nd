@@ -259,6 +259,8 @@ Path facts to state correctly in any user-facing copy (verified against
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/82
+- Close this issue when the task is completed.
 - `--scope` flag with global default: `cmd/root.go:56`; scope validation /
   project-root gating: `cmd/root.go:163-176`.
 - Scope type: `internal/nd/scope.go` (`ScopeGlobal`, `ScopeProject`).

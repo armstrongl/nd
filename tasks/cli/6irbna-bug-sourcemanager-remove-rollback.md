@@ -164,6 +164,8 @@ TempDir (`os.RemoveAll(dir)`) after populating sources makes the next
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/113
+- Close this issue when the task is completed.
 - Bug site: `internal/sourcemanager/register.go:100-126` (`Remove`),
   specifically lines 116-122.
 - Pattern to mirror: `internal/sourcemanager/register.go:80-87` (`AddLocal`

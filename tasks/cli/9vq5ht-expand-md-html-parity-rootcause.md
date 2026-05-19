@@ -96,12 +96,13 @@ CI repro (from cancelled seed `s7mpza`, `tasks/cli/s7mpza-fix-afdocs-compliance.
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/104
+- Close this issue when the task is completed.
 - Root cause 1 (parity): `site/layouts/section.markdown.md:2` (greedy `(?s)\{\{[<%].*` regex). Sibling layouts to mirror: `site/layouts/home.markdown.md`, `site/layouts/llms.txt`.
 - Root cause 2 (directive): `site/layouts/partials/custom/footer.html:1` (`display:none` end-of-body div) and `site/layouts/partials/custom/head-end.html:1-2` (`<head>` meta tags).
 - Hugo output config: `site/hugo.yaml:60-72` (`outputs.section: [html, markdown, rss]`); mounts: `site/hugo.yaml:14-20`; description: `site/hugo.yaml:75`.
 - Affected source pages: `site/content/docs/_index.md`, `site/content/docs/guide/_index.md`, `site/content/docs/reference/_index.md`, `docs/guide/asset-types/_index.md`.
 - CI: `.github/workflows/afdocs-check.yml` (uses `afdocs@0.10.1`, `--score`, `--sampling deterministic`; issue lifecycle at lines 82-129). Trigger chain: `.github/workflows/deploy-docs.yml` → "AFDocs check".
-- GitHub issue: https://GitHub.com/armstrongl/nd/issues/104
 - Cancelled seed (symptoms only, do not action): `tasks/cli/s7mpza-fix-afdocs-compliance.md`.
 - Related (agent-agnostic phrasing, `cmd/` scope): `tasks/cli/r2uj81-expand-docs-agent-agnostic-scope.md`.
 

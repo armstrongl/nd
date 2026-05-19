@@ -165,6 +165,8 @@ see Tasks).
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/119
+- Close this issue when the task is completed.
 - Net-new bug; no seed pattern (found during codebase sweep).
 - `internal/oplog/writer.go:45-68` (`Writer.Log`), `:58` (`defer f.Close()`),
   `:71-83` (`rotateIfNeeded`), `:72-75` (swallowed stat error), `:3-7`

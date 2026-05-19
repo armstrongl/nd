@@ -161,6 +161,8 @@ There is no existing repro test. To reproduce in a new test (see Tasks):
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/109
+- Close this issue when the task is completed.
 - Bug type: net-new, found during codebase sweep — no seed file or
   numbered seed pattern exists; do not search for one.
 - `internal/profile/store.go:58-81` — `CreateProfile` (TOCTOU site).

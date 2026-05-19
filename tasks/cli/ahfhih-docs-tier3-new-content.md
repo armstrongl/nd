@@ -198,6 +198,8 @@ Scope correction (verified 2026-05-17 against the repo — do not re-investigate
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/122
+- Close this issue when the task is completed.
 - Audit context: better-docs audit (2026-04-05), Tier 3 findings; PR #45
   (`better-docs` branch).
 - Sibling/coordination tasks: `tasks/cli/rrts5a-docs-tier2-content-gaps.md`

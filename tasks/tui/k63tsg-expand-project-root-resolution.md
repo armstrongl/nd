@@ -188,6 +188,8 @@ error (`internal/nd/project.go:28`:
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/110
+- Close this issue when the task is completed.
 - Seed task (extends, does not duplicate):
   `tasks/tui/2r0nyd-tui-project-scope-switch.md` (id `2r0nyd`, this task's
   `dependencies`).

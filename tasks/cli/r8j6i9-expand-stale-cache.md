@@ -180,6 +180,8 @@ Frozen config (bug 2), via the long-lived TUI:
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/121
+- Close this issue when the task is completed.
 - Seed (cancelled, superseded by this task):
   `tasks/cli/7s19kh-fix-deploy-stale-cache.md` (GitHub issue #60). Its
   user-facing requirements (add/remove in a registered source reflected by

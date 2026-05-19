@@ -78,6 +78,8 @@ All file:line references below were verified against the current tree on branch 
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/134
+- Close this issue when the task is completed.
 - Bug 1: `internal/deploy/deploy.go:403-418` (`backupAndWarn`, discard at line 415), caller `internal/deploy/deploy.go:368` (`target` from `readlink` at line 345). Result field `internal/deploy/deploy.go:113`. Test pattern: `internal/deploy/deploy_test.go:431` (`TestDeployForeignSymlinkContextBacksUp`).
 - Bug 2: `internal/agent/registry.go:142` (Detected = InPath || dirExists), `registry.go:201-205` (first-detected fallback in `Default()`), `registry.go:128-134` (InPath set), `internal/agent/agent.go:21-22` (`Detected`/`InPath` fields). Test pattern: `internal/agent/registry_test.go:15` (`stubRegistry`), `registry_test.go:211` (`TestDefaultFallsBackToFirstDetected`).
 - Bug 3: `cmd/init_cmd.go:230-237` (hardcoded `SymlinkAbsolute` at line 235), pattern to mirror `cmd/deploy.go:150-157`, `cmd/app.go:48` (`SourceManager()`), `internal/sourcemanager/sourcemanager.go:53` (`Config()`), `internal/config/config.go:12` + `internal/nd/symlink.go:7-8` (strategy type/values). Test pattern: `cmd/init_cmd_test.go:62` (`TestInitCmd_WithYes_DeploysBuiltinAssets`).

@@ -155,6 +155,8 @@ Analogous "correct" pattern to mirror (same struct shape: `s.err`,
 
 ### References
 
+- GitHub issue: https://GitHub.com/armstrongl/nd/issues/114
+- Close this issue when the task is completed.
 - `internal/tui/header.go` — `View()` ~line 26-49; dead alias ~line 34, use ~line 48.
 - `internal/tui/source.go` — `sourceSyncedMsg` handler ~line 143-147;
   `View()` error branch ~line 168-172; `sourceDone` view ~line 195-196;

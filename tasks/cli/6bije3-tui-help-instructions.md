@@ -215,6 +215,7 @@ already exist as the foundation — this task completes the loop.
 ### References
 
 - GitHub issue: https://GitHub.com/armstrongl/nd/issues/75
+- Close this issue when the task is completed.
 - Help interfaces + bar: `internal/tui/helpbar.go` (`HelpItem` 5-9,
   `HelpProvider` 11-14, `FullHelpProvider` 16-21, `defaultHelp` 36-52,
   `HelpBar.View` 27-34)
