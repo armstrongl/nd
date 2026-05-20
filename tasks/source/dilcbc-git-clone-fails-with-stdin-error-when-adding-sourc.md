@@ -1,11 +1,12 @@
 ---
 title: "git clone fails with --stdin error when adding source from GitHub URL"
 id: "dilcbc"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["git", "source"]
 created_at: "2026-05-20"
+completed_at: 2026-05-20
 ---
 
 ## Git clone fails with --stdin error when adding source from GitHub URL
@@ -38,12 +39,12 @@ Fix the git clone invocation in the source-add workflow so that cloning from a G
 
 ### Tasks
 
-- [ ] Reproduce the error locally with `nd source add <github-url>`
-- [ ] Trace the git clone call in the source management code (`internal/source/` or `internal/sourcemanager/`)
-- [ ] Identify why `--stdin` is being passed or why fetch-pack receives invalid input
-- [ ] Fix the clone command construction
-- [ ] Test with HTTPS GitHub URLs, SSH URLs, and local paths
-- [ ] Add a regression test for cloning from a remote URL
+- [x] Reproduce the error locally with `nd source add <github-url>`
+- [x] Trace the git clone call in the source management code (`internal/source/` or `internal/sourcemanager/`)
+- [x] Identify why `--stdin` is being passed or why fetch-pack receives invalid input
+- [x] Fix the clone command construction
+- [x] Test with HTTPS GitHub URLs, SSH URLs, and local paths
+- [x] Add a regression test for cloning from a remote URL
 
 ### Acceptance criteria
 
