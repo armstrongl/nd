@@ -152,6 +152,33 @@ func TestAddGitWithBareRepo(t *testing.T) {
 	}
 }
 
+func TestAddGitCloneWithPackData(t *testing.T) {
+	sm, dir := newTestManager(t)
+
+	// Create a repo with commits so the clone exercises fetch-pack/index-pack.
+	repoDir := filepath.Join(t.TempDir(), "origin")
+	execGit(t, "init", repoDir)
+	execGit(t, "-C", repoDir, "commit", "--allow-empty", "-m", "initial")
+
+	src, err := sm.AddGit(repoDir, "")
+	if err != nil {
+		t.Fatalf("AddGit with pack data: %v", err)
+	}
+	if src.Type != nd.SourceGit {
+		t.Errorf("type: got %q, want %q", src.Type, nd.SourceGit)
+	}
+
+	// Verify the clone target exists and is a valid git repo.
+	clonedGitDir := filepath.Join(dir, "sources", src.ID, ".git")
+	info, err := os.Stat(clonedGitDir)
+	if err != nil {
+		t.Fatalf(".git dir not found in clone target: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatalf(".git should be a directory, got file")
+	}
+}
+
 func TestAddGitDuplicateURL(t *testing.T) {
 	sm, _ := newTestManager(t)
 

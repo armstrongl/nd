@@ -1,7 +1,9 @@
 package sourcemanager
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -58,9 +60,11 @@ func RepoNameFromURL(url string) string {
 // gitClone clones a repository to the target directory.
 func gitClone(url, targetDir string) error {
 	cmd := exec.Command("git", "clone", "--", url, targetDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git clone %s: %s: %w", url, string(output), err)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git clone %s: %s: %w", url, stderr.String(), err)
 	}
 	return nil
 }
@@ -68,9 +72,11 @@ func gitClone(url, targetDir string) error {
 // gitPull runs git pull --ff-only in the given directory.
 func gitPull(repoDir string) error {
 	cmd := exec.Command("git", "-C", repoDir, "pull", "--ff-only")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git pull in %s: %s: %w", repoDir, string(output), err)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git pull in %s: %s: %w", repoDir, stderr.String(), err)
 	}
 	return nil
 }
