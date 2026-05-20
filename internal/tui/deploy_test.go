@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -643,6 +644,78 @@ func TestDeploy_FullHelpItems_Result(t *testing.T) {
 	}
 	if !hasEnterReturn {
 		t.Errorf("FullHelpItems at result should include 'enter return'; got: %v", items)
+	}
+}
+
+func TestDeploy_InputActive_PickAgents(t *testing.T) {
+	ds := newTestDeployScreen(deployPickAgents)
+	if !ds.InputActive() {
+		t.Fatal("InputActive() at pickAgents step should be true")
+	}
+}
+
+func TestDeploy_FullHelpItems_PickAgents(t *testing.T) {
+	ds := newTestDeployScreen(deployPickAgents)
+	items := ds.FullHelpItems()
+
+	hasToggle := false
+	for _, item := range items {
+		if item.Key == "x/space" && item.Desc == "toggle" {
+			hasToggle = true
+		}
+	}
+	if !hasToggle {
+		t.Errorf("FullHelpItems at pickAgents should include 'x/space toggle'; got: %v", items)
+	}
+}
+
+func TestDeploy_ResultView_ShowsAgentForMultiAgent(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.targetAgents = []*agent.Agent{
+		{Name: "claude-code"},
+		{Name: "copilot"},
+	}
+	ds.succeeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "go-test", AssetType: nd.AssetSkill, Agent: "claude-code"}},
+		{Deployment: state.Deployment{AssetName: "go-test", AssetType: nd.AssetSkill, Agent: "copilot"}},
+	}
+	ds.failed = nil
+
+	v := ds.View()
+	content := v.Content
+
+	if !strings.Contains(content, "-> claude-code") {
+		t.Errorf("result view should show '-> claude-code'; got:\n%s", content)
+	}
+	if !strings.Contains(content, "-> copilot") {
+		t.Errorf("result view should show '-> copilot'; got:\n%s", content)
+	}
+}
+
+func TestDeploy_ResultView_NoAgentForSingleAgent(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.targetAgents = []*agent.Agent{{Name: "claude-code"}}
+	ds.succeeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "go-test", AssetType: nd.AssetSkill, Agent: "claude-code"}},
+	}
+	ds.failed = nil
+
+	v := ds.View()
+	if strings.Contains(v.Content, "->") {
+		t.Errorf("single-agent result should not show agent arrow; got:\n%s", v.Content)
+	}
+}
+
+func TestDeploy_TargetAgentNames(t *testing.T) {
+	ds := &deployScreen{
+		targetAgents: []*agent.Agent{
+			{Name: "claude-code"},
+			{Name: "copilot"},
+		},
+	}
+	names := ds.targetAgentNames()
+	if len(names) != 2 || names[0] != "claude-code" || names[1] != "copilot" {
+		t.Errorf("targetAgentNames = %v, want [claude-code copilot]", names)
 	}
 }
 

@@ -88,6 +88,9 @@ func MergeConfigs(global config.Config, project *config.ProjectConfig) config.Co
 	if project.DefaultAgent != nil {
 		merged.DefaultAgent = *project.DefaultAgent
 	}
+	if len(project.DefaultDeployAgents) > 0 {
+		merged.DefaultDeployAgents = project.DefaultDeployAgents
+	}
 	if project.SymlinkStrategy != nil {
 		merged.SymlinkStrategy = *project.SymlinkStrategy
 	}

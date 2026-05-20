@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -15,6 +16,7 @@ import (
 func newDeployCmd(app *App) *cobra.Command {
 	var (
 		assetType string
+		agents    []string
 		relative  bool
 		absolute  bool
 	)
@@ -110,13 +112,57 @@ Asset references can be:
 				assets = append(assets, *resolved)
 			}
 
-			eng, err := app.DeployEngine()
+			// Resolve target agents: --agents > config default_deploy_agents > ActiveAgent
+			reg, err := app.AgentRegistry()
 			if err != nil {
 				return err
 			}
+			reg.Detect()
 
-			// Prune ghost deployments for all agents (best-effort pre-op cleanup)
-			if pruned, pruneErr := eng.PruneAll(); pruneErr != nil {
+			var targetAgents []*agent.Agent
+			if len(agents) > 0 {
+				for _, name := range agents {
+					ag, err := reg.Get(name)
+					if err != nil {
+						return withExitCode(nd.ExitInvalidUsage,
+							fmt.Errorf("unknown agent %q; use 'nd doctor' to list available agents", name))
+					}
+					if !ag.Detected {
+						return withExitCode(nd.ExitInvalidUsage,
+							fmt.Errorf("agent %q is not detected on this system", name))
+					}
+					targetAgents = append(targetAgents, ag)
+				}
+			} else {
+				sm, smErr := app.SourceManager()
+				if smErr == nil {
+					cfg := sm.Config()
+					if len(cfg.DefaultDeployAgents) > 0 {
+						for _, name := range cfg.DefaultDeployAgents {
+							ag, err := reg.Get(name)
+							if err == nil && ag.Detected {
+								targetAgents = append(targetAgents, ag)
+							}
+						}
+					}
+				}
+			}
+
+			// Fall back to single active agent if no multi-agent targets resolved
+			if len(targetAgents) == 0 {
+				ag, err := app.ActiveAgent()
+				if err != nil {
+					return err
+				}
+				targetAgents = []*agent.Agent{ag}
+			}
+
+			// Prune via first agent engine (best-effort pre-op cleanup)
+			firstEng, err := app.DeployEngineFor(targetAgents[0])
+			if err != nil {
+				return err
+			}
+			if pruned, pruneErr := firstEng.PruneAll(); pruneErr != nil {
 				if !app.Quiet {
 					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
 				}
@@ -124,25 +170,40 @@ Asset references can be:
 				printHuman(cmd.ErrOrStderr(), "Pruned %d stale deployment(s)\n", pruned)
 			}
 
+			multiAgent := len(targetAgents) > 1
+
 			if app.DryRun {
 				if app.JSON {
 					type dryRunEntry struct {
 						AssetType string `json:"asset_type"`
 						AssetName string `json:"asset_name"`
 						Source    string `json:"source"`
+						Agent     string `json:"agent,omitempty"`
 					}
-					entries := make([]dryRunEntry, len(assets))
-					for i, a := range assets {
-						entries[i] = dryRunEntry{
-							AssetType: string(a.Type),
-							AssetName: a.Name,
-							Source:    a.SourceID,
+					var entries []dryRunEntry
+					for _, ag := range targetAgents {
+						for _, a := range assets {
+							e := dryRunEntry{
+								AssetType: string(a.Type),
+								AssetName: a.Name,
+								Source:    a.SourceID,
+							}
+							if multiAgent {
+								e.Agent = ag.Name
+							}
+							entries = append(entries, e)
 						}
 					}
 					return printJSON(w, entries, true)
 				}
-				for _, a := range assets {
-					printHuman(w, "[dry-run] would deploy %s/%s from %s\n", a.Type, a.Name, a.SourceID)
+				for _, ag := range targetAgents {
+					for _, a := range assets {
+						if multiAgent {
+							printHuman(w, "[dry-run] would deploy %s/%s from %s -> %s\n", a.Type, a.Name, a.SourceID, ag.Name)
+						} else {
+							printHuman(w, "[dry-run] would deploy %s/%s from %s\n", a.Type, a.Name, a.SourceID)
+						}
+					}
 				}
 				return nil
 			}
@@ -173,31 +234,43 @@ Asset references can be:
 				}
 			}
 
-			if len(reqs) == 1 {
-				result, err := eng.Deploy(reqs[0])
+			// Deploy to each target agent
+			var allSucceeded []deploy.DeployResult
+			var allFailed []deploy.DeployError
+			for _, ag := range targetAgents {
+				eng, err := app.DeployEngineFor(ag)
 				if err != nil {
 					return err
 				}
-				app.LogOp(oplog.LogEntry{
-					Timestamp: time.Now(),
-					Operation: oplog.OpDeploy,
-					Assets:    []asset.Identity{reqs[0].Asset.Identity},
-					Scope:     app.Scope,
-					Succeeded: 1,
-				})
-				if app.JSON {
-					return printJSON(w, result, false)
-				}
-				if !app.Quiet {
-					printHuman(w, "Deployed %s/%s\n", reqs[0].Asset.Type, reqs[0].Asset.Name)
-					printSettingsReminder(w, reqs[0].Asset.Type)
-				}
-				return nil
-			}
 
-			bulkResult, err := eng.DeployBulk(reqs)
-			if err != nil {
-				return err
+				if len(reqs) == 1 && len(targetAgents) == 1 {
+					result, err := eng.Deploy(reqs[0])
+					if err != nil {
+						return err
+					}
+					app.LogOp(oplog.LogEntry{
+						Timestamp: time.Now(),
+						Operation: oplog.OpDeploy,
+						Assets:    []asset.Identity{reqs[0].Asset.Identity},
+						Scope:     app.Scope,
+						Succeeded: 1,
+					})
+					if app.JSON {
+						return printJSON(w, result, false)
+					}
+					if !app.Quiet {
+						printHuman(w, "Deployed %s/%s\n", reqs[0].Asset.Type, reqs[0].Asset.Name)
+						printSettingsReminder(w, reqs[0].Asset.Type)
+					}
+					return nil
+				}
+
+				bulkResult, err := eng.DeployBulk(reqs)
+				if err != nil {
+					return err
+				}
+				allSucceeded = append(allSucceeded, bulkResult.Succeeded...)
+				allFailed = append(allFailed, bulkResult.Failed...)
 			}
 
 			var logAssets []asset.Identity
@@ -209,20 +282,27 @@ Asset references can be:
 				Operation: oplog.OpDeploy,
 				Assets:    logAssets,
 				Scope:     app.Scope,
-				Succeeded: len(bulkResult.Succeeded),
-				Failed:    len(bulkResult.Failed),
+				Succeeded: len(allSucceeded),
+				Failed:    len(allFailed),
 			})
 
 			if app.JSON {
-				return printJSON(w, bulkResult, false)
+				return printJSON(w, deploy.BulkDeployResult{
+					Succeeded: allSucceeded,
+					Failed:    allFailed,
+				}, false)
 			}
 
 			if !app.Quiet {
-				for _, s := range bulkResult.Succeeded {
-					printHuman(w, "Deployed %s/%s\n", s.Deployment.AssetType, s.Deployment.AssetName)
+				for _, s := range allSucceeded {
+					if multiAgent && s.Deployment.Agent != "" {
+						printHuman(w, "Deployed %s/%s -> %s\n", s.Deployment.AssetType, s.Deployment.AssetName, s.Deployment.Agent)
+					} else {
+						printHuman(w, "Deployed %s/%s\n", s.Deployment.AssetType, s.Deployment.AssetName)
+					}
 				}
 				unsupported := 0
-				for _, f := range bulkResult.Failed {
+				for _, f := range allFailed {
 					if f.UnsupportedType {
 						unsupported++
 						continue
@@ -230,16 +310,14 @@ Asset references can be:
 					printHuman(cmd.ErrOrStderr(), "Failed: %s/%s: %v\n", f.AssetType, f.AssetName, f.Err)
 				}
 				if unsupported > 0 {
-					ag, _ := app.ActiveAgent()
-					name := "unknown"
-					if ag != nil {
-						name = ag.Name
+					var agentNames []string
+					for _, ag := range targetAgents {
+						agentNames = append(agentNames, ag.Name)
 					}
-					printHuman(cmd.ErrOrStderr(), "Skipped %d asset(s) (unsupported by agent %s)\n", unsupported, name)
+					printHuman(cmd.ErrOrStderr(), "Skipped %d asset(s) (unsupported by agent(s) %s)\n", unsupported, strings.Join(agentNames, ", "))
 				}
-				// Print settings reminder once if any deployed type needs it
 				settingsTypes := make(map[nd.AssetType]bool)
-				for _, s := range bulkResult.Succeeded {
+				for _, s := range allSucceeded {
 					if s.Deployment.AssetType.RequiresSettingsRegistration() {
 						settingsTypes[s.Deployment.AssetType] = true
 					}
@@ -249,14 +327,15 @@ Asset references can be:
 				}
 			}
 
-			if len(bulkResult.Failed) > 0 {
+			if len(allFailed) > 0 {
 				if !app.Quiet {
 					if name := latestAutoSnapshot(app); name != "" {
 						printHuman(w, "Auto-snapshot saved. Restore with: nd snapshot restore %s\n", name)
 					}
 				}
+				totalReqs := len(reqs) * len(targetAgents)
 				return withExitCode(nd.ExitPartialFailure,
-					fmt.Errorf("%d of %d deployments failed", len(bulkResult.Failed), len(reqs)))
+					fmt.Errorf("%d of %d deployments failed", len(allFailed), totalReqs))
 			}
 			return nil
 		},
@@ -287,6 +366,10 @@ Asset references can be:
 			types = append(types, string(t))
 		}
 		return types, cobra.ShellCompDirectiveNoFileComp
+	})
+	cmd.Flags().StringSliceVar(&agents, "agents", nil, "comma-separated target agents (overrides config default_deploy_agents)")
+	cmd.RegisterFlagCompletionFunc("agents", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return agent.KnownAgentNames(), cobra.ShellCompDirectiveNoFileComp
 	})
 	cmd.Flags().BoolVar(&relative, "relative", false, "use relative symlinks (overrides config)")
 	cmd.Flags().BoolVar(&absolute, "absolute", false, "use absolute symlinks (overrides config)")

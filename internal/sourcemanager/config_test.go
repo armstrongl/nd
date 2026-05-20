@@ -193,6 +193,36 @@ func TestMergeConfigsAgentOverrides(t *testing.T) {
 	}
 }
 
+func TestMergeConfigsDefaultDeployAgentsFromProject(t *testing.T) {
+	global := sourcemanager.DefaultConfig()
+	global.DefaultDeployAgents = []string{"claude-code"}
+
+	project := config.ProjectConfig{
+		Version:             1,
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+	}
+
+	merged := sourcemanager.MergeConfigs(global, &project)
+	if len(merged.DefaultDeployAgents) != 2 {
+		t.Fatalf("expected 2 deploy agents, got %d", len(merged.DefaultDeployAgents))
+	}
+	if merged.DefaultDeployAgents[0] != "claude-code" || merged.DefaultDeployAgents[1] != "copilot" {
+		t.Errorf("deploy agents: got %v", merged.DefaultDeployAgents)
+	}
+}
+
+func TestMergeConfigsDefaultDeployAgentsPreservedWhenProjectEmpty(t *testing.T) {
+	global := sourcemanager.DefaultConfig()
+	global.DefaultDeployAgents = []string{"claude-code"}
+
+	project := config.ProjectConfig{Version: 1}
+
+	merged := sourcemanager.MergeConfigs(global, &project)
+	if len(merged.DefaultDeployAgents) != 1 || merged.DefaultDeployAgents[0] != "claude-code" {
+		t.Errorf("expected global deploy agents preserved, got %v", merged.DefaultDeployAgents)
+	}
+}
+
 func TestWriteConfig(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

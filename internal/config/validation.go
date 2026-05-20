@@ -55,6 +55,16 @@ func (c *Config) Validate() []ValidationError {
 		})
 	}
 
+	knownAgents := map[string]bool{"claude-code": true, "copilot": true}
+	for _, name := range c.DefaultDeployAgents {
+		if !knownAgents[name] {
+			errs = append(errs, ValidationError{
+				Field:   "default_deploy_agents",
+				Message: fmt.Sprintf("unknown agent %q", name),
+			})
+		}
+	}
+
 	switch c.SymlinkStrategy {
 	case nd.SymlinkAbsolute, nd.SymlinkRelative:
 		// valid

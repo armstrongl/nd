@@ -1,7 +1,7 @@
 ---
 title: "Let user select target agents for deploy"
 id: "ba5xah"
-status: pending
+status: in-progress
 priority: high
 type: feature
 tags: ["deploy", "multi-agent"]
@@ -82,18 +82,18 @@ and wire the snapshot saver the same way `DeployEngine()` does
 
 ### Tasks
 
-- [ ] **Config field.** Add `DefaultDeployAgents []string` to `config.Config`
+- [x] **Config field.** Add `DefaultDeployAgents []string` to `config.Config`
   with tag `` `yaml:"default_deploy_agents,omitempty" json:"default_deploy_agents,omitempty"` ``
   in `internal/config/config.go:8-16` (alongside `DefaultAgent` at line 11).
   Add the matching pointer-free slice to `ProjectConfig`
   (`internal/config/config.go:39-46`): `DefaultDeployAgents []string` with
   `` `yaml:"default_deploy_agents,omitempty"` `` (slices use len>0 to detect
   "set", consistent with `Sources`/`Agents` there).
-- [ ] **Merge.** In `MergeConfigs` (`internal/sourcemanager/config.go:78-122`)
+- [x] **Merge.** In `MergeConfigs` (`internal/sourcemanager/config.go:78-122`)
   add: `if len(project.DefaultDeployAgents) > 0 { merged.DefaultDeployAgents = project.DefaultDeployAgents }`
   near the `project.DefaultAgent` block (lines 88-90). Leave `DefaultConfig`
   (`internal/sourcemanager/config.go:18-26`) unchanged (empty slice = no default).
-- [ ] **Validate names.** In `Config.Validate`
+- [x] **Validate names.** In `Config.Validate`
   (`internal/config/validation.go:26-101`) add a block after the
   `DefaultAgent` check (lines 52-56): for each name in
   `c.DefaultDeployAgents`, verify it is one of the known agent names.
@@ -106,13 +106,13 @@ and wire the snapshot saver the same way `DeployEngine()` does
   CLI/sourcemanager boundary if an import cycle would result. Emit a
   `ValidationError{Field: "default_deploy_agents", Message: ...}` for unknown
   names (mirror the existing error style at lines 52-56).
-- [ ] **Engine factory helper.** Add a helper on `*App` in `cmd/app.go`
+- [x] **Engine factory helper.** Add a helper on `*App` in `cmd/app.go`
   (next to `DeployEngine`, `cmd/app.go:95-114`), e.g.
   `func (a *App) DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error)`:
   build `deploy.New(a.StateStore(), ag, a.BackupDir)` and attach the snapshot
   saver exactly as lines 104-110 do. Refactor `DeployEngine()` to delegate to
   it for `ActiveAgent()` so the wiring stays single-sourced.
-- [ ] **TUI: new picker step.** In `internal/tui/deploy.go`:
+- [x] **TUI: new picker step.** In `internal/tui/deploy.go`:
   - Add `deployPickAgents` to the `deployStep` enum
     (`internal/tui/deploy.go:21-27`) ordered **between** `deployPickType` and
     `deploySelectAssets`. Updating iota will renumber later constants — that is
@@ -147,7 +147,7 @@ and wire the snapshot saver the same way `DeployEngine()` does
     `huh.StateCompleted` store `ds.selectedAgents` and advance to the scan
     step; on `huh.StateAborted` or `esc` emit `BackMsg{}`; reject an empty
     selection (do not advance).
-- [ ] **TUI: multi-agent deploy.** In `startDeploy`
+- [x] **TUI: multi-agent deploy.** In `startDeploy`
   (`internal/tui/deploy.go:430-494`) the request loop at lines 454-468 builds
   `[]deploy.DeployRequest` for one agent. Resolve `ds.selectedAgents` to
   `[]*agent.Agent` via `reg.Get(name)` (`internal/agent/registry.go:176-183`).
@@ -160,7 +160,7 @@ and wire the snapshot saver the same way `DeployEngine()` does
   branch (`internal/tui/deploy.go:471-477`) and the bulk command
   `deployBulkCmd` (`internal/tui/deploy.go:497-515`) must be extended to carry
   the target agent name so results can be labeled per agent.
-- [ ] **Result rendering.** In `buildResultContent`
+- [x] **Result rendering.** In `buildResultContent`
   (`internal/tui/deploy.go:542-588`) the success/fail lines
   (lines 564-567, 574-577) print `type/name`. Append the target agent, e.g.
   `skill/foo -> claude-code`. Use `state.Deployment.Agent`
@@ -168,7 +168,7 @@ and wire the snapshot saver the same way `DeployEngine()` does
   entries thread the agent name through `deploy.DeployError` /
   `deployBulkCmd`. Apply the same to the dry-run branch
   (`internal/tui/deploy.go:546-555`).
-- [ ] **CLI `--agents` flag.** In `newDeployCmd`
+- [x] **CLI `--agents` flag.** In `newDeployCmd`
   (`cmd/deploy.go:15-295`) register `cmd.Flags().StringSliceVar(&agents,
   "agents", nil, "comma-separated target agents (overrides config default_deploy_agents)")`
   next to the existing flags (`cmd/deploy.go:283-293`). Resolution precedence:
@@ -183,16 +183,16 @@ and wire the snapshot saver the same way `DeployEngine()` does
   merge results before the existing reporting block (`cmd/deploy.go:198-261`).
   Add a `cmd.RegisterFlagCompletionFunc("agents", ...)` returning known agent
   names (analogous to the `type` completion at `cmd/deploy.go:284-290`).
-- [ ] **Unit tests — config:** in `internal/config/config_test.go` (follow the
+- [x] **Unit tests — config:** in `internal/config/config_test.go` (follow the
   YAML round-trip pattern at `internal/config/config_test.go:11-40`) assert
   `default_deploy_agents` round-trips; in `internal/config/validation_test.go`
   (or `config_test.go`) assert an unknown agent name yields a
   `ValidationError` with `Field == "default_deploy_agents"` and a valid set
   yields none.
-- [ ] **Unit tests — merge:** in `internal/sourcemanager/` assert
+- [x] **Unit tests — merge:** in `internal/sourcemanager/` assert
   `MergeConfigs` replaces `DefaultDeployAgents` from a non-empty project value
   and preserves the global value when the project slice is empty.
-- [ ] **TUI tests:** in `internal/tui/deploy_test.go` (use `newMockServices()`
+- [x] **TUI tests:** in `internal/tui/deploy_test.go` (use `newMockServices()`
   and the existing `newTestDeployScreen` helper at
   `internal/tui/deploy_test.go:50-69`; override `agentRegistryFn` /
   `defaultAgentFn` on the mock — see `internal/tui/testutil_test.go:59-71`):
@@ -200,7 +200,7 @@ and wire the snapshot saver the same way `DeployEngine()` does
   one agent is detected; picker is skipped and config agents used when
   `DefaultDeployAgents` is set; single-agent selection and two-agent selection
   both produce the correct per-agent request sets.
-- [ ] **Integration test:** add to `tests/integration/deploy_test.go` (use
+- [x] **Integration test:** add to `tests/integration/deploy_test.go` (use
   `setupIntegrationEnv` + `runND`, see `tests/integration/deploy_test.go:9-37`):
   `nd deploy --agents <name> greeting` succeeds and `nd deploy --agents bogus
   greeting` exits non-zero with a clear message. (Detection in the sandboxed

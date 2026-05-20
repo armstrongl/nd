@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -20,6 +21,7 @@ type deployStep int
 
 const (
 	deployPickType deployStep = iota
+	deployPickAgents
 	deploySelectAssets
 	deployRunning
 	deployConflictConfirm
@@ -58,6 +60,11 @@ type deployScreen struct {
 	typeForm   *huh.Form
 	typeChoice string
 	scanning   bool // H1: guards against double-fire after type form completion
+
+	// pickAgents step
+	agentForm      *huh.Form
+	selectedAgents []string       // agent names chosen by user
+	targetAgents   []*agent.Agent // resolved agents for deploy
 
 	// selectAssets step
 	assetForm *huh.Form
@@ -135,7 +142,7 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 func (ds *deployScreen) Title() string { return "Deploy" }
 
 func (ds *deployScreen) InputActive() bool {
-	return ds.step == deployPickType || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
+	return ds.step == deployPickType || ds.step == deployPickAgents || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
 }
 
 // FullHelpItems returns step-specific help items for the deploy screen.
@@ -147,6 +154,14 @@ func (ds *deployScreen) FullHelpItems() []HelpItem {
 			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
+			{"q", "quit"},
+		}
+	case deployPickAgents:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
 			{"q", "quit"},
 		}
 	case deploySelectAssets:
@@ -248,6 +263,8 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch ds.step {
 	case deployPickType:
 		return ds.updatePickType(msg)
+	case deployPickAgents:
+		return ds.updatePickAgents(msg)
 	case deploySelectAssets:
 		return ds.updateSelectAssets(msg)
 	case deployConflictConfirm:
@@ -276,6 +293,12 @@ func (ds *deployScreen) View() tea.View {
 	switch ds.step {
 	case deployPickType:
 		return tea.NewView(ds.typeForm.View())
+
+	case deployPickAgents:
+		if ds.agentForm != nil {
+			return tea.NewView(ds.agentForm.View())
+		}
+		return tea.NewView("  Loading agents...")
 
 	case deploySelectAssets:
 		if ds.assetForm != nil {
@@ -315,7 +338,7 @@ func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if ds.typeForm.State == huh.StateCompleted {
 		ds.scanning = true
-		return ds, ds.startScan()
+		return ds.resolveAgentsAndAdvance()
 	}
 
 	if ds.typeForm.State == huh.StateAborted {
@@ -372,6 +395,117 @@ func (ds *deployScreen) startScan() tea.Cmd {
 		undeployed := filterUndeployed(deployable, deployed)
 		return scanDoneMsg{assets: undeployed}
 	}
+}
+
+// resolveAgentsAndAdvance determines target agents after type selection.
+// If default_deploy_agents is configured, uses those; if only one agent is
+// detected, uses it; otherwise shows the multi-select agent picker.
+func (ds *deployScreen) resolveAgentsAndAdvance() (tea.Model, tea.Cmd) {
+	reg, err := ds.svc.AgentRegistry()
+	if err != nil || reg == nil {
+		ds.targetAgents = nil
+		return ds, ds.startScan()
+	}
+	reg.Detect()
+
+	// Check config for default_deploy_agents
+	if sm, err := ds.svc.SourceManager(); err == nil && sm != nil {
+		cfg := sm.Config()
+		if len(cfg.DefaultDeployAgents) > 0 {
+			var agents []*agent.Agent
+			for _, name := range cfg.DefaultDeployAgents {
+				ag, err := reg.Get(name)
+				if err == nil && ag.Detected {
+					agents = append(agents, ag)
+				}
+			}
+			if len(agents) > 0 {
+				ds.targetAgents = agents
+				return ds, ds.startScan()
+			}
+		}
+	}
+
+	// Count detected agents
+	var detected []*agent.Agent
+	for _, a := range reg.All() {
+		if a.Detected {
+			ac := a
+			ag, _ := reg.Get(ac.Name)
+			if ag != nil {
+				detected = append(detected, ag)
+			}
+		}
+	}
+
+	if len(detected) <= 1 {
+		ds.targetAgents = detected
+		return ds, ds.startScan()
+	}
+
+	// Multiple detected agents — show picker
+	ds.step = deployPickAgents
+	ds.buildAgentForm(detected)
+	return ds, ds.agentForm.Init()
+}
+
+// buildAgentForm creates the multi-select agent picker form.
+func (ds *deployScreen) buildAgentForm(detected []*agent.Agent) {
+	opts := make([]huh.Option[string], len(detected))
+	for i, a := range detected {
+		opts[i] = huh.NewOption(a.Name, a.Name)
+	}
+
+	ds.agentForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Select target agents").
+				Options(opts...).
+				Value(&ds.selectedAgents),
+		),
+	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
+}
+
+// updatePickAgents handles input at the agent picker step.
+func (ds *deployScreen) updatePickAgents(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+	if ds.agentForm == nil {
+		return ds, nil
+	}
+
+	model, cmd := ds.agentForm.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		ds.agentForm = f
+	}
+
+	if ds.agentForm.State == huh.StateCompleted {
+		if len(ds.selectedAgents) == 0 {
+			return ds, func() tea.Msg { return BackMsg{} }
+		}
+		reg, err := ds.svc.AgentRegistry()
+		if err != nil {
+			ds.err = fmt.Errorf("agent registry: %w", err)
+			ds.step = deployResult
+			return ds, nil
+		}
+		var agents []*agent.Agent
+		for _, name := range ds.selectedAgents {
+			ag, err := reg.Get(name)
+			if err == nil {
+				agents = append(agents, ag)
+			}
+		}
+		ds.targetAgents = agents
+		return ds, ds.startScan()
+	}
+
+	if ds.agentForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	return ds, cmd
 }
 
 // buildAssetForm creates the multi-select form from the available (undeployed) assets.
@@ -479,6 +613,12 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 	ds.step = deployRunning
 	ds.progress = newProgressBar(40)
 
+	// Multi-agent deploy: build per-agent request sets and deploy each
+	if len(ds.targetAgents) > 1 {
+		return ds.multiAgentDeployCmd(reqs)
+	}
+
+	// Single-agent path (existing behavior)
 	eng, err := ds.svc.DeployEngine()
 	if err != nil {
 		ds.err = fmt.Errorf("deploy engine: %w", err)
@@ -514,6 +654,49 @@ func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResu
 	}
 }
 
+// multiAgentDeployCmd creates a tea.Cmd that deploys requests through multiple agent engines.
+func (ds *deployScreen) multiAgentDeployCmd(reqs []deploy.DeployRequest) tea.Cmd {
+	svc := ds.svc
+	agents := ds.targetAgents
+
+	return func() tea.Msg {
+		var allSucceeded []deploy.DeployResult
+		var allFailed []deploy.DeployError
+
+		for _, ag := range agents {
+			eng, err := svc.DeployEngineFor(ag)
+			if err != nil {
+				for _, req := range reqs {
+					allFailed = append(allFailed, deploy.DeployError{
+						AssetName:  req.Asset.Name,
+						AssetType:  req.Asset.Type,
+						SourcePath: req.Asset.SourcePath,
+						Err:        fmt.Errorf("engine for %s: %w", ag.Name, err),
+					})
+				}
+				continue
+			}
+
+			result, err := eng.DeployBulk(reqs)
+			if err != nil {
+				for _, req := range reqs {
+					allFailed = append(allFailed, deploy.DeployError{
+						AssetName:  req.Asset.Name,
+						AssetType:  req.Asset.Type,
+						SourcePath: req.Asset.SourcePath,
+						Err:        err,
+					})
+				}
+				continue
+			}
+			allSucceeded = append(allSucceeded, result.Succeeded...)
+			allFailed = append(allFailed, result.Failed...)
+		}
+
+		return deployDoneMsg{succeeded: allSucceeded, failed: allFailed}
+	}
+}
+
 // updateResult handles key presses at the result step.
 // H4: Only "enter" reaches here — esc/q are intercepted by root model.
 func (ds *deployScreen) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -544,8 +727,14 @@ func (ds *deployScreen) buildResultContent() string {
 
 	// H2: Dry-run preview
 	if ds.dryRun {
-		fmt.Fprintf(&b, "  %s Would deploy %d asset(s):\n\n",
-			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs))
+		agentNames := ds.targetAgentNames()
+		if len(agentNames) > 0 {
+			fmt.Fprintf(&b, "  %s Would deploy %d asset(s) to %s:\n\n",
+				ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs), strings.Join(agentNames, ", "))
+		} else {
+			fmt.Fprintf(&b, "  %s Would deploy %d asset(s):\n\n",
+				ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs))
+		}
 		for _, req := range ds.dryReqs {
 			fmt.Fprintf(&b, "    %s %s/%s from %s\n",
 				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID)
@@ -558,12 +747,19 @@ func (ds *deployScreen) buildResultContent() string {
 	total := len(ds.succeeded) + len(ds.failed)
 	fmt.Fprintf(&b, "  Deployment complete: %d of %d succeeded\n\n", len(ds.succeeded), total)
 
+	multiAgent := len(ds.targetAgents) > 1
+
 	if len(ds.succeeded) > 0 {
 		fmt.Fprintf(&b, "  %s\n", ds.styles.Success.Render(
 			fmt.Sprintf("%d succeeded", len(ds.succeeded))))
 		for _, r := range ds.succeeded {
-			fmt.Fprintf(&b, "    %s %s/%s\n",
-				GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName)
+			if multiAgent && r.Deployment.Agent != "" {
+				fmt.Fprintf(&b, "    %s %s/%s -> %s\n",
+					GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName, r.Deployment.Agent)
+			} else {
+				fmt.Fprintf(&b, "    %s %s/%s\n",
+					GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName)
+			}
 		}
 		b.WriteString("\n")
 	}
@@ -650,6 +846,9 @@ func (ds *deployScreen) updateConflictConfirm(msg tea.Msg) (tea.Model, tea.Cmd) 
 		}
 		// User said replace: re-run with ForceReplace=true.
 		ds.step = deployRunning
+		if len(ds.targetAgents) > 1 {
+			return ds, ds.multiAgentDeployCmd(ds.conflictReqs)
+		}
 		eng, err := ds.svc.DeployEngine()
 		if err != nil || eng == nil {
 			ds.err = fmt.Errorf("deploy engine not available")
@@ -719,6 +918,15 @@ func assetKey(a *asset.Asset) string {
 // deploymentKey returns a unique key for a deployment: "sourceID:type/name".
 func deploymentKey(d state.Deployment) string {
 	return fmt.Sprintf("%s:%s/%s", d.SourceID, d.AssetType, d.AssetName)
+}
+
+// targetAgentNames returns the names of the selected target agents.
+func (ds *deployScreen) targetAgentNames() []string {
+	names := make([]string, len(ds.targetAgents))
+	for i, a := range ds.targetAgents {
+		names[i] = a.Name
+	}
+	return names
 }
 
 // filterUndeployed returns only assets that are not already deployed.

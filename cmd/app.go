@@ -91,7 +91,7 @@ func (a *App) ActiveAgent() (*agent.Agent, error) {
 	return reg.Default()
 }
 
-// DeployEngine returns the deploy engine, creating it on first call.
+// DeployEngine returns the deploy engine for the active agent, creating it on first call.
 func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if a.eng != nil {
 		return a.eng, nil
@@ -100,17 +100,25 @@ func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	eng, err := a.DeployEngineFor(ag)
+	if err != nil {
+		return nil, err
+	}
+	a.eng = eng
+	return a.eng, nil
+}
+
+// DeployEngineFor creates a deploy engine for the given agent.
+func (a *App) DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error) {
 	sstore := a.StateStore()
 	eng := deploy.New(sstore, ag, a.BackupDir)
 
-	// Wire auto-snapshot saver
 	pstore, err := a.ProfileStore()
 	if err == nil {
 		eng.SetSnapshotSaver(pstore)
 	}
 
-	a.eng = eng
-	return a.eng, nil
+	return eng, nil
 }
 
 // ProfileManager returns the profile manager, creating it on first call.

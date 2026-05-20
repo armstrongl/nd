@@ -69,6 +69,31 @@ func TestDeployJSON(t *testing.T) {
 	}
 }
 
+func TestDeployWithAgentsFlag(t *testing.T) {
+	configPath, _ := setupIntegrationEnv(t)
+
+	result := runND(t, "--config", configPath, "deploy", "--agents", "claude-code", "greeting")
+	if result.ExitCode != 0 {
+		t.Fatalf("deploy --agents exit code %d, stderr: %s", result.ExitCode, result.Stderr)
+	}
+	if !strings.Contains(result.Stdout, "Deployed") {
+		t.Errorf("expected 'Deployed' in output, got: %s", result.Stdout)
+	}
+}
+
+func TestDeployWithAgentsFlagBogus(t *testing.T) {
+	configPath, _ := setupIntegrationEnv(t)
+
+	result := runND(t, "--config", configPath, "deploy", "--agents", "bogus", "greeting")
+	if result.ExitCode == 0 {
+		t.Fatal("expected non-zero exit code for unknown agent")
+	}
+	combined := result.Stdout + result.Stderr
+	if !strings.Contains(combined, "bogus") {
+		t.Errorf("error output should mention 'bogus', got: %s", combined)
+	}
+}
+
 func TestDeployCreateSymlink(t *testing.T) {
 	configPath, _ := setupIntegrationEnv(t)
 

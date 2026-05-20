@@ -173,6 +173,92 @@ func TestValidationErrorImplementsError(t *testing.T) {
 	}
 }
 
+func TestConfigDefaultDeployAgentsRoundTrip(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		Sources:             []config.SourceEntry{},
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var got config.Config
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if len(got.DefaultDeployAgents) != 2 {
+		t.Fatalf("default_deploy_agents: got %d, want 2", len(got.DefaultDeployAgents))
+	}
+	if got.DefaultDeployAgents[0] != "claude-code" || got.DefaultDeployAgents[1] != "copilot" {
+		t.Errorf("default_deploy_agents: got %v", got.DefaultDeployAgents)
+	}
+}
+
+func TestConfigDefaultDeployAgentsOmittedWhenEmpty(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources:         []config.SourceEntry{},
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if contains(string(data), "default_deploy_agents") {
+		t.Error("empty default_deploy_agents should not appear in YAML")
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsValid(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	for _, e := range errs {
+		if e.Field == "default_deploy_agents" {
+			t.Errorf("unexpected validation error: %v", e)
+		}
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsUnknown(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		DefaultDeployAgents: []string{"claude-code", "bogus-agent"},
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+	}
+	errs := c.Validate()
+	found := false
+	for _, e := range errs {
+		if e.Field == "default_deploy_agents" {
+			found = true
+			if !contains(e.Message, "bogus-agent") {
+				t.Errorf("error message should mention bogus-agent: %s", e.Message)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected validation error for unknown agent name")
+	}
+}
+
 func TestConfigValidateInvalidSourceType(t *testing.T) {
 	c := config.Config{
 		Version:         1,
