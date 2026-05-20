@@ -482,7 +482,23 @@ func (ds *deployScreen) updatePickAgents(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if ds.agentForm.State == huh.StateCompleted {
 		if len(ds.selectedAgents) == 0 {
-			return ds, func() tea.Msg { return BackMsg{} }
+			// Reject empty selection: rebuild the form and stay on the picker
+			reg, err := ds.svc.AgentRegistry()
+			if err != nil {
+				return ds, nil
+			}
+			reg.Detect()
+			var detected []*agent.Agent
+			for _, a := range reg.All() {
+				if a.Detected {
+					ag, _ := reg.Get(a.Name)
+					if ag != nil {
+						detected = append(detected, ag)
+					}
+				}
+			}
+			ds.buildAgentForm(detected)
+			return ds, ds.agentForm.Init()
 		}
 		reg, err := ds.svc.AgentRegistry()
 		if err != nil {
@@ -614,11 +630,11 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 	ds.progress = newProgressBar(40)
 
 	// Multi-agent deploy: build per-agent request sets and deploy each
-	if len(ds.targetAgents) > 1 {
+	if len(ds.targetAgents) > 0 {
 		return ds.multiAgentDeployCmd(reqs)
 	}
 
-	// Single-agent path (existing behavior)
+	// Fallback: no target agents resolved, use active agent engine
 	eng, err := ds.svc.DeployEngine()
 	if err != nil {
 		ds.err = fmt.Errorf("deploy engine: %w", err)
@@ -684,13 +700,20 @@ func (ds *deployScreen) multiAgentDeployCmd(reqs []deploy.DeployRequest) tea.Cmd
 						AssetName:  req.Asset.Name,
 						AssetType:  req.Asset.Type,
 						SourcePath: req.Asset.SourcePath,
-						Err:        err,
+						Agent:      ag.Name,
+						Err:        fmt.Errorf("[%s] %w", ag.Name, err),
 					})
 				}
 				continue
 			}
 			allSucceeded = append(allSucceeded, result.Succeeded...)
-			allFailed = append(allFailed, result.Failed...)
+			for _, f := range result.Failed {
+				f.Agent = ag.Name
+				if f.Err != nil {
+					f.Err = fmt.Errorf("[%s] %w", ag.Name, f.Err)
+				}
+				allFailed = append(allFailed, f)
+			}
 		}
 
 		return deployDoneMsg{succeeded: allSucceeded, failed: allFailed}
@@ -846,7 +869,7 @@ func (ds *deployScreen) updateConflictConfirm(msg tea.Msg) (tea.Model, tea.Cmd) 
 		}
 		// User said replace: re-run with ForceReplace=true.
 		ds.step = deployRunning
-		if len(ds.targetAgents) > 1 {
+		if len(ds.targetAgents) > 0 {
 			return ds, ds.multiAgentDeployCmd(ds.conflictReqs)
 		}
 		eng, err := ds.svc.DeployEngine()

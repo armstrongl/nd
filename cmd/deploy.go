@@ -122,6 +122,7 @@ Asset references can be:
 			var targetAgents []*agent.Agent
 			if len(agents) > 0 {
 				for _, name := range agents {
+					name = strings.TrimSpace(name)
 					ag, err := reg.Get(name)
 					if err != nil {
 						return withExitCode(nd.ExitInvalidUsage,
@@ -267,10 +268,16 @@ Asset references can be:
 
 				bulkResult, err := eng.DeployBulk(reqs)
 				if err != nil {
-					return err
+					return fmt.Errorf("[%s] %w", ag.Name, err)
 				}
 				allSucceeded = append(allSucceeded, bulkResult.Succeeded...)
-				allFailed = append(allFailed, bulkResult.Failed...)
+				for _, f := range bulkResult.Failed {
+					f.Agent = ag.Name
+					if multiAgent && f.Err != nil {
+						f.Err = fmt.Errorf("[%s] %w", ag.Name, f.Err)
+					}
+					allFailed = append(allFailed, f)
+				}
 			}
 
 			var logAssets []asset.Identity

@@ -27,7 +27,7 @@ type Registry struct {
 
 // KnownAgentNames returns the names of all built-in agents.
 func KnownAgentNames() []string {
-	return []string{"claude-code", "copilot"}
+	return nd.KnownAgentNames()
 }
 
 // New creates a Registry with known agent definitions and applies config overrides.

@@ -129,6 +129,7 @@ type DeployError struct {
 	AssetName       string
 	AssetType       nd.AssetType
 	SourcePath      string
+	Agent           string // target agent name (populated in multi-agent deploys)
 	Err             error
 	UnsupportedType bool // true when the failure is due to agent type incompatibility
 }

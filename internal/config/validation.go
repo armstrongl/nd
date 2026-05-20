@@ -55,7 +55,10 @@ func (c *Config) Validate() []ValidationError {
 		})
 	}
 
-	knownAgents := map[string]bool{"claude-code": true, "copilot": true}
+	knownAgents := make(map[string]bool, len(nd.KnownAgentNames()))
+	for _, n := range nd.KnownAgentNames() {
+		knownAgents[n] = true
+	}
 	for _, name := range c.DefaultDeployAgents {
 		if !knownAgents[name] {
 			errs = append(errs, ValidationError{
