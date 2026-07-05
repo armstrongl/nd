@@ -64,6 +64,7 @@ You can also generate a marketplace listing with [`nd export marketplace`](../..
 
 ## Related
 
+- [Export a plugin or marketplace](../export-plugin-workflow.md) — the full two-phase export and marketplace workflow
 - [Asset type comparison](../creating-sources.md#asset-types) for a side-by-side overview of all types
 - [Skills](skills.md) — multi-file directory assets commonly bundled inside plugins
 - [Commands](commands.md) — single-file assets commonly bundled inside plugins
@@ -96,4 +97,4 @@ Once your source is registered (`nd source add ~/my-assets`), nd discovers the p
 
 ### Package assets for distribution
 
-To package individual assets from any source into a standalone plugin for distribution, use [`nd export`](../../reference/nd_export.md). This creates a new plugin directory from the assets you select — it does not require an existing `plugins/` directory as input. See the [nd export reference](../../reference/nd_export.md) for details.
+To package individual assets from any source into a standalone plugin for distribution, use [`nd export`](../../reference/nd_export.md). This creates a new plugin directory from the assets you select — it does not require an existing `plugins/` directory as input. See [Export a plugin or marketplace](../export-plugin-workflow.md) for the full workflow, including generating a marketplace, or the [nd export reference](../../reference/nd_export.md) for every flag.

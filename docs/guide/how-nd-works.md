@@ -218,6 +218,32 @@ For Claude Code, two asset types need an extra step after deploying:
 
 For everything else, deploy and go: no additional nd configuration required.
 
+## Ghost deployments
+
+A **ghost deployment** is a record in nd's state whose symlink no longer exists on disk: you deleted the link by hand, or a directory was removed out from under nd. nd prunes these records automatically so status and health counts stay accurate.
+
+Pruning runs implicitly during [`nd deploy`](../reference/nd_deploy.md) and [`nd status`](../reference/nd_status.md), across every agent. For each tracked deployment, nd checks whether the symlink still exists:
+
+- If the link is **gone** (the path returns "no such file or directory"), nd drops the record. The deployment was already effectively removed, so the stale entry is discarded.
+- If the link **exists**, or the check fails for another reason such as a permission error, nd **keeps** the record. Only a confirmed missing link triggers a prune, so a temporary permission problem never deletes your state.
+
+The cleanup is quiet: you do not run a separate command. nd prints a brief `Pruned N stale deployment(s)` note only when it actually removes records.
+
+This differs from [`nd sync`](../reference/nd_sync.md), which re-creates broken links whose source still exists. Pruning discards records for links that are already gone; sync repairs or removes links based on whether their source is still present.
+
+## Backup retention
+
+When you deploy a context file over an existing one, nd does not discard the old file. It moves the existing file to `~/.config/nd/backups/` first, then creates the new symlink. Backups are named `<original>.<timestamp>.bak`, for example `CLAUDE.md.2026-07-05T14-30-00.bak`.
+
+nd keeps the **5 most recent backups per original filename** and deletes older ones automatically. The last five `CLAUDE.md` backups are retained; a sixth deploy that backs up `CLAUDE.md` again removes the oldest. Backups for different filenames are counted separately.
+
+Recover a backed-up file by copying it out of the backups directory:
+
+```shell {filename="Terminal"}
+ls ~/.config/nd/backups/
+cp ~/.config/nd/backups/CLAUDE.md.2026-07-05T14-30-00.bak ~/my-assets/context/mine/CLAUDE.md
+```
+
 ## Next steps
 
 - **[User guide](user-guide.md):** Core workflows for deploying, removing, and managing assets
