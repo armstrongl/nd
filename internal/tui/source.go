@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -178,7 +179,13 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sourceSyncedMsg:
 		s.step = sourceDone
-		s.doneMsg = s.formatSyncResult(msg)
+		if len(msg.errors) > 0 {
+			// Route failures through the shared s.err error branch so they
+			// match load-error (and other-screen) presentation.
+			s.err = s.syncError(msg)
+		} else {
+			s.doneMsg = s.formatSyncResult(msg)
+		}
 		return s, func() tea.Msg { return RefreshHeaderMsg{} }
 	}
 
@@ -238,6 +245,7 @@ func (s *sourceScreen) View() tea.View {
 
 func (s *sourceScreen) buildMenu() (tea.Model, tea.Cmd) {
 	s.step = sourceMenu
+	s.err = nil // clear any prior done-screen error so it does not leak
 	s.menuChoice = ""
 	s.navigated = false
 	s.menuForm = huh.NewForm(
@@ -545,16 +553,19 @@ func (s *sourceScreen) viewList() tea.View {
 	return tea.NewView(RenderScrolledLines(s.styles, &s.scroll, s.listLines, s.contentHeight()))
 }
 
+// formatSyncResult renders the success summary shown in the done view. Sync
+// failures are routed through s.err (see syncError) rather than doneMsg.
 func (s *sourceScreen) formatSyncResult(msg sourceSyncedMsg) string {
-	if len(msg.errors) == 0 {
-		return fmt.Sprintf("%s Synced %d source(s).", s.styles.Success.Render(GlyphOK), msg.synced)
-	}
-	var b strings.Builder
+	return fmt.Sprintf("%s Synced %d source(s).", s.styles.Success.Render(GlyphOK), msg.synced)
+}
+
+// syncError combines sync failures into a single error so they render through
+// the shared s.err error branch in View(), matching load-error presentation.
+// On partial success it keeps the synced count visible alongside the failures.
+func (s *sourceScreen) syncError(msg sourceSyncedMsg) error {
+	joined := errors.Join(msg.errors...)
 	if msg.synced > 0 {
-		fmt.Fprintf(&b, "%s Synced %d source(s).\n", s.styles.Success.Render(GlyphOK), msg.synced)
+		return fmt.Errorf("synced %d source(s), %d failed:\n%w", msg.synced, len(msg.errors), joined)
 	}
-	for _, err := range msg.errors {
-		fmt.Fprintf(&b, "  %s %s\n", s.styles.Danger.Render(GlyphBroken), err.Error())
-	}
-	return strings.TrimRight(b.String(), "\n")
+	return joined
 }

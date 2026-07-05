@@ -149,6 +149,52 @@ func TestSourceScreen_SyncDone_PartialError(t *testing.T) {
 	}
 }
 
+func TestSourceScreen_SyncDone_AllErrors(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(sourceSyncedMsg{synced: 0, errors: []error{fmt.Errorf("clone failed")}})
+
+	// A total sync failure must be routed through the same s.err branch used
+	// by load failures, not the generic done view.
+	if s.err == nil {
+		t.Fatal("sync failure should set s.err so it uses the shared error branch")
+	}
+
+	v := s.View()
+	if !strings.Contains(v.Content, "clone failed") {
+		t.Errorf("sync error view should show the error, got: %q", v.Content)
+	}
+	// The shared error branch ends with the "esc" hint; the generic done view
+	// ends with the "enter" hint. Assert we render via the former, matching
+	// TestSourceScreen_LoadError's presentation.
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("sync error should render via the consistent error branch (esc hint), got: %q", v.Content)
+	}
+	if strings.Contains(v.Content, "Press enter to return.") {
+		t.Errorf("sync error should not render via the generic done view (enter hint), got: %q", v.Content)
+	}
+}
+
+func TestSourceScreen_SyncDone_PartialError_ShowsCountAndBranch(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(sourceSyncedMsg{synced: 2, errors: []error{fmt.Errorf("git pull failed")}})
+
+	if s.err == nil {
+		t.Fatal("partial sync failure should set s.err for the shared error branch")
+	}
+
+	v := s.View()
+	// Partial success must keep BOTH the synced count and the error text.
+	if !strings.Contains(v.Content, "synced 2") {
+		t.Errorf("partial sync error should still show the synced count, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "git pull failed") {
+		t.Errorf("partial sync error should show the error, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("partial sync error should render via the consistent error branch, got: %q", v.Content)
+	}
+}
+
 func TestSourceScreen_RefreshHeaderAfterSync(t *testing.T) {
 	s := newSourceScreen(newMockServices(), NewStyles(true), true)
 	_, cmd := s.Update(sourceSyncedMsg{synced: 1, errors: nil})
