@@ -48,7 +48,7 @@ nd symlinks the individual file into the target location (see [How nd works](../
 | Scope | Claude Code | Copilot CLI |
 |-------|-------------|-------------|
 | Global | `~/.claude/agents/<name>.md` | `~/.copilot/agents/<name>.md` |
-| Project | `.claude/agents/<name>.md` | `.github/agents/<name>.md` |
+| Project | `.agents/agents/<name>.md` | `.github/agents/<name>.md` |
 
 To undeploy an agent, run [`nd remove`](../../reference/nd_remove.md) `agents/researcher`.
 

@@ -66,6 +66,18 @@ func TestNewRegistryAppliesGlobalDirOverride(t *testing.T) {
 	}
 }
 
+func TestNewRegistryClaudeCodeDefaultProjectDir(t *testing.T) {
+	cfg := config.Config{}
+	r := agent.New(cfg)
+	agents := r.All()
+	if agents[0].Name != "claude-code" {
+		t.Fatalf("agent[0] got name %q, want %q", agents[0].Name, "claude-code")
+	}
+	if agents[0].ProjectDir != ".agents" {
+		t.Errorf("got ProjectDir %q, want %q", agents[0].ProjectDir, ".agents")
+	}
+}
+
 func TestNewRegistryAppliesProjectDirOverride(t *testing.T) {
 	cfg := config.Config{
 		Agents: []config.AgentOverride{

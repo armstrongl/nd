@@ -40,6 +40,21 @@ func TestFindProjectRoot_ClaudeMarker(t *testing.T) {
 	}
 }
 
+func TestFindProjectRoot_AgentsMarker(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := FindProjectRoot(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != root {
+		t.Errorf("got %q, want %q", got, root)
+	}
+}
+
 func TestFindProjectRoot_NoMarker(t *testing.T) {
 	dir := t.TempDir()
 	_, err := FindProjectRoot(dir)

@@ -79,7 +79,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 | Agent | Global directory | Project directory |
 |---|---|---|
-| Claude Code (default) | `~/.claude/` | `<project>/.claude/` |
+| Claude Code (default) | `~/.claude/` | `<project>/.agents/` |
 | Copilot CLI | `~/.copilot/` | `<project>/.github/` |
 
 **Global scope** (default) deploys to the agent's user-wide config directory:
@@ -96,7 +96,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 ```text {filename="Deployment paths"}
 # Claude Code
-~/myproject/.claude/skills/greeting -> ~/my-assets/skills/greeting
+~/myproject/.agents/skills/greeting -> ~/my-assets/skills/greeting
 
 # Copilot CLI
 ~/myproject/.github/skills/greeting -> ~/my-assets/skills/greeting
@@ -131,13 +131,13 @@ Claude Code reads context from a file named `CLAUDE.md`.
 ~/.claude/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
-**Project scope:** deploys into the project root, NOT inside `.claude/`:
+**Project scope:** deploys into the project root, NOT inside `.agents/`:
 
 ```text {filename="Deployment paths"}
 ~/myproject/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
-This is intentional. Claude Code reads project-level context from the project root (`./CLAUDE.md`), not from `.claude/CLAUDE.md`.
+This is intentional. Claude Code reads project-level context from the project root (`./CLAUDE.md`), not from `.agents/CLAUDE.md`.
 
 ### Copilot CLI
 

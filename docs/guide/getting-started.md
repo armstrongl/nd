@@ -133,7 +133,7 @@ nd deploy --type skills greeting
 **Scopes:**
 
 - **Global** (`--scope global`, default): Deploys to your agent's global config directory (e.g., `~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
-- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.claude/` for Claude Code, `.github/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.agents/` for Claude Code, `.github/` for Copilot CLI)
 
 ```shell {filename="Terminal"}
 nd deploy skills/greeting --scope project
