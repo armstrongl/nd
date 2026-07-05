@@ -38,6 +38,7 @@ type SnapshotSummary struct {
 type Store struct {
 	profilesDir  string
 	snapshotsDir string
+	lockPath     string
 }
 
 // NewStore creates a Store targeting the given directories.
@@ -45,7 +46,25 @@ func NewStore(profilesDir, snapshotsDir string) *Store {
 	return &Store{
 		profilesDir:  profilesDir,
 		snapshotsDir: snapshotsDir,
+		lockPath:     filepath.Join(profilesDir, ".profile.lock"),
 	}
+}
+
+// withLock serializes profile/snapshot writes across nd processes via an
+// advisory file lock, mirroring state.Store.WithLock. It acquires the lock
+// (5s timeout), runs fn, then releases. The lock's parent directory is created
+// first so callers that only touch snapshot dirs can still acquire the lock.
+// A *nd.LockError from Acquire propagates unchanged.
+func (s *Store) withLock(fn func() error) error {
+	if err := os.MkdirAll(filepath.Dir(s.lockPath), 0o755); err != nil {
+		return fmt.Errorf("create profile lock directory: %w", err)
+	}
+	lock := state.NewFileLock(s.lockPath)
+	if err := lock.Acquire(5 * time.Second); err != nil {
+		return err
+	}
+	defer func() { _ = lock.Release() }()
+	return fn()
 }
 
 // profilePath returns the filesystem path for a profile by name.
@@ -69,15 +88,19 @@ func (s *Store) CreateProfile(p Profile) error {
 		return fmt.Errorf("create profiles directory: %w", err)
 	}
 
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("profile %q already exists", p.Name)
-	}
+	// Serialize check-then-write so a concurrent nd process cannot slip
+	// between the existence check and the atomic rename (TOCTOU).
+	return s.withLock(func() error {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("profile %q already exists", p.Name)
+		}
 
-	data, err := yaml.Marshal(&p)
-	if err != nil {
-		return fmt.Errorf("marshal profile %q: %w", p.Name, err)
-	}
-	return nd.AtomicWrite(path, data)
+		data, err := yaml.Marshal(&p)
+		if err != nil {
+			return fmt.Errorf("marshal profile %q: %w", p.Name, err)
+		}
+		return nd.AtomicWrite(path, data)
+	})
 }
 
 // GetProfile reads a profile from disk by name.
@@ -216,15 +239,19 @@ func (s *Store) SaveSnapshot(snap Snapshot) error {
 	}
 
 	path := s.snapshotPath(snap.Name, snap.Auto)
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("snapshot %q already exists", snap.Name)
-	}
+	// Serialize check-then-write so a concurrent nd process cannot slip
+	// between the existence check and the atomic rename (TOCTOU).
+	return s.withLock(func() error {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("snapshot %q already exists", snap.Name)
+		}
 
-	data, err := yaml.Marshal(&snap)
-	if err != nil {
-		return fmt.Errorf("marshal snapshot %q: %w", snap.Name, err)
-	}
-	return nd.AtomicWrite(path, data)
+		data, err := yaml.Marshal(&snap)
+		if err != nil {
+			return fmt.Errorf("marshal snapshot %q: %w", snap.Name, err)
+		}
+		return nd.AtomicWrite(path, data)
+	})
 }
 
 // GetSnapshot reads a snapshot from disk.
@@ -302,7 +329,13 @@ func (s *Store) ListSnapshots() ([]SnapshotSummary, error) {
 // precision to avoid collisions when multiple auto-snapshots are created within
 // the same second.
 func (s *Store) AutoSnapshot(deployments []SnapshotEntry) (*Snapshot, error) {
-	now := time.Now()
+	return s.autoSnapshotAt(time.Now(), deployments)
+}
+
+// autoSnapshotAt is the clock-injectable core of AutoSnapshot. The now parameter
+// seeds the generated name so tests can force a deterministic name collision and
+// verify the overwrite guard.
+func (s *Store) autoSnapshotAt(now time.Time, deployments []SnapshotEntry) (*Snapshot, error) {
 	name := "auto-" + now.Format("20060102T150405") + fmt.Sprintf("-%09d", now.Nanosecond())
 
 	if deployments == nil {
@@ -328,8 +361,18 @@ func (s *Store) AutoSnapshot(deployments []SnapshotEntry) (*Snapshot, error) {
 		return nil, fmt.Errorf("marshal auto snapshot: %w", err)
 	}
 
-	if err := nd.AtomicWrite(path, data); err != nil {
-		return nil, fmt.Errorf("write auto snapshot: %w", err)
+	// Serialize the check-then-write and refuse to overwrite an existing file
+	// at the generated path (e.g. a same-nanosecond name collision).
+	if err := s.withLock(func() error {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("auto snapshot %q already exists", name)
+		}
+		if err := nd.AtomicWrite(path, data); err != nil {
+			return fmt.Errorf("write auto snapshot: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return &snap, nil
