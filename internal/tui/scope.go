@@ -51,6 +51,17 @@ func newScopeScreen(svc Services, styles Styles, isDark bool) *scopeScreen {
 	return s
 }
 
+// newScopeErrorScreen builds a scopeScreen already parked on its error step,
+// rendering msg with a "Press enter to return." hint. Used by the inline Ctrl+S
+// toggle (Model.toggleScope) to surface a project-root resolution failure with a
+// visible message instead of silently doing nothing.
+func newScopeErrorScreen(svc Services, styles Styles, isDark bool, msg string) *scopeScreen {
+	s := newScopeScreen(svc, styles, isDark)
+	s.step = scopeShowError
+	s.errorMsg = msg
+	return s
+}
+
 func (s *scopeScreen) Title() string    { return "Switch Scope" }
 func (s *scopeScreen) InputActive() bool { return s.step == scopeFormStep && !s.navigated }
 

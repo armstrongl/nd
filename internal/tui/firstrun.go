@@ -106,6 +106,8 @@ func (f *firstRunScreen) handleSelection() tea.Cmd {
 	case "quit":
 		return tea.Quit
 	default:
+		// Deliberate no-op: the select offers only "add" and "quit", so this is
+		// unreachable for real choices. A nil cmd leaves the form untouched.
 		return nil
 	}
 }

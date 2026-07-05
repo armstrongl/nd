@@ -709,8 +709,12 @@ func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 // startDeploy transitions to the running step and kicks off the deploy goroutine.
 func (ds *deployScreen) startDeploy() tea.Cmd {
 	if len(ds.selected) == 0 {
-		// Nothing selected — go back
-		return func() tea.Msg { return BackMsg{} }
+		// Nothing selected — land on the result step with an informational
+		// message instead of silently bouncing back (mirrors the "all deployed"
+		// info path in the scanDoneMsg handler).
+		ds.info = "No assets selected."
+		ds.step = deployResult
+		return nil
 	}
 
 	reqs := ds.buildBaseRequests()

@@ -221,8 +221,11 @@ func (s *pinScreen) buildConfirm() (tea.Model, tea.Cmd) {
 	newPins, newUnpins := s.computeDiff()
 	title := fmt.Sprintf("Pin %d, unpin %d asset(s)?", newPins, newUnpins)
 	if newPins == 0 && newUnpins == 0 {
-		// No changes — go back directly.
-		return s, func() tea.Msg { return BackMsg{} }
+		// No changes — land on the done step so viewDone renders "No changes
+		// made." (s.pinned/s.unpinned are both 0 here) instead of silently
+		// bouncing back with no feedback.
+		s.step = pinDone
+		return s, nil
 	}
 	s.confirmed = false
 	s.confirmForm = huh.NewForm(

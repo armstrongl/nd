@@ -140,6 +140,9 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 	case "quit":
 		return tea.Quit
 	default:
+		// Deliberate no-op: the separator sentinels (menuSepManage/menuSepSystem)
+		// and any unknown value are not real actions. Returning nil keeps the menu
+		// put; Update resets navigated=false on a nil cmd so it stays responsive.
 		return nil
 	}
 	return func() tea.Msg { return NavigateMsg{Screen: screen} }

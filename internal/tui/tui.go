@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/armstrongl/nd/internal/nd"
@@ -182,7 +184,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// toggleScope switches between global and project scope inline.
+// toggleScope switches between global and project scope inline. Switching to
+// project scope resolves the project root on demand from cwd; when it genuinely
+// cannot be resolved (cwd is not inside a project), it navigates to a visible
+// error screen instead of silently doing nothing.
 func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 	current := m.svc.GetScope()
 	var newScope nd.Scope
@@ -193,13 +198,19 @@ func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 	}
 
 	projectRoot := m.svc.GetProjectRoot()
-	// Project scope requires a project root; resolve it on demand from cwd.
-	// This is a silent toggle: a genuine resolution failure is a no-op with
-	// no error surface.
+	// Project scope requires a project root; resolve it on demand from cwd so
+	// the toggle works even when the TUI was launched in global scope. A genuine
+	// resolution failure surfaces a visible message (mirroring scopeScreen's
+	// error step) rather than a silent no-op.
 	if newScope == nd.ScopeProject {
 		root, err := m.svc.ResolveProjectRoot()
 		if err != nil || root == "" {
-			return m, nil
+			msg := "Cannot switch to project scope: no project root detected."
+			if err != nil {
+				msg = fmt.Sprintf("Cannot switch to project scope: %v", err)
+			}
+			screen := newScopeErrorScreen(m.svc, m.styles, m.isDark, msg)
+			return m, func() tea.Msg { return NavigateMsg{Screen: screen} }
 		}
 		projectRoot = root
 	}

@@ -456,10 +456,10 @@ func TestGlobalKey_CtrlS_ResolvesRootWhenLaunchedInGlobal(t *testing.T) {
 	}
 }
 
-func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
+func TestGlobalKey_CtrlS_ShowsErrorWhenNoProjectRoot(t *testing.T) {
 	svc := newMockServices()
-	// No .git/ or .claude/ marker: on-demand resolution fails (default mock),
-	// so the toggle is a silent no-op.
+	// No .git/ or .claude/ marker: on-demand resolution fails (default mock), so
+	// the toggle surfaces a visible error screen instead of silently no-op'ing.
 	styles := NewStyles(true)
 	m := Model{
 		svc:     svc,
@@ -471,12 +471,30 @@ func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
 	}
 
 	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
-	if cmd != nil {
-		t.Fatal("expected nil cmd from ctrl+s when no project root")
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s when no project root (should show error screen)")
 	}
 
+	// Scope must NOT switch when resolution fails.
 	if len(svc.resetCalls) != 0 {
 		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+
+	// The cmd should navigate to a screen whose view surfaces the failure,
+	// referencing the missing project markers.
+	nav, ok := cmd().(NavigateMsg)
+	if !ok {
+		t.Fatalf("expected NavigateMsg from ctrl+s failure, got %T", cmd())
+	}
+	v := nav.Screen.View()
+	if !strings.Contains(v.Content, "Cannot switch to project scope") {
+		t.Fatalf("error view should explain the failure, got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, ".git") || !strings.Contains(v.Content, ".claude") {
+		t.Fatalf("error view should reference the .git/ and .claude/ markers, got:\n%s", v.Content)
+	}
+	if nav.Screen.InputActive() {
+		t.Fatal("scope error screen should not be input-active (global keys must work)")
 	}
 }
 

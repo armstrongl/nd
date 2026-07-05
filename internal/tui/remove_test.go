@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
@@ -192,6 +193,38 @@ func TestRemove_DeploymentsLoadedMsg_Error(t *testing.T) {
 	}
 	if rm.err.Error() != "disk error" {
 		t.Fatalf("err = %q, want %q", rm.err.Error(), "disk error")
+	}
+}
+
+// A completed selection form with nothing selected should land on the result
+// step and render a visible "No assets selected." notice (non-error styling)
+// rather than silently bouncing back.
+func TestRemove_SelectAssets_EmptySelection_ShowsInfo(t *testing.T) {
+	m := newRemoveScreen(newMockServices(), NewStyles(true), true)
+	m.Update(deploymentsLoadedMsg{deployments: []state.Deployment{
+		{SourceID: "s", AssetType: nd.AssetSkill, AssetName: "a", Scope: nd.ScopeGlobal},
+	}})
+	if m.assetForm == nil {
+		t.Fatal("precondition: assetForm should be built after deploymentsLoadedMsg")
+	}
+	m.assetForm.State = huh.StateCompleted
+	m.selected = nil // nothing selected
+
+	updated, cmd := m.updateSelectAssets(nil)
+	rm := updated.(*removeScreen)
+
+	if cmd != nil {
+		t.Fatalf("empty-selection completion should not emit a BackMsg cmd, got non-nil cmd")
+	}
+	if rm.step != removeResult {
+		t.Fatalf("step = %d, want removeResult (%d)", rm.step, removeResult)
+	}
+	if rm.info == "" {
+		t.Fatal("info should be set when no assets are selected")
+	}
+	v := rm.View()
+	if !strings.Contains(v.Content, "No assets selected") {
+		t.Fatalf("view should contain 'No assets selected'; got:\n%s", v.Content)
 	}
 }
 

@@ -494,6 +494,28 @@ func TestDeploy_InfoView_AllDeployed(t *testing.T) {
 	}
 }
 
+// startDeploy with nothing selected should land on the result step and render a
+// visible "No assets selected." notice rather than silently bouncing back.
+func TestDeploy_StartDeploy_EmptySelection_ShowsInfo(t *testing.T) {
+	ds := newTestDeployScreen(deploySelectAssets)
+	ds.selected = nil // nothing selected
+
+	cmd := ds.startDeploy()
+	if cmd != nil {
+		t.Fatalf("empty-selection startDeploy should not emit a BackMsg cmd, got non-nil cmd")
+	}
+	if ds.step != deployResult {
+		t.Fatalf("step = %d, want deployResult (%d)", ds.step, deployResult)
+	}
+	if ds.info == "" {
+		t.Fatal("info should be set when no assets are selected")
+	}
+	v := ds.View()
+	if !strings.Contains(v.Content, "No assets selected") {
+		t.Fatalf("view should contain 'No assets selected'; got:\n%s", v.Content)
+	}
+}
+
 func TestDeploy_FilterUndeployed(t *testing.T) {
 	all := testAssets()
 	deployed := testDeployments()
