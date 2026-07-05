@@ -76,8 +76,8 @@ func newRemoveCmd(app *App) *cobra.Command {
 
 				d := dep.Deployment
 
-				// Warn if pinned
-				if d.Origin == nd.OriginPinned && !app.Yes {
+				// Warn if pinned (skip the prompt under --dry-run, which only prints a plan)
+				if d.Origin == nd.OriginPinned && !app.Yes && !app.DryRun {
 					ok, err := confirm(cmd.InOrStdin(), w,
 						fmt.Sprintf("Asset %s/%s is pinned. Remove anyway?", d.AssetType, d.AssetName),
 						app.Yes,

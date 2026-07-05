@@ -430,6 +430,42 @@ func TestSourceRemove_NonTTY_NoYes_Errors(t *testing.T) {
 	}
 }
 
+func TestSourceRemove_DeployedAssets_NonTTY_Actionable(t *testing.T) {
+	setTestTerminal(t, false)
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy an asset from my-source so the source has deployed assets.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	// Remove the source without --yes in a non-TTY: must return the actionable
+	// "use --yes to remove" error, NOT the opaque promptChoice message.
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "remove", "my-source"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error removing a source with deployed assets in non-TTY without --yes")
+	}
+	if !strings.Contains(err.Error(), "use --yes to remove") {
+		t.Errorf("expected actionable 'use --yes to remove' error, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "interactive choice required") {
+		t.Errorf("got opaque promptChoice error instead of actionable one: %v", err)
+	}
+}
+
 func TestSourceRemove_ForceAlias(t *testing.T) {
 	tmp, configPath := setupTestConfig(t)
 

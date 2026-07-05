@@ -34,6 +34,31 @@ func TestProfileCreateCmd(t *testing.T) {
 	}
 }
 
+func TestProfileCreateCmd_FromCurrentAndAssets_MutuallyExclusive(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "conflict",
+		"--from-current", "--assets", "skills/greeting",
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when both --from-current and --assets are set")
+	}
+	if !strings.Contains(err.Error(), "if any flags in the group") &&
+		!strings.Contains(err.Error(), "mutually exclusive") &&
+		!strings.Contains(err.Error(), "from-current") {
+		t.Errorf("expected mutual-exclusion error, got: %v", err)
+	}
+}
+
 func TestProfileCreateCmd_FromCurrent(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/armstrongl/nd/internal/deploy"
@@ -57,14 +56,16 @@ func newUninstallCmd(app *App) *cobra.Command {
 			}
 
 			// Confirm before proceeding
-			ok, err := confirm(os.Stdin, w,
+			ok, err := confirm(cmd.InOrStdin(), w,
 				fmt.Sprintf("Remove all %d nd-managed symlinks?", len(st.Deployments)),
 				app.Yes)
 			if err != nil {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Aborted.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Aborted.\n")
+				}
 				return nil
 			}
 

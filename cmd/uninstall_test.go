@@ -114,3 +114,87 @@ func TestUninstallCmd_WithYes(t *testing.T) {
 		t.Errorf("expected removal confirmation in output, got: %s", got)
 	}
 }
+
+// deployGreetingForUninstall deploys one asset so uninstall has work to do.
+// An explicit --scope keeps deploy from prompting for scope when a test has
+// forced an interactive terminal.
+func deployGreetingForUninstall(t *testing.T, configPath string) {
+	t.Helper()
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--scope", "global", "--yes", "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+}
+
+func TestUninstallCmd_ConfirmYes_ViaStdin(t *testing.T) {
+	// Confirms uninstall reads from cmd.InOrStdin() (not raw os.Stdin): a "y"
+	// answer on a terminal proceeds with the removal.
+	setTestTerminal(t, true)
+	configPath, _ := setupDeployEnv(t)
+	deployGreetingForUninstall(t, configPath)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "uninstall"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Removed") || !strings.Contains(got, "greeting") {
+		t.Errorf("expected removal after 'y' confirmation via stdin, got: %s", got)
+	}
+}
+
+func TestUninstallCmd_Quiet_SuppressesAbort(t *testing.T) {
+	setTestTerminal(t, true)
+	configPath, _ := setupDeployEnv(t)
+	deployGreetingForUninstall(t, configPath)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("n\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--quiet", "uninstall"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out.String(), "Aborted") {
+		t.Errorf("expected 'Aborted.' to be suppressed under --quiet, got: %s", out.String())
+	}
+}
+
+func TestUninstallCmd_NonTTY_NoYes_Errors(t *testing.T) {
+	setTestTerminal(t, false)
+	configPath, _ := setupDeployEnv(t)
+	deployGreetingForUninstall(t, configPath)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "uninstall"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when confirming uninstall in non-TTY without --yes")
+	}
+	if !strings.Contains(err.Error(), "confirmation required") {
+		t.Errorf("expected 'confirmation required' error, got: %v", err)
+	}
+}

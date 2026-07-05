@@ -46,6 +46,12 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 				return nil
 			}
 
+			// An interactive editor cannot be driven by a scripted/--json/--quiet
+			// or non-TTY caller; exec-ing it would hang. Return an actionable error.
+			if app.JSON || app.Quiet || !isTerminal() {
+				return fmt.Errorf("settings edit requires an interactive terminal; edit %s directly or use --dry-run", configPath)
+			}
+
 			editor := os.Getenv("EDITOR")
 			if editor == "" {
 				editor = os.Getenv("VISUAL")

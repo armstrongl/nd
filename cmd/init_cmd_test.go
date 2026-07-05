@@ -133,6 +133,46 @@ func TestInitCmd_WithYes_DeploysBuiltinAssets(t *testing.T) {
 	}
 }
 
+func TestInitCmd_NonTTY_NoYes_SkipsBuiltinDeploy(t *testing.T) {
+	// A non-interactive (non-TTY) init without --yes must NOT auto-deploy
+	// built-ins; the deploy is opt-in. It prints the "Skipped." hint instead.
+	setTestTerminal(t, false)
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Skipped.") {
+		t.Errorf("expected 'Skipped.' hint, got: %s", got)
+	}
+	if strings.Contains(got, "Deployed") {
+		t.Errorf("expected no deploy confirmation on non-TTY without --yes, got: %s", got)
+	}
+
+	// The deployment state file is only written when built-ins are deployed.
+	statePath := filepath.Join(tmp, ".config", "nd", "state", "deployments.yaml")
+	if _, err := os.Stat(statePath); err == nil {
+		t.Errorf("expected no deployment state file (builtins should not deploy): %s exists", statePath)
+	}
+
+	// No builtin skill symlinks should have been created.
+	if entries, err := os.ReadDir(filepath.Join(agentDir, "skills")); err == nil && len(entries) > 0 {
+		t.Errorf("expected no deployed skill symlinks, found %d", len(entries))
+	}
+}
+
 func TestInitCmd_DirectoryStructure(t *testing.T) {
 	tmp := t.TempDir()
 	configDir := filepath.Join(tmp, ".config", "nd")

@@ -213,6 +213,12 @@ func offerInit(cmd *cobra.Command, app *App) error {
 		return nil
 	}
 
+	// Under --json, never auto-init or print human prose. Return an actionable
+	// error; errors go to stderr via Execute(), leaving --json stdout clean.
+	if app.JSON {
+		return fmt.Errorf("nd is not initialized; run 'nd init' first")
+	}
+
 	w := cmd.ErrOrStderr()
 	printHuman(w, "nd is not initialized.\n")
 

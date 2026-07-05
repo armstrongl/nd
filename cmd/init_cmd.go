@@ -11,6 +11,7 @@ import (
 	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/output"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/armstrongl/nd/internal/state"
 	"github.com/spf13/cobra"
@@ -60,6 +61,15 @@ func newInitCmd(app *App) *cobra.Command {
 			deployed, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)
 
 			if app.JSON {
+				// A failed builtin deploy must surface as a JSON error envelope
+				// plus a non-zero exit; never report status:"ok" when it failed.
+				if deployErr != nil {
+					_ = printJSONError(w, []output.JSONError{{
+						Code:    "builtin_deploy_failed",
+						Message: deployErr.Error(),
+					}})
+					return deployErr
+				}
 				result := map[string]interface{}{
 					"config_path":     app.ConfigPath,
 					"config_dir":      configDir,
@@ -198,8 +208,9 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 	if !shouldDeploy {
 		confirmed, err := confirm(cmd.InOrStdin(), w, promptMsg, false)
 		if err != nil {
-			// Non-interactive: default to deploying
-			shouldDeploy = true
+			// Non-interactive (non-TTY) without --yes: treat as decline. The
+			// builtin deploy is opt-in; --yes and --json still deploy above.
+			shouldDeploy = false
 		} else {
 			shouldDeploy = confirmed
 		}

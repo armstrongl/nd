@@ -89,6 +89,54 @@ func TestRemoveCmd_DryRun(t *testing.T) {
 	}
 }
 
+func TestRemoveCmd_Pinned_DryRun_NoPrompt(t *testing.T) {
+	// `remove <pinned> --dry-run` must print the plan without prompting, even in
+	// a non-TTY without --yes (the pinned re-confirm is skipped under --dry-run).
+	setTestTerminal(t, false)
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy and pin greeting.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "pin", "greeting"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("pin failed: %v", err)
+	}
+
+	// Dry-run remove without --yes on a non-TTY: must not prompt or error.
+	out.Reset()
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "--dry-run", "remove", "greeting"})
+
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("expected no error for pinned --dry-run remove, got: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "dry-run") || !strings.Contains(got, "would remove") {
+		t.Errorf("expected dry-run plan in output, got: %s", got)
+	}
+	if strings.Contains(got, "pinned") || strings.Contains(got, "Remove anyway") {
+		t.Errorf("expected no confirmation prompt for --dry-run, got: %s", got)
+	}
+}
+
 func TestRemoveCmd_JSON(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 

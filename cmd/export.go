@@ -53,8 +53,10 @@ Multiple assets can be comma-separated or the flag repeated.`,
 			hasName := name != ""
 			hasAssets := len(assets) > 0
 
-			// Interactive mode: terminal + missing required flags
-			if isTerminal() && (!hasName || !hasAssets) {
+			// Interactive mode: terminal + missing required flags. Under --json we
+			// never launch a huh form (it would corrupt the JSON stream); fall
+			// through to the explicit "--name/--assets required" errors instead.
+			if isTerminal() && !app.JSON && (!hasName || !hasAssets) {
 				return runExportInteractive(cmd, app, name, description, version, author, email, license, output, source, overwrite)
 			}
 
@@ -433,6 +435,19 @@ func stringFromMap(m map[string]any, key string) string {
 // runExportInteractive runs the export command in interactive mode using huh forms.
 func runExportInteractive(cmd *cobra.Command, app *App, flagName, flagDesc, flagVersion, flagAuthor, flagEmail, flagLicense, flagOutput, flagSource string, flagOverwrite bool) error {
 	w := cmd.OutOrStdout()
+
+	// Defense-in-depth: never run interactive huh forms under a non-interactive
+	// signal (--yes/--json/non-TTY). The caller already guards this, but guarding
+	// here too keeps the forms from ever corrupting --json stdout or hanging a
+	// scripted run. The caller only reaches this function when --name or --assets
+	// is missing, so require the missing one via the same errors as the
+	// non-interactive path.
+	if app.Yes || app.JSON || !isTerminal() {
+		if flagName == "" {
+			return fmt.Errorf("--name is required (or run interactively in a terminal)")
+		}
+		return fmt.Errorf("--assets is required (or run interactively in a terminal)")
+	}
 
 	// Scan sources first
 	summary, err := app.ScanIndex()
