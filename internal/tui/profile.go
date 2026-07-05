@@ -85,6 +85,35 @@ func (s *profileScreen) InputActive() bool {
 	return s.step == profileMenu || s.step == profileSwitch || s.step == profileCreateName
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *profileScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case profileCreateName:
+		return []HelpItem{
+			{"enter", "create"},
+			{"esc", "cancel"},
+		}
+	case profileList:
+		return []HelpItem{
+			{"j/k", "scroll"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	case profileDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default: // menu, switch
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"esc", "back"},
+		}
+	}
+}
+
 func (s *profileScreen) Init() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {

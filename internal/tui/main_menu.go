@@ -63,6 +63,16 @@ func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen
 func (m *mainMenuScreen) Title() string    { return "Main Menu" }
 func (m *mainMenuScreen) InputActive() bool { return false }
 
+// FullHelpItems returns the menu keybindings for the help bar and overlay.
+func (m *mainMenuScreen) FullHelpItems() []HelpItem {
+	return []HelpItem{
+		{"j/k", "navigate"},
+		{"enter", "select"},
+		{"esc", "back"},
+		{"q", "quit"},
+	}
+}
+
 // Init initializes the embedded huh form.
 func (m *mainMenuScreen) Init() tea.Cmd {
 	return m.form.Init()

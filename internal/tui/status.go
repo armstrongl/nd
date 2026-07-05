@@ -66,6 +66,38 @@ func (s *statusScreen) HelpItems() []HelpItem {
 	return items
 }
 
+// HelpSections groups the status keybindings under headings for the '?' overlay.
+func (s *statusScreen) HelpSections() []HelpSection {
+	if s.filter.active {
+		return []HelpSection{
+			{Title: "Filter", Items: []HelpItem{
+				{"esc", "clear filter"},
+				{"enter", "apply filter"},
+				{"backspace", "delete character"},
+			}},
+		}
+	}
+	return []HelpSection{
+		{Title: "Navigation", Items: []HelpItem{
+			{"j/k", "scroll"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}},
+		{Title: "Actions", Items: []HelpItem{
+			{"d", "deploy assets"},
+			{"r", "remove assets"},
+			{"f", "fix (run doctor)"},
+		}},
+		{Title: "Filter", Items: []HelpItem{
+			{"/", "filter by name"},
+		}},
+		{Title: "Tips", Items: []HelpItem{
+			{GlyphDot, "Press / to filter deployments by name."},
+			{GlyphDot, "Press d, r, or f to act on what you see."},
+		}},
+	}
+}
+
 func (s *statusScreen) Init() tea.Cmd {
 	// M10: capture svc in local to avoid capturing mutable receiver in goroutine
 	svc := s.svc

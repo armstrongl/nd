@@ -54,6 +54,24 @@ func newScopeScreen(svc Services, styles Styles, isDark bool) *scopeScreen {
 func (s *scopeScreen) Title() string    { return "Switch Scope" }
 func (s *scopeScreen) InputActive() bool { return s.step == scopeFormStep && !s.navigated }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *scopeScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case scopeShowError:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default: // scopeFormStep
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"esc", "back"},
+		}
+	}
+}
+
 func (s *scopeScreen) Init() tea.Cmd {
 	return s.form.Init()
 }

@@ -58,6 +58,15 @@ func newFirstRunScreen(svc Services, styles Styles, isDark bool) *firstRunScreen
 func (f *firstRunScreen) Title() string    { return "Welcome" }
 func (f *firstRunScreen) InputActive() bool { return !f.navigated }
 
+// FullHelpItems returns the welcome-screen keybindings for the help bar and overlay.
+func (f *firstRunScreen) FullHelpItems() []HelpItem {
+	return []HelpItem{
+		{"j/k", "navigate"},
+		{"enter", "select"},
+		{"esc", "quit"},
+	}
+}
+
 func (f *firstRunScreen) Init() tea.Cmd {
 	return f.form.Init()
 }
