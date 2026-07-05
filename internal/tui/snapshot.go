@@ -131,6 +131,13 @@ func (s *snapshotScreen) FullHelpItems() []HelpItem {
 }
 
 func (s *snapshotScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the snapshot list. It is used both
+// by Init() and after a successful save so the cached slice reflects the change
+// without leaving the screen.
+func (s *snapshotScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		mgr, err := svc.ProfileManager()
@@ -158,16 +165,23 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		}
 		s.snapshots = msg.snapshots
+		// A reload triggered after a save must not yank the user off the "done"
+		// confirmation; only refresh the cached data in that case.
+		if s.step == snapshotDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case snapshotSavedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Snapshot %q saved.", s.styles.Success.Render(GlyphOK), msg.name)
+			s.step = snapshotDone
+			return s, nil
 		}
+		s.doneMsg = fmt.Sprintf("%s Snapshot %q saved.", s.styles.Success.Render(GlyphOK), msg.name)
 		s.step = snapshotDone
-		return s, nil
+		// Reload so the new snapshot appears in List/Restore without re-entering.
+		return s, s.reload()
 
 	case snapshotRestoredMsg:
 		if msg.err != nil {

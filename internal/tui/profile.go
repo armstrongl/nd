@@ -116,6 +116,13 @@ func (s *profileScreen) FullHelpItems() []HelpItem {
 }
 
 func (s *profileScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the profile list and active
+// profile. It is used both by Init() and after a successful mutation so the
+// cached slice reflects the change without leaving the screen.
+func (s *profileScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		mgr, err := svc.ProfileManager()
@@ -148,6 +155,11 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.profiles = msg.profiles
 		s.active = msg.active
+		// A reload triggered after a mutation must not yank the user off the
+		// "done" confirmation; only refresh the cached data in that case.
+		if s.step == profileDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case profileSwitchedMsg:
@@ -166,11 +178,13 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case profileCreatedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Profile %q created.", s.styles.Success.Render(GlyphOK), msg.name)
+			s.step = profileDone
+			return s, nil
 		}
+		s.doneMsg = fmt.Sprintf("%s Profile %q created.", s.styles.Success.Render(GlyphOK), msg.name)
 		s.step = profileDone
-		return s, nil
+		// Reload so the new profile appears in List/Switch without re-entering.
+		return s, s.reload()
 	}
 
 	switch s.step {
