@@ -10,6 +10,9 @@ import (
 )
 
 func newCompletionCmd(app *App) *cobra.Command {
+	var install bool
+	var installDir string
+
 	cmd := &cobra.Command{
 		Use:   "completion",
 		Short: "Generate shell completion scripts",
@@ -22,7 +25,40 @@ Run "nd completion <shell> --help" for shell-specific instructions.`,
   nd completion zsh --install
   nd completion fish`,
 		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			// Auto-detect the shell from $SHELL and generate that script.
+			shell := filepath.Base(os.Getenv("SHELL"))
+			switch shell {
+			case "bash", "zsh", "fish":
+				// supported
+			default:
+				return fmt.Errorf("could not detect a supported shell from $SHELL (%q); specify one explicitly: bash, zsh, fish", os.Getenv("SHELL"))
+			}
+			for _, c := range cmd.Commands() {
+				if c.Name() != shell {
+					continue
+				}
+				// Forward --install / --install-dir to the matched subcommand.
+				if install {
+					if err := c.Flags().Set("install", "true"); err != nil {
+						return err
+					}
+				}
+				if installDir != "" {
+					if err := c.Flags().Set("install-dir", installDir); err != nil {
+						return err
+					}
+				}
+				return c.RunE(c, nil)
+			}
+			return fmt.Errorf("completion subcommand %q not available", shell)
+		},
 	}
+	cmd.Flags().BoolVar(&install, "install", false, "install to standard location")
+	cmd.Flags().StringVar(&installDir, "install-dir", "", "override install directory")
 
 	cmd.AddCommand(
 		newCompletionBashCmd(app),

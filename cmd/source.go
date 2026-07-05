@@ -23,6 +23,9 @@ func newSourceCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "creating-sources",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(

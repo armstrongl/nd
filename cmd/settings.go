@@ -16,6 +16,9 @@ func newSettingsCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "configuration",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "edit")
+		},
 	}
 
 	cmd.AddCommand(newSettingsEditCmd(app))
@@ -31,7 +34,7 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "configuration,getting-started,troubleshooting,asset-types/hooks,asset-types/output-styles",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			configPath := app.ConfigPath

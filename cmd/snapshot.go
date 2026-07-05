@@ -22,6 +22,9 @@ func newSnapshotCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(
@@ -43,7 +46,7 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			name := args[0]
@@ -102,7 +105,7 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -241,7 +244,7 @@ func newSnapshotListCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -290,7 +293,7 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

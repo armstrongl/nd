@@ -52,6 +52,25 @@ func printHuman(w io.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(w, format, args...)
 }
 
+// delegateToSubcommand runs the parent command's named subcommand (for example
+// "list" or "edit") when the parent is invoked with no subcommand of its own,
+// so bare "nd source" behaves like "nd source list". Cobra propagates the
+// parent's IO streams to the child, so the delegated command writes to the same
+// output. A leftover positional argument means the user typed an unrecognized
+// subcommand, which is surfaced as an unknown-command error rather than being
+// silently swallowed by the delegation.
+func delegateToSubcommand(cmd *cobra.Command, args []string, name string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+	}
+	for _, c := range cmd.Commands() {
+		if c.Name() == name {
+			return c.RunE(c, nil)
+		}
+	}
+	return fmt.Errorf("no %q subcommand available for %q", name, cmd.CommandPath())
+}
+
 // confirm prompts for yes/no confirmation.
 // Returns true immediately if yesFlag is set.
 // Returns an error if stdin is not a terminal (piped input).

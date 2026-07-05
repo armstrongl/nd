@@ -208,6 +208,86 @@ func TestSourceList_Empty(t *testing.T) {
 	}
 }
 
+func TestSourceBare_DelegatesToList(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// Bare `nd source` should behave exactly like `nd source list`.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var bare bytes.Buffer
+	rootCmd.SetOut(&bare)
+	rootCmd.SetErr(&bare)
+	rootCmd.SetArgs([]string{"--config", configPath, "source"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	var list bytes.Buffer
+	rootCmd2.SetOut(&list)
+	rootCmd2.SetErr(&list)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "list"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+
+	if bare.String() != list.String() {
+		t.Errorf("bare `nd source` output %q != `nd source list` output %q", bare.String(), list.String())
+	}
+	if strings.Contains(bare.String(), "Usage:") || strings.Contains(bare.String(), "Available Commands:") {
+		t.Errorf("bare `nd source` should not print Cobra usage, got:\n%s", bare.String())
+	}
+	// The builtin source is always listed, confirming the list path ran.
+	if !strings.Contains(bare.String(), "builtin") {
+		t.Errorf("expected builtin source in bare output, got: %s", bare.String())
+	}
+}
+
+func TestSourceBare_JSON(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// `--json` must behave the same on the bare parent as on the explicit list.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--json", "source"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+}
+
+func TestSourceBare_UnknownSubcommand(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// An unrecognized subcommand must still error, not be swallowed by the
+	// delegating RunE.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "source", "bogus"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("expected 'unknown command' error, got: %v", err)
+	}
+}
+
 func TestSourceList_JSON(t *testing.T) {
 	tmp, configPath := setupTestConfig(t)
 

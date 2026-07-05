@@ -22,6 +22,9 @@ func newProfileCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(
@@ -54,7 +57,7 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			name := args[0]
@@ -145,7 +148,7 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -222,7 +225,7 @@ func newProfileListCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -295,7 +298,7 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -414,7 +417,7 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -594,7 +597,7 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.ExactArgs(2),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			profileName := args[0]
