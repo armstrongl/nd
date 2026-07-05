@@ -9,6 +9,7 @@ import (
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/oplog"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/spf13/cobra"
 )
 
@@ -54,6 +55,13 @@ Asset references can be:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
+			// Scan at most once. The interactive picker (no args) scans to build
+			// its choices and that same summary is reused to resolve the pick;
+			// the args-supplied path scans once below. summary stays nil until a
+			// scan happens so the JSON/non-terminal guards can return early
+			// without scanning at all.
+			var summary *sourcemanager.ScanSummary
+
 			// Interactive picker when no args provided
 			if len(args) == 0 {
 				if app.JSON {
@@ -67,12 +75,13 @@ Asset references can be:
 				if err != nil {
 					return fmt.Errorf("scan sources: %w", err)
 				}
+				summary = scanResult
 				agentAlias := ""
 				if ag, err := app.ActiveAgent(); err == nil {
 					agentAlias = ag.SourceAlias
 				}
 				var completions []string
-				for _, a := range scanResult.Index.FilterByAgent(agentAlias) {
+				for _, a := range summary.Index.FilterByAgent(agentAlias) {
 					completions = append(completions, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))
 				}
 				if len(completions) == 0 {
@@ -86,9 +95,12 @@ Asset references can be:
 				args = []string{choice}
 			}
 
-			summary, err := app.ScanIndex()
-			if err != nil {
-				return fmt.Errorf("scan sources: %w", err)
+			if summary == nil {
+				scanResult, err := app.ScanIndex()
+				if err != nil {
+					return fmt.Errorf("scan sources: %w", err)
+				}
+				summary = scanResult
 			}
 			index := summary.Index
 

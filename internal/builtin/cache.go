@@ -1,6 +1,8 @@
 package builtin
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,6 +14,13 @@ import (
 
 // cacheBaseDir can be overridden in tests to avoid touching the real filesystem.
 var cacheBaseDir string
+
+// stampFile names the content-stamp file written into an extracted cache dir.
+// It records a checksum of the embedded source tree so a rebuilt binary with
+// changed builtin assets (common for unversioned "dev" builds, which all share
+// one cache dir) invalidates a stale extraction instead of serving it forever.
+// The leading dot keeps it out of convention-based source scanning.
+const stampFile = ".nd-builtin-stamp"
 
 // CacheDir returns the directory where built-in source files are extracted.
 // Format: $XDG_CACHE_HOME/nd/builtin/<version>/ (default ~/.cache/nd/builtin/<version>/).
@@ -34,11 +43,27 @@ func Path() (string, error) {
 	return dir, nil
 }
 
-// EnsureExtracted checks if the cache directory exists and extracts
-// embedded files if it does not. Uses atomic rename to prevent partial state.
+// EnsureExtracted materializes the embedded source into dir. It re-extracts
+// whenever the extracted content no longer matches the embedded tree, detected
+// via a content stamp: if dir exists and its stamp matches the current embedded
+// checksum, extraction is skipped; otherwise the stale dir is removed and the
+// tree is re-extracted. Uses atomic rename to prevent partial state.
 func EnsureExtracted(dir string) error {
+	stamp, err := embeddedStamp()
+	if err != nil {
+		return fmt.Errorf("compute builtin stamp: %w", err)
+	}
+
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
-		return nil // Already extracted
+		// Serve the cache only when its stamp matches the embedded content.
+		if existing, rerr := os.ReadFile(filepath.Join(dir, stampFile)); rerr == nil && string(existing) == stamp {
+			return nil // Already extracted, content current
+		}
+		// Missing or mismatched stamp: the extraction is stale (or predates
+		// stamping). Remove it so the fresh copy replaces it cleanly.
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("remove stale cache dir: %w", err)
+		}
 	}
 
 	// Extract to a temp directory in the same parent, then rename atomically.
@@ -95,6 +120,12 @@ func EnsureExtracted(dir string) error {
 		return fmt.Errorf("extract embedded source: %w", err)
 	}
 
+	// Stamp the temp dir before the rename so the finalized cache is atomically
+	// tagged with the content it was extracted from.
+	if err := os.WriteFile(filepath.Join(tmpDir, stampFile), []byte(stamp), 0o644); err != nil {
+		return fmt.Errorf("write builtin stamp: %w", err)
+	}
+
 	// Atomic rename
 	if err := os.Rename(tmpDir, dir); err != nil {
 		return fmt.Errorf("finalize cache directory: %w", err)
@@ -102,6 +133,35 @@ func EnsureExtracted(dir string) error {
 
 	success = true
 	return nil
+}
+
+// embeddedStamp computes a deterministic checksum over the embedded source
+// tree. Every path (so additions, removals, and renames register) and every
+// file's length and contents feed the hash, so any change to the builtin assets
+// yields a different stamp. fs.WalkDir visits entries in lexical order, making
+// the result stable across runs.
+func embeddedStamp() (string, error) {
+	h := sha256.New()
+	err := fs.WalkDir(FS, "source", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(h, "%s\n", path)
+		if d.IsDir() {
+			return nil
+		}
+		data, err := FS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read embedded %s: %w", path, err)
+		}
+		fmt.Fprintf(h, "%d\n", len(data))
+		h.Write(data)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // xdgCacheHome returns $XDG_CACHE_HOME or ~/.cache as fallback.

@@ -56,6 +56,9 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 		return nil, fmt.Errorf("path %q is not a directory", absPath)
 	}
 
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	// Check for duplicate
 	for _, s := range sm.cfg.Sources {
 		if s.Path == absPath {
@@ -85,6 +88,9 @@ func (sm *SourceManager) AddLocal(path string, alias string) (*source.Source, er
 		sm.cfg.Sources = oldSources
 		return nil, fmt.Errorf("save config: %w", err)
 	}
+	// Mark the file we just wrote as observed so a later reload does not
+	// re-read it and clobber this in-memory mutation.
+	sm.recordConfigStat()
 
 	return &source.Source{
 		ID:    id,
@@ -102,6 +108,9 @@ func (sm *SourceManager) Remove(sourceID string) error {
 		return fmt.Errorf("the builtin source cannot be removed")
 	}
 
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	idx := -1
 	for i, s := range sm.cfg.Sources {
 		if s.ID == sourceID {
@@ -113,14 +122,20 @@ func (sm *SourceManager) Remove(sourceID string) error {
 		return fmt.Errorf("source %q not found", sourceID)
 	}
 
-	removed := sm.cfg.Sources[idx]
-	sm.cfg.Sources = append(sm.cfg.Sources[:idx], sm.cfg.Sources[idx+1:]...)
+	// Build a new slice rather than shifting in place, so a concurrent reader
+	// holding an earlier snapshot of the sources slice is never mutated.
+	oldSources := sm.cfg.Sources
+	newSources := make([]config.SourceEntry, 0, len(oldSources)-1)
+	newSources = append(newSources, oldSources[:idx]...)
+	newSources = append(newSources, oldSources[idx+1:]...)
+	sm.cfg.Sources = newSources
 
 	if err := WriteConfig(sm.configPath, sm.cfg); err != nil {
 		// Roll back
-		sm.cfg.Sources = append(sm.cfg.Sources[:idx], append([]config.SourceEntry{removed}, sm.cfg.Sources[idx:]...)...)
+		sm.cfg.Sources = oldSources
 		return fmt.Errorf("save config: %w", err)
 	}
+	sm.recordConfigStat()
 
 	return nil
 }
@@ -130,18 +145,22 @@ func (sm *SourceManager) Remove(sourceID string) error {
 func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error) {
 	expandedURL := ExpandGitURL(url)
 
-	// Check for duplicate URL (persisted in config via SourceEntry.URL)
+	// Read the current source set under the lock to check for a duplicate URL
+	// and derive a unique ID, then release it for the (slow, network) clone.
+	sm.mu.Lock()
 	for _, s := range sm.cfg.Sources {
 		if s.Type == nd.SourceGit && s.URL == expandedURL {
+			sm.mu.Unlock()
 			return nil, fmt.Errorf("git source %q is already registered as %q", url, s.ID)
 		}
 	}
-
 	existingIDs := make(map[string]bool)
 	existingIDs[nd.BuiltinSourceID] = true
 	for _, s := range sm.cfg.Sources {
 		existingIDs[s.ID] = true
 	}
+	sm.mu.Unlock()
+
 	repoName := RepoNameFromURL(url)
 	id := GenerateSourceID(filepath.Join(sm.sourcesDir, repoName), existingIDs)
 
@@ -164,6 +183,9 @@ func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error
 		Alias: alias,
 	}
 
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	oldSources := sm.cfg.Sources
 	sm.cfg.Sources, _ = insertBeforeBuiltin(sm.cfg.Sources, entry)
 
@@ -172,6 +194,7 @@ func (sm *SourceManager) AddGit(url string, alias string) (*source.Source, error
 		os.RemoveAll(cloneTarget)
 		return nil, fmt.Errorf("save config: %w", err)
 	}
+	sm.recordConfigStat()
 
 	return &source.Source{
 		ID:    id,
