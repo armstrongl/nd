@@ -129,6 +129,7 @@ type DeployError struct {
 	AssetName       string
 	AssetType       nd.AssetType
 	SourcePath      string
+	Agent           string // target agent name (for per-agent labeling)
 	Err             error
 	UnsupportedType bool // true when the failure is due to agent type incompatibility
 }
@@ -486,6 +487,7 @@ func (e *Engine) DeployBulk(reqs []DeployRequest) (*BulkDeployResult, error) {
 					AssetName:  req.Asset.Name,
 					AssetType:  req.Asset.Type,
 					SourcePath: req.Asset.SourcePath,
+					Agent:      e.agent.Name,
 					Err:        err,
 				}
 				var ute *UnsupportedTypeError

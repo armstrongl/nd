@@ -2,9 +2,26 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/armstrongl/nd/internal/nd"
 )
+
+// knownDeployAgentNames lists the built-in agent names accepted for
+// default_deploy_agents. Kept local to avoid an import cycle with the agent
+// package (which imports config); it must stay in sync with the agents defined
+// in agent.New (internal/agent/registry.go).
+var knownDeployAgentNames = []string{"claude-code", "copilot"}
+
+// isKnownDeployAgent reports whether name is a recognized built-in agent.
+func isKnownDeployAgent(name string) bool {
+	for _, n := range knownDeployAgentNames {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
 
 // ValidationError represents a single config validation failure.
 type ValidationError struct {
@@ -53,6 +70,15 @@ func (c *Config) Validate() []ValidationError {
 		errs = append(errs, ValidationError{
 			Field: "default_agent", Message: "must not be empty",
 		})
+	}
+
+	for _, name := range c.DefaultDeployAgents {
+		if !isKnownDeployAgent(name) {
+			errs = append(errs, ValidationError{
+				Field:   "default_deploy_agents",
+				Message: fmt.Sprintf("unknown agent %q, must be one of %s", name, strings.Join(knownDeployAgentNames, ", ")),
+			})
+		}
 	}
 
 	switch c.SymlinkStrategy {

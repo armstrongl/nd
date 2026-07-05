@@ -156,6 +156,30 @@ func TestMergeConfigs(t *testing.T) {
 	}
 }
 
+func TestMergeConfigsDefaultDeployAgents(t *testing.T) {
+	global := sourcemanager.DefaultConfig()
+	global.DefaultDeployAgents = []string{"claude-code"}
+
+	// A non-empty project value replaces the global value.
+	project := config.ProjectConfig{
+		Version:             1,
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+	}
+	merged := sourcemanager.MergeConfigs(global, &project)
+	if len(merged.DefaultDeployAgents) != 2 ||
+		merged.DefaultDeployAgents[0] != "claude-code" ||
+		merged.DefaultDeployAgents[1] != "copilot" {
+		t.Fatalf("project override: got %v, want [claude-code copilot]", merged.DefaultDeployAgents)
+	}
+
+	// An empty project value preserves the global value.
+	empty := config.ProjectConfig{Version: 1}
+	merged2 := sourcemanager.MergeConfigs(global, &empty)
+	if len(merged2.DefaultDeployAgents) != 1 || merged2.DefaultDeployAgents[0] != "claude-code" {
+		t.Errorf("empty project should preserve global, got %v", merged2.DefaultDeployAgents)
+	}
+}
+
 func TestMergeConfigsNilProject(t *testing.T) {
 	global := sourcemanager.DefaultConfig()
 	merged := sourcemanager.MergeConfigs(global, nil)

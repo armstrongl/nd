@@ -24,6 +24,7 @@ type Services interface {
 
 	// Deployment
 	DeployEngine() (*deploy.Engine, error)
+	DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error)
 	StateStore() *state.Store
 
 	// Profiles & snapshots

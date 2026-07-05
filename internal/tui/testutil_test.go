@@ -14,20 +14,21 @@ import (
 // All methods return sensible zero values by default. Override individual
 // function fields to inject custom behavior in tests.
 type mockServices struct {
-	sourceManagerFn  func() (*sourcemanager.SourceManager, error)
-	scanIndexFn      func() (*sourcemanager.ScanSummary, error)
-	agentRegistryFn  func() (*agent.Registry, error)
-	defaultAgentFn   func() (*agent.Agent, error)
-	deployEngineFn   func() (*deploy.Engine, error)
-	stateStoreFn     func() *state.Store
-	profileManagerFn func() (*profile.Manager, error)
-	profileStoreFn   func() (*profile.Store, error)
-	opLogFn          func() *oplog.Writer
+	sourceManagerFn   func() (*sourcemanager.SourceManager, error)
+	scanIndexFn       func() (*sourcemanager.ScanSummary, error)
+	agentRegistryFn   func() (*agent.Registry, error)
+	defaultAgentFn    func() (*agent.Agent, error)
+	deployEngineFn    func() (*deploy.Engine, error)
+	deployEngineForFn func(ag *agent.Agent) (*deploy.Engine, error)
+	stateStoreFn      func() *state.Store
+	profileManagerFn  func() (*profile.Manager, error)
+	profileStoreFn    func() (*profile.Store, error)
+	opLogFn           func() *oplog.Writer
 	getScopeFn        func() nd.Scope
 	getConfigPathFn   func() string
 	getProjectRootFn  func() string
 	isDryRunFn        func() bool
-	resetForScopeFn  func(scope nd.Scope, projectRoot string)
+	resetForScopeFn   func(scope nd.Scope, projectRoot string)
 
 	// Track ResetForScope calls for assertions.
 	resetCalls []resetForScopeCall
@@ -73,6 +74,13 @@ func (m *mockServices) ActiveAgent() (*agent.Agent, error) {
 func (m *mockServices) DeployEngine() (*deploy.Engine, error) {
 	if m.deployEngineFn != nil {
 		return m.deployEngineFn()
+	}
+	return nil, nil
+}
+
+func (m *mockServices) DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error) {
+	if m.deployEngineForFn != nil {
+		return m.deployEngineForFn(ag)
 	}
 	return nil, nil
 }

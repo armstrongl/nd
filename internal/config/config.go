@@ -6,13 +6,14 @@ import "github.com/armstrongl/nd/internal/nd"
 // This is what the rest of the application uses after loading + merging.
 // Merge order: built-in defaults -> global config -> project config -> CLI flags.
 type Config struct {
-	Version         int                `yaml:"version"          json:"version"`
-	DefaultScope    nd.Scope           `yaml:"default_scope"    json:"default_scope"`
-	DefaultAgent    string             `yaml:"default_agent"    json:"default_agent"`
-	SymlinkStrategy nd.SymlinkStrategy `yaml:"symlink_strategy" json:"symlink_strategy"`
-	Sources         []SourceEntry      `yaml:"sources"          json:"sources"`
-	Agents          []AgentOverride    `yaml:"agents,omitempty" json:"agents,omitempty"`
-	ContextTypes    []string           `yaml:"context_types,omitempty" json:"context_types,omitempty"`
+	Version             int                `yaml:"version"          json:"version"`
+	DefaultScope        nd.Scope           `yaml:"default_scope"    json:"default_scope"`
+	DefaultAgent        string             `yaml:"default_agent"    json:"default_agent"`
+	DefaultDeployAgents []string           `yaml:"default_deploy_agents,omitempty" json:"default_deploy_agents,omitempty"`
+	SymlinkStrategy     nd.SymlinkStrategy `yaml:"symlink_strategy" json:"symlink_strategy"`
+	Sources             []SourceEntry      `yaml:"sources"          json:"sources"`
+	Agents              []AgentOverride    `yaml:"agents,omitempty" json:"agents,omitempty"`
+	ContextTypes        []string           `yaml:"context_types,omitempty" json:"context_types,omitempty"`
 }
 
 // SourceEntry represents a source registration in the config file.
@@ -37,10 +38,11 @@ type AgentOverride struct {
 // Fields are pointers so we can distinguish "not set" from "set to zero value"
 // during the merge with global config.
 type ProjectConfig struct {
-	Version         int                 `yaml:"version"`
-	DefaultScope    *nd.Scope           `yaml:"default_scope,omitempty"`
-	DefaultAgent    *string             `yaml:"default_agent,omitempty"`
-	SymlinkStrategy *nd.SymlinkStrategy `yaml:"symlink_strategy,omitempty"`
-	Sources         []SourceEntry       `yaml:"sources,omitempty"`
-	Agents          []AgentOverride     `yaml:"agents,omitempty"`
+	Version             int                 `yaml:"version"`
+	DefaultScope        *nd.Scope           `yaml:"default_scope,omitempty"`
+	DefaultAgent        *string             `yaml:"default_agent,omitempty"`
+	DefaultDeployAgents []string            `yaml:"default_deploy_agents,omitempty"`
+	SymlinkStrategy     *nd.SymlinkStrategy `yaml:"symlink_strategy,omitempty"`
+	Sources             []SourceEntry       `yaml:"sources,omitempty"`
+	Agents              []AgentOverride     `yaml:"agents,omitempty"`
 }

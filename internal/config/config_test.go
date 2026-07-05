@@ -41,6 +41,69 @@ func TestConfigYAMLRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConfigDefaultDeployAgentsRoundTrip(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		Sources:             []config.SourceEntry{},
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !contains(string(data), "default_deploy_agents") {
+		t.Errorf("expected default_deploy_agents in YAML, got:\n%s", data)
+	}
+
+	var got config.Config
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(got.DefaultDeployAgents) != 2 ||
+		got.DefaultDeployAgents[0] != "claude-code" ||
+		got.DefaultDeployAgents[1] != "copilot" {
+		t.Errorf("default_deploy_agents round-trip: got %v", got.DefaultDeployAgents)
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsValid(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+	}
+	errs := c.Validate()
+	if len(errs) != 0 {
+		t.Errorf("expected no errors for valid default_deploy_agents, got %v", errs)
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsUnknown(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		DefaultDeployAgents: []string{"claude-code", "bogus"},
+	}
+	errs := c.Validate()
+	found := false
+	for _, e := range errs {
+		if e.Field == "default_deploy_agents" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a ValidationError with Field 'default_deploy_agents', got %v", errs)
+	}
+}
+
 func TestProjectConfigPointerSemantics(t *testing.T) {
 	// Unset fields should not appear in YAML
 	pc := config.ProjectConfig{Version: 1}
