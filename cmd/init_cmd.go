@@ -231,22 +231,46 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 		return nil, nil
 	}
 
-	// Auto-detect agent from registry if not provided
-	if ag == nil {
-		detected, err := reg.Default()
-		if err != nil {
-			if !app.Quiet {
-				printHuman(cmd.ErrOrStderr(), "warning: no agent detected, skipping built-in deploy: %v\n", err)
-			}
-			return nil, nil
+	// Resolve the target agent set. When ag is provided (test override), deploy
+	// only to it. Otherwise honor config default_deploy_agents when set, falling
+	// back to the single default agent for back-compat. Init never fans out to
+	// every detected agent unless default_deploy_agents lists them.
+	var targets []*agent.Agent
+	if ag != nil {
+		targets = []*agent.Agent{ag}
+	} else {
+		var names []string
+		if sm, smErr := app.SourceManager(); smErr == nil {
+			names = sm.Config().DefaultDeployAgents
 		}
-		ag = detected
+		if len(names) > 0 {
+			reg.Detect()
+			for _, name := range names {
+				got, gErr := reg.Get(name)
+				if gErr != nil {
+					if !app.Quiet {
+						printHuman(cmd.ErrOrStderr(), "warning: unknown agent %q in default_deploy_agents, skipping\n", name)
+					}
+					continue
+				}
+				targets = append(targets, got)
+			}
+		}
+		if len(targets) == 0 {
+			detected, err := reg.Default()
+			if err != nil {
+				if !app.Quiet {
+					printHuman(cmd.ErrOrStderr(), "warning: no agent detected, skipping built-in deploy: %v\n", err)
+				}
+				return nil, nil
+			}
+			targets = []*agent.Agent{detected}
+		}
 	}
 
-	// Create the deploy engine
+	// Create the shared state store and deploy to each resolved agent.
 	sstore := state.NewStore(filepath.Join(configDir, "state", "deployments.yaml"))
 	backupDir := filepath.Join(configDir, "backups")
-	eng := deploy.New(sstore, ag, backupDir)
 
 	// Resolve symlink strategy: config > default (absolute). nd init has no
 	// --relative/--absolute flags, so honor whatever the written config sets.
@@ -258,33 +282,39 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 		}
 	}
 
-	// Build deploy requests for all assets
-	reqs := make([]deploy.DeployRequest, len(scanResult.Assets))
-	for i, a := range scanResult.Assets {
-		reqs[i] = deploy.DeployRequest{
-			Asset:    a,
-			Scope:    nd.ScopeGlobal,
-			Origin:   nd.OriginManual,
-			Strategy: strategy,
+	// Deploy the built-in assets to each resolved agent, collecting the deployed
+	// asset list (name+type, for --json) and any failures across all agents.
+	deployedAssets := make([]builtinAsset, 0, len(scanResult.Assets)*len(targets))
+	var failures []deploy.DeployError
+	for _, target := range targets {
+		eng := deploy.New(sstore, target, backupDir)
+
+		reqs := make([]deploy.DeployRequest, len(scanResult.Assets))
+		for i, a := range scanResult.Assets {
+			reqs[i] = deploy.DeployRequest{
+				Asset:    a,
+				Scope:    nd.ScopeGlobal,
+				Origin:   nd.OriginManual,
+				Strategy: strategy,
+			}
 		}
-	}
 
-	bulkResult, err := eng.DeployBulk(reqs)
-	if err != nil {
-		return nil, fmt.Errorf("deploy built-in assets: %w", err)
-	}
-
-	deployedAssets := make([]builtinAsset, 0, len(bulkResult.Succeeded))
-	for _, r := range bulkResult.Succeeded {
-		deployedAssets = append(deployedAssets, builtinAsset{
-			Name: r.Deployment.AssetName,
-			Type: r.Deployment.AssetType,
-		})
+		bulkResult, err := eng.DeployBulk(reqs)
+		if err != nil {
+			return deployedAssets, fmt.Errorf("deploy built-in assets: %w", err)
+		}
+		for _, r := range bulkResult.Succeeded {
+			deployedAssets = append(deployedAssets, builtinAsset{
+				Name: r.Deployment.AssetName,
+				Type: r.Deployment.AssetType,
+			})
+		}
+		failures = append(failures, bulkResult.Failed...)
 	}
 
 	if !app.Quiet && !app.JSON {
 		printHuman(w, "Deployed %d built-in asset(s)\n", len(deployedAssets))
-		for _, f := range bulkResult.Failed {
+		for _, f := range failures {
 			printHuman(cmd.ErrOrStderr(), "Failed: %s/%s: %v\n", f.AssetType, f.AssetName, f.Err)
 		}
 	}

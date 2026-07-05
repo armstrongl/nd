@@ -42,19 +42,31 @@ func (d *Deployment) Identity() asset.Identity {
 }
 
 // Validate checks the deployment state for internal consistency.
-// Reports duplicate deployment identities (keyed on {SourceID, AssetType,
-// AssetName}) and any deployment whose scope is not global or project.
-// A nil/empty result means the state is structurally valid.
+// Reports duplicate deployment targets and any deployment whose scope is not
+// global or project. A nil/empty result means the state is structurally valid.
+//
+// The duplicate key is the full deployment target — {SourceID, AssetType,
+// AssetName, Agent, Scope, ProjectPath} — because the same asset can be legitimately
+// deployed to multiple agents (multi-agent deploy) and to multiple scopes
+// (global vs a project); those are distinct targets, not duplicates. Only two
+// records aimed at the identical target are a genuine duplicate.
 func (s *DeploymentState) Validate() []error {
 	var errs []error
-	seen := make(map[asset.Identity]bool)
+	type targetKey struct {
+		id          asset.Identity
+		agent       string
+		scope       nd.Scope
+		projectPath string
+	}
+	seen := make(map[targetKey]bool)
 	for i := range s.Deployments {
 		d := &s.Deployments[i]
 		id := d.Identity()
-		if seen[id] {
+		key := targetKey{id: id, agent: d.Agent, scope: d.Scope, projectPath: d.ProjectPath}
+		if seen[key] {
 			errs = append(errs, fmt.Errorf("deployments[%d]: duplicate identity %s/%s from %s", i, id.Type, id.Name, id.SourceID))
 		}
-		seen[id] = true
+		seen[key] = true
 
 		switch d.Scope {
 		case nd.ScopeGlobal, nd.ScopeProject:

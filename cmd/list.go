@@ -54,13 +54,23 @@ func newListCmd(app *App) *cobra.Command {
 				}
 			}
 
-			// Get deployment status for cross-referencing
+			// Get deployment status across every detected agent for
+			// cross-referencing, and collect each agent's source alias so the
+			// listing reflects the assets visible to all of them.
 			var deployedSet map[string]string // "type/name" -> "scope"
-			eng, engErr := app.DeployEngine()
-			if engErr == nil {
-				entries, err := eng.Status()
-				if err == nil {
-					deployedSet = make(map[string]string)
+			var aliases []string
+			if agents, agErr := app.DeployAgents(); agErr == nil {
+				deployedSet = make(map[string]string)
+				for _, ag := range agents {
+					aliases = append(aliases, ag.SourceAlias)
+					eng, engErr := app.DeployEngineFor(ag)
+					if engErr != nil {
+						continue
+					}
+					entries, err := eng.Status()
+					if err != nil {
+						continue
+					}
 					for _, e := range entries {
 						key := fmt.Sprintf("%s/%s", e.Deployment.AssetType, e.Deployment.AssetName)
 						deployedSet[key] = string(e.Deployment.Scope)
@@ -68,11 +78,23 @@ func newListCmd(app *App) *cobra.Command {
 				}
 			}
 
-			agentAlias := ""
-			if ag, err := app.ActiveAgent(); err == nil {
-				agentAlias = ag.SourceAlias
+			// Union the assets visible to each detected agent's alias (dedupe by
+			// type/name) so a multi-agent listing isn't narrowed to one agent.
+			all := index.FilterByAgent("")
+			if len(aliases) > 0 {
+				all = nil
+				seen := make(map[string]bool)
+				for _, alias := range aliases {
+					for _, a := range index.FilterByAgent(alias) {
+						key := fmt.Sprintf("%s/%s", a.Type, a.Name)
+						if seen[key] {
+							continue
+						}
+						seen[key] = true
+						all = append(all, a)
+					}
+				}
 			}
-			all := index.FilterByAgent(agentAlias)
 
 			// Apply filters
 			type listEntry struct {

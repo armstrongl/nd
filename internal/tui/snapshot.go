@@ -463,7 +463,24 @@ func (s *snapshotScreen) runRestore() tea.Cmd {
 		if summary == nil || summary.Index == nil {
 			return snapshotRestoredMsg{err: fmt.Errorf("no asset index available")}
 		}
-		result, err := mgr.Restore(snapName, eng, summary.Index)
+		// Route each snapshot entry through an engine bound to its recorded
+		// agent so restore recreates deployments on the correct agent.
+		engineFor := func(agentName string) (profile.DeployEngine, error) {
+			if agentName == "" {
+				agentName = "claude-code"
+			}
+			reg, regErr := svc.AgentRegistry()
+			if regErr != nil {
+				return nil, regErr
+			}
+			reg.Detect()
+			ag, getErr := reg.Get(agentName)
+			if getErr != nil {
+				return nil, getErr
+			}
+			return svc.DeployEngineFor(ag)
+		}
+		result, err := mgr.Restore(snapName, engineFor, summary.Index)
 		return snapshotRestoredMsg{result: result, err: err}
 	}
 }

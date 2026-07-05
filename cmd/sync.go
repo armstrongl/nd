@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/oplog"
+	"github.com/armstrongl/nd/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -57,16 +59,25 @@ func newSyncCmd(app *App) *cobra.Command {
 				}
 			}
 
-			// Repair symlinks
-			eng, err := app.DeployEngine()
+			// Repair symlinks for every detected agent (each agent's engine only
+			// touches its own deployments in the shared state file).
+			agents, err := app.DeployAgents()
 			if err != nil {
 				return err
 			}
 
 			if app.DryRun {
-				checks, err := eng.Check()
-				if err != nil {
-					return fmt.Errorf("check deployments: %w", err)
+				var checks []state.HealthCheck
+				for _, ag := range agents {
+					eng, engErr := app.DeployEngineFor(ag)
+					if engErr != nil {
+						return engErr
+					}
+					c, cErr := eng.Check()
+					if cErr != nil {
+						return fmt.Errorf("check deployments: %w", cErr)
+					}
+					checks = append(checks, c...)
 				}
 				if app.JSON {
 					return printJSON(w, checks, true)
@@ -82,9 +93,19 @@ func newSyncCmd(app *App) *cobra.Command {
 				return nil
 			}
 
-			result, err := eng.Sync()
-			if err != nil {
-				return fmt.Errorf("sync deployments: %w", err)
+			result := &deploy.SyncResult{}
+			for _, ag := range agents {
+				eng, engErr := app.DeployEngineFor(ag)
+				if engErr != nil {
+					return engErr
+				}
+				r, sErr := eng.Sync()
+				if sErr != nil {
+					return fmt.Errorf("sync deployments: %w", sErr)
+				}
+				result.Repaired = append(result.Repaired, r.Repaired...)
+				result.Removed = append(result.Removed, r.Removed...)
+				result.Warnings = append(result.Warnings, r.Warnings...)
 			}
 
 			app.LogOp(oplog.LogEntry{

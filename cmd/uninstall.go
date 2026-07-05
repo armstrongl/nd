@@ -76,10 +76,18 @@ func newUninstallCmd(app *App) *cobra.Command {
 
 			removeReqs := make([]deploy.RemoveRequest, len(st.Deployments))
 			for i, d := range st.Deployments {
+				// Target the exact recorded deployment's agent rather than relying
+				// on the any-agent fallback. Empty d.Agent maps to "claude-code"
+				// per the v1→v2 migration rule in removeOne.
+				agentName := d.Agent
+				if agentName == "" {
+					agentName = "claude-code"
+				}
 				removeReqs[i] = deploy.RemoveRequest{
 					Identity:    d.Identity(),
 					Scope:       d.Scope,
 					ProjectRoot: d.ProjectPath,
+					Agent:       agentName,
 				}
 			}
 

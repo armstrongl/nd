@@ -444,6 +444,7 @@ func DeploymentsToEntries(deployments []state.Deployment) []SnapshotEntry {
 			Scope:       d.Scope,
 			ProjectPath: d.ProjectPath,
 			Origin:      d.Origin,
+			Agent:       d.Agent,
 			DeployedAt:  d.DeployedAt,
 		}
 	}

@@ -78,6 +78,15 @@ func (m *mockDeployEngine) RemoveBulk(reqs []deploy.RemoveRequest) (*deploy.Bulk
 	return &deploy.BulkRemoveResult{}, nil
 }
 
+// singleEngineFactory adapts one mock engine into a profile.EngineFactory,
+// ignoring the requested agent name. Used by restore tests that exercise a
+// single agent.
+func singleEngineFactory(eng profile.DeployEngine) profile.EngineFactory {
+	return func(string) (profile.DeployEngine, error) {
+		return eng, nil
+	}
+}
+
 // Silence unused import warnings for tests that come later.
 var (
 	_ = asset.NewIndex
@@ -591,7 +600,7 @@ func TestManagerRestore(t *testing.T) {
 
 	eng := &mockDeployEngine{}
 
-	result, err := mgr.Restore("restore-me", eng, idx)
+	result, err := mgr.Restore("restore-me", singleEngineFactory(eng), idx)
 	if err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
@@ -612,6 +621,88 @@ func TestManagerRestore(t *testing.T) {
 	}
 }
 
+// TestManagerRestorePerAgent verifies that a snapshot containing per-agent
+// deployments recreates each one through an engine bound to its recorded agent,
+// and that removals of current deployments are scoped to their agent.
+func TestManagerRestorePerAgent(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+	ss := newMockStateStore()
+	mgr := profile.NewManager(store, ss)
+
+	// Current state: the same skill deployed on two agents (to be removed).
+	ss.st.Deployments = []state.Deployment{
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old",
+			SourcePath: "/a", LinkPath: "/claude/old", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, Agent: "claude-code"},
+		{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "old",
+			SourcePath: "/a", LinkPath: "/copilot/old", Scope: nd.ScopeGlobal,
+			Origin: nd.OriginManual, Agent: "copilot"},
+	}
+
+	// Snapshot: the same skill captured on two different agents.
+	now := time.Now().Truncate(time.Second)
+	_ = store.SaveSnapshot(profile.Snapshot{
+		Version: nd.SchemaVersion, Name: "multi-agent", CreatedAt: now,
+		Deployments: []profile.SnapshotEntry{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "greeting",
+				SourcePath: "/src/greeting", LinkPath: "/claude/greeting", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, Agent: "claude-code", DeployedAt: now},
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "greeting",
+				SourcePath: "/src/greeting", LinkPath: "/copilot/greeting", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, Agent: "copilot", DeployedAt: now},
+		},
+	})
+
+	idx := asset.NewIndex([]asset.Asset{
+		{Identity: asset.Identity{SourceID: "s1", Type: nd.AssetSkill, Name: "greeting"},
+			SourcePath: "/src/greeting", IsDir: true},
+	})
+
+	// One mock engine per agent; the factory routes requests by agent name.
+	engines := map[string]*mockDeployEngine{
+		"claude-code": {},
+		"copilot":     {},
+	}
+	engineFor := func(name string) (profile.DeployEngine, error) {
+		eng, ok := engines[name]
+		if !ok {
+			t.Fatalf("unexpected agent %q requested", name)
+			return nil, nil
+		}
+		return eng, nil
+	}
+
+	result, err := mgr.Restore("multi-agent", engineFor, idx)
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if len(result.MissingAssets) != 0 {
+		t.Errorf("expected no missing assets, got %d", len(result.MissingAssets))
+	}
+
+	// Each agent's engine must have received exactly its own agent-scoped remove
+	// and its own deploy — proving restore recreates each deployment on its
+	// recorded agent.
+	for name, eng := range engines {
+		if !eng.removeBulkCalled {
+			t.Errorf("agent %q: RemoveBulk not called", name)
+		} else if len(eng.removeReqs) != 1 {
+			t.Errorf("agent %q: expected 1 remove request, got %d", name, len(eng.removeReqs))
+		} else if eng.removeReqs[0].Agent != name {
+			t.Errorf("agent %q: remove request agent = %q, want %q", name, eng.removeReqs[0].Agent, name)
+		}
+
+		if !eng.deployBulkCalled {
+			t.Errorf("agent %q: DeployBulk not called", name)
+		} else if len(eng.deployReqs) != 1 {
+			t.Errorf("agent %q: expected 1 deploy request, got %d", name, len(eng.deployReqs))
+		} else if eng.deployReqs[0].Asset.Name != "greeting" {
+			t.Errorf("agent %q: expected greeting deploy, got %q", name, eng.deployReqs[0].Asset.Name)
+		}
+	}
+}
+
 func TestManagerRestoreSnapshotNotFound(t *testing.T) {
 	profilesDir, snapshotsDir := tempDirs(t)
 	store := profile.NewStore(profilesDir, snapshotsDir)
@@ -621,7 +712,7 @@ func TestManagerRestoreSnapshotNotFound(t *testing.T) {
 	eng := &mockDeployEngine{}
 	idx := asset.NewIndex(nil)
 
-	_, err := mgr.Restore("nonexistent", eng, idx)
+	_, err := mgr.Restore("nonexistent", singleEngineFactory(eng), idx)
 	if err == nil {
 		t.Error("should error on nonexistent snapshot")
 	}
@@ -654,7 +745,7 @@ func TestManagerRestoreMissingAssets(t *testing.T) {
 
 	eng := &mockDeployEngine{}
 
-	result, err := mgr.Restore("has-missing", eng, idx)
+	result, err := mgr.Restore("has-missing", singleEngineFactory(eng), idx)
 	if err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
@@ -734,7 +825,7 @@ func TestManagerRestoreAutoSnapshot(t *testing.T) {
 
 	eng := &mockDeployEngine{}
 
-	result, err := mgr.Restore("auto-20260315T140000", eng, idx)
+	result, err := mgr.Restore("auto-20260315T140000", singleEngineFactory(eng), idx)
 	if err != nil {
 		t.Fatalf("Restore auto-snapshot: %v", err)
 	}

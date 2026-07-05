@@ -49,6 +49,35 @@ func envStateFile(configPath string) string {
 	return filepath.Join(filepath.Dir(configPath), "state", "deployments.yaml")
 }
 
+// setupTwoAgentDeployEnv is like setupDeployEnv but also configures and detects
+// a second agent (copilot) by overriding its global_dir to an existing dir.
+// Both claude-code and copilot resolve as detected, enabling multi-agent tests.
+func setupTwoAgentDeployEnv(t *testing.T) (configPath string, srcDir string) {
+	t.Helper()
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	os.MkdirAll(filepath.Join(configDir, "state"), 0o755)
+	configPath = filepath.Join(configDir, "config.yaml")
+
+	srcDir = filepath.Join(tmp, "my-source")
+	os.MkdirAll(filepath.Join(srcDir, "skills", "greeting"), 0o755)
+	os.WriteFile(filepath.Join(srcDir, "skills", "greeting", "SKILL.md"), []byte("# Greeting"), 0o644)
+
+	claudeDir := filepath.Join(tmp, ".claude")
+	os.MkdirAll(claudeDir, 0o755)
+	copilotDir := filepath.Join(tmp, ".copilot")
+	os.MkdirAll(copilotDir, 0o755)
+
+	cfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: absolute\n" +
+		"sources:\n  - id: my-source\n    type: local\n    path: " + srcDir + "\n" +
+		"agents:\n  - name: claude-code\n    global_dir: " + claudeDir + "\n" +
+		"  - name: copilot\n    global_dir: " + copilotDir + "\n"
+	os.WriteFile(configPath, []byte(cfg), 0o644)
+
+	return configPath, srcDir
+}
+
 func TestDeployCmd_SingleAsset(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
