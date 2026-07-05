@@ -534,3 +534,275 @@ func TestInitCmd_DeployBuiltinAssets_UsesRegistry(t *testing.T) {
 		t.Error("expected at least one skill symlink deployed")
 	}
 }
+
+// setTestTerminal overrides the package-level isTerminal check for the duration
+// of the test so completion-prompt paths (gated behind an interactive terminal)
+// are reachable in the non-interactive test environment.
+func setTestTerminal(t *testing.T, interactive bool) {
+	t.Helper()
+	prev := isTerminal
+	isTerminal = func() bool { return interactive }
+	t.Cleanup(func() { isTerminal = prev })
+}
+
+func TestDetectShellFromEnv(t *testing.T) {
+	tests := []struct {
+		name      string
+		shell     string
+		wantShell string
+		wantOK    bool
+	}{
+		{"bash", "/bin/bash", "bash", true},
+		{"zsh", "/bin/zsh", "zsh", true},
+		{"fish", "/usr/bin/fish", "fish", true},
+		{"zsh non-standard path", "/opt/homebrew/bin/zsh", "zsh", true},
+		{"unsupported csh", "/bin/csh", "", false},
+		{"unsupported tcsh", "/bin/tcsh", "", false},
+		{"empty", "", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SHELL", tc.shell)
+			gotShell, gotOK := detectShellFromEnv()
+			if gotShell != tc.wantShell || gotOK != tc.wantOK {
+				t.Errorf("detectShellFromEnv() with SHELL=%q = (%q, %v), want (%q, %v)",
+					tc.shell, gotShell, gotOK, tc.wantShell, tc.wantOK)
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_InstallsForShell(t *testing.T) {
+	tests := []struct {
+		name       string
+		shellEnv   string
+		promptWord string
+		relPath    []string
+		contentSub string
+	}{
+		{"bash", "/bin/bash", "bash", []string{".bash_completion.d", "nd"}, "__nd"},
+		{"zsh", "/bin/zsh", "zsh", []string{".zfunc", "_nd"}, "#compdef"},
+		{"fish", "/usr/bin/fish", "fish", []string{".config", "fish", "completions", "nd.fish"}, "complete"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			setTestTerminal(t, true)
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("SHELL", tc.shellEnv)
+
+			app := &App{}
+			rootCmd := NewRootCmd(app)
+			var out, errBuf bytes.Buffer
+			rootCmd.SetIn(strings.NewReader("y\n"))
+			rootCmd.SetOut(&out)
+			rootCmd.SetErr(&errBuf)
+
+			offerCompletionInstall(rootCmd, app)
+
+			wantPrompt := "Install shell completions for " + tc.promptWord + "?"
+			if !strings.Contains(out.String(), wantPrompt) {
+				t.Errorf("expected prompt %q, got: %s", wantPrompt, out.String())
+			}
+			installed := filepath.Join(append([]string{home}, tc.relPath...)...)
+			content, err := os.ReadFile(installed)
+			if err != nil {
+				t.Fatalf("expected completion installed at %s: %v", installed, err)
+			}
+			if !strings.Contains(string(content), tc.contentSub) {
+				t.Errorf("installed %s missing %q content", installed, tc.contentSub)
+			}
+			if !strings.Contains(out.String(), "Completion script installed to "+installed) {
+				t.Errorf("expected install confirmation for %s, got: %s", installed, out.String())
+			}
+			if errBuf.Len() != 0 {
+				t.Errorf("expected no stderr output, got: %s", errBuf.String())
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_DeclineSkips(t *testing.T) {
+	setTestTerminal(t, true)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	// Pressing Enter (empty answer) declines.
+	rootCmd.SetIn(strings.NewReader("\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+
+	offerCompletionInstall(rootCmd, app)
+
+	if !strings.Contains(out.String(), "Install shell completions for zsh?") {
+		t.Errorf("expected prompt to be shown, got: %s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(home, ".zfunc", "_nd")); err == nil {
+		t.Error("expected no completion file when the prompt is declined")
+	}
+	if errBuf.Len() != 0 {
+		t.Errorf("expected no error output on decline, got: %s", errBuf.String())
+	}
+}
+
+func TestOfferCompletionInstall_Skips(t *testing.T) {
+	tests := []struct {
+		name        string
+		shellEnv    string
+		interactive bool
+		mutate      func(*App)
+	}{
+		{"unsupported shell", "/bin/csh", true, nil},
+		{"another unsupported shell", "/bin/tcsh", true, nil},
+		{"unset shell", "", true, nil},
+		{"yes flag", "/bin/zsh", true, func(a *App) { a.Yes = true }},
+		{"json flag", "/bin/zsh", true, func(a *App) { a.JSON = true }},
+		{"quiet flag", "/bin/zsh", true, func(a *App) { a.Quiet = true }},
+		{"not a terminal", "/bin/zsh", false, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			setTestTerminal(t, tc.interactive)
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("SHELL", tc.shellEnv)
+
+			app := &App{}
+			rootCmd := NewRootCmd(app)
+			// Mutate after NewRootCmd: registering the persistent flags binds
+			// them to the App fields and resets each to its default (false).
+			if tc.mutate != nil {
+				tc.mutate(app)
+			}
+			var out, errBuf bytes.Buffer
+			rootCmd.SetIn(strings.NewReader("y\n"))
+			rootCmd.SetOut(&out)
+			rootCmd.SetErr(&errBuf)
+
+			offerCompletionInstall(rootCmd, app)
+
+			if strings.Contains(out.String(), "Install shell completions") {
+				t.Errorf("expected no completion prompt, got: %s", out.String())
+			}
+			for _, seg := range [][]string{
+				{".zfunc", "_nd"},
+				{".bash_completion.d", "nd"},
+				{".config", "fish", "completions", "nd.fish"},
+			} {
+				full := filepath.Join(append([]string{home}, seg...)...)
+				if _, err := os.Stat(full); err == nil {
+					t.Errorf("expected no completion file, but found %s", full)
+				}
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_InstallFailureWarns(t *testing.T) {
+	setTestTerminal(t, true)
+	home := t.TempDir()
+	// Put a regular file where ~/.zfunc must be created so MkdirAll fails.
+	if err := os.WriteFile(filepath.Join(home, ".zfunc"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+
+	// Must not panic or propagate an error.
+	offerCompletionInstall(rootCmd, app)
+
+	if !strings.Contains(errBuf.String(), "warning: could not install completions") {
+		t.Errorf("expected install warning on stderr, got: %s", errBuf.String())
+	}
+}
+
+func TestInitCmd_OffersCompletionInteractive(t *testing.T) {
+	setTestTerminal(t, true)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("SHELL", "/bin/zsh")
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{
+		initAgent:    testInitAgent(t, tmp),
+		initRegistry: testInitRegistry(t, tmp),
+	}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	// "y" installs completions; the built-in deploy prompt then reads EOF and is skipped.
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	detIdx := strings.Index(got, "Detected agents:")
+	compIdx := strings.Index(got, "Install shell completions for zsh?")
+	deployIdx := strings.Index(got, "Deploy ")
+	if detIdx < 0 || compIdx < 0 || deployIdx < 0 {
+		t.Fatalf("missing expected sections (det=%d comp=%d deploy=%d) in output:\n%s",
+			detIdx, compIdx, deployIdx, got)
+	}
+	if detIdx >= compIdx || compIdx >= deployIdx {
+		t.Errorf("expected order Detected agents < completion prompt < Deploy prompt; got det=%d comp=%d deploy=%d\n%s",
+			detIdx, compIdx, deployIdx, got)
+	}
+
+	installed := filepath.Join(tmp, ".zfunc", "_nd")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("expected zsh completion installed at %s: %v", installed, err)
+	}
+	if !strings.Contains(got, "Completion script installed to "+installed) {
+		t.Errorf("expected install confirmation, got: %s", got)
+	}
+}
+
+func TestInitCmd_CompletionInstallFailure_StillSucceeds(t *testing.T) {
+	setTestTerminal(t, true)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("SHELL", "/bin/zsh")
+	// Block ~/.zfunc so the completion install fails, but leave HOME otherwise
+	// valid so built-in extraction and config creation still work.
+	if err := os.WriteFile(filepath.Join(tmp, ".zfunc"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{
+		initAgent:    testInitAgent(t, tmp),
+		initRegistry: testInitRegistry(t, tmp),
+	}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("nd init must still succeed when completion install fails: %v", err)
+	}
+
+	if !strings.Contains(errBuf.String(), "warning: could not install completions") {
+		t.Errorf("expected completion warning on stderr, got: %s", errBuf.String())
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		t.Errorf("config file should still exist after failed completion install: %v", err)
+	}
+}

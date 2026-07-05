@@ -20,7 +20,7 @@ func newInitCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:  "init",
 		Short: "Initialize nd configuration",
-		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. Use --yes to skip the deploy confirmation prompt.",
+		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. On the interactive path it also offers to install shell\ncompletions for your detected shell. Use --yes to skip the deploy confirmation prompt.",
 		Example: `  # Interactive setup
   nd init
 
@@ -51,6 +51,10 @@ func newInitCmd(app *App) *cobra.Command {
 			if !app.JSON && !app.Quiet {
 				displayAgentDetection(w, detResult)
 			}
+
+			// Offer to install shell completions (interactive human path only;
+			// never fails init).
+			offerCompletionInstall(cmd, app)
 
 			// Deploy built-in assets using the registry
 			deployed, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)

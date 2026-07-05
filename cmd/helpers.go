@@ -130,8 +130,9 @@ func extractChoiceNames(completions []string) []string {
 	return names
 }
 
-// isTerminal checks if stdin is a terminal.
-func isTerminal() bool {
+// isTerminal checks if stdin is a terminal. It is a package variable so tests
+// can inject a fake interactive check when exercising prompt-gated code paths.
+var isTerminal = func() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
