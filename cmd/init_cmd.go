@@ -225,6 +225,16 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 	backupDir := filepath.Join(configDir, "backups")
 	eng := deploy.New(sstore, ag, backupDir)
 
+	// Resolve symlink strategy: config > default (absolute). nd init has no
+	// --relative/--absolute flags, so honor whatever the written config sets.
+	strategy := nd.SymlinkAbsolute
+	if sm, smErr := app.SourceManager(); smErr == nil {
+		cfg := sm.Config()
+		if cfg.SymlinkStrategy != "" {
+			strategy = cfg.SymlinkStrategy
+		}
+	}
+
 	// Build deploy requests for all assets
 	reqs := make([]deploy.DeployRequest, len(scanResult.Assets))
 	for i, a := range scanResult.Assets {
@@ -232,7 +242,7 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 			Asset:    a,
 			Scope:    nd.ScopeGlobal,
 			Origin:   nd.OriginManual,
-			Strategy: nd.SymlinkAbsolute,
+			Strategy: strategy,
 		}
 	}
 

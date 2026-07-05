@@ -466,6 +466,53 @@ func TestDeployForeignSymlinkContextBacksUp(t *testing.T) {
 	// Should not return a ConflictError for context assets
 }
 
+func TestDeployForeignSymlinkContextWarningIncludesTarget(t *testing.T) {
+	store := newMockStore()
+	backupDir := t.TempDir()
+	engine := deploy.New(store, testAgent(), backupDir)
+
+	const oldTarget = "/some/other/target"
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return oldTarget, nil
+	})
+	engine.SetSymlink(func(o, n string) error { return nil })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	engine.SetRename(func(old, new string) error { return nil })
+	engine.SetNow(func() time.Time {
+		return time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)
+	})
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/CLAUDE.md",
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+		},
+		Scope:  nd.ScopeGlobal,
+		Origin: nd.OriginManual,
+	}
+
+	result, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	if len(result.Warnings) == 0 {
+		t.Fatal("expected at least one backup warning for foreign symlink on context")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, oldTarget) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a backup warning to include the old symlink target %q, got %v", oldTarget, result.Warnings)
+	}
+}
+
 func TestDeployForeignSymlinkNonContext(t *testing.T) {
 	store := newMockStore()
 	engine := deploy.New(store, testAgent(), t.TempDir())

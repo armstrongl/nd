@@ -13,6 +13,7 @@ import (
 	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/output"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 // testInitAgent returns an agent pointing at a temp directory for safe testing.
@@ -130,6 +131,68 @@ func TestInitCmd_WithYes_DeploysBuiltinAssets(t *testing.T) {
 	statePath := filepath.Join(tmp, ".config", "nd", "state", "deployments.yaml")
 	if _, err := os.Stat(statePath); err != nil {
 		t.Errorf("deployment state file not created: %v", err)
+	}
+}
+
+func TestInitCmd_WithYes_HonorsRelativeSymlinkStrategy(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	// runInitSetup always writes an "absolute" default to app.ConfigPath, and
+	// init refuses to run if the config already exists, so seed the cached
+	// SourceManager with a config whose symlink_strategy is "relative". The
+	// built-in deploy must read the strategy from this SourceManager rather than
+	// hardcoding absolute.
+	relCfgPath := filepath.Join(tmp, "rel-config.yaml")
+	relCfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: relative\nsources: []\n"
+	if err := os.WriteFile(relCfgPath, []byte(relCfg), 0o644); err != nil {
+		t.Fatalf("write relative config: %v", err)
+	}
+	sm, err := sourcemanager.New(relCfgPath, "")
+	if err != nil {
+		t.Fatalf("build source manager: %v", err)
+	}
+	if got := sm.Config().SymlinkStrategy; got != nd.SymlinkRelative {
+		t.Fatalf("seeded config strategy = %q, want %q", got, nd.SymlinkRelative)
+	}
+
+	app := &App{initAgent: testInitAgent(t, tmp), sm: sm}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// A deployed built-in symlink must be relative (non-absolute readlink target).
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	checked := 0
+	for _, e := range entries {
+		linkPath := filepath.Join(skillsDir, e.Name())
+		info, lerr := os.Lstat(linkPath)
+		if lerr != nil || info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		target, rerr := os.Readlink(linkPath)
+		if rerr != nil {
+			t.Fatalf("readlink %s: %v", linkPath, rerr)
+		}
+		if filepath.IsAbs(target) {
+			t.Errorf("expected relative symlink target for %q, got absolute %q", e.Name(), target)
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("expected at least one deployed symlink to verify")
 	}
 }
 

@@ -411,8 +411,9 @@ func (e *Engine) backupAndWarn(linkPath string, kind nd.OriginalFileKind, target
 	msg := fmt.Sprintf("Backed up existing %s at %s to %s", kind, linkPath, backed)
 	if kind == nd.FileKindPlainFile {
 		msg = fmt.Sprintf("Backed up existing manually created file at %s to %s", linkPath, backed)
+	} else if kind == nd.FileKindForeignSymlink && target != "" {
+		msg = fmt.Sprintf("Backed up existing %s at %s (was pointing to %s) to %s", kind, linkPath, target, backed)
 	}
-	_ = target // suppress unused warning; target used for foreign symlink display if needed
 	warnings = append(warnings, msg)
 	return backed, warnings
 }
