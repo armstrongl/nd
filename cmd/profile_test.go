@@ -214,6 +214,60 @@ func TestProfileListCmd_Empty(t *testing.T) {
 	}
 }
 
+func TestProfileBare_DelegatesToList(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Bare `nd profile` should behave exactly like `nd profile list`.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var bare bytes.Buffer
+	rootCmd.SetOut(&bare)
+	rootCmd.SetErr(&bare)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	var list bytes.Buffer
+	rootCmd2.SetOut(&list)
+	rootCmd2.SetErr(&list)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "list"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+
+	if bare.String() != list.String() {
+		t.Errorf("bare `nd profile` output %q != `nd profile list` output %q", bare.String(), list.String())
+	}
+	if strings.Contains(bare.String(), "Usage:") || strings.Contains(bare.String(), "Available Commands:") {
+		t.Errorf("bare `nd profile` should not print Cobra usage, got:\n%s", bare.String())
+	}
+	if !strings.Contains(bare.String(), "No profiles") {
+		t.Errorf("expected 'No profiles' in bare output, got: %s", bare.String())
+	}
+}
+
+func TestProfileBare_UnknownSubcommand(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "bogus"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("expected 'unknown command' error, got: %v", err)
+	}
+}
+
 func TestProfileListCmd_JSON(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
