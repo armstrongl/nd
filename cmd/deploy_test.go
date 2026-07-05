@@ -38,6 +38,17 @@ func setupDeployEnv(t *testing.T) (configPath string, srcDir string) {
 	return configPath, srcDir
 }
 
+// envAgentDir returns the agent global_dir configured by setupDeployEnv.
+func envAgentDir(configPath string) string {
+	tmp := filepath.Dir(filepath.Dir(filepath.Dir(configPath)))
+	return filepath.Join(tmp, ".claude")
+}
+
+// envStateFile returns the deployments.yaml path for a setupDeployEnv config.
+func envStateFile(configPath string) string {
+	return filepath.Join(filepath.Dir(configPath), "state", "deployments.yaml")
+}
+
 func TestDeployCmd_SingleAsset(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
@@ -113,6 +124,15 @@ func TestDeployCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Dry-run must not touch the filesystem: no symlink and no state file.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
+		t.Errorf("dry-run must not create a symlink at %s (err=%v)", linkPath, err)
+	}
+	if _, err := os.Stat(envStateFile(configPath)); !os.IsNotExist(err) {
+		t.Errorf("dry-run must not write the state file (err=%v)", err)
 	}
 }
 

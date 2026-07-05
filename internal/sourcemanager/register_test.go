@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/armstrongl/nd/internal/config"
@@ -311,6 +312,81 @@ func TestAddGitSkipsBuiltinID(t *testing.T) {
 	}
 	if src.ID != "builtin-2" {
 		t.Errorf("ID: got %q, want %q", src.ID, "builtin-2")
+	}
+}
+
+// TestAddGitCloneFailureCleanup covers register.go:154-157: when gitClone
+// fails, the clone target is removed and the config is left unchanged.
+func TestAddGitCloneFailureCleanup(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// An absolute path is treated as a git URL verbatim; a nonexistent repo
+	// makes `git clone` exit non-zero.
+	_, err = sm.AddGit("/nonexistent/repo/does-not-exist", "")
+	if err == nil {
+		t.Fatal("expected AddGit to fail for a nonexistent repository")
+	}
+
+	// Clone target derived the same way AddGit derives it.
+	cloneTarget := filepath.Join(dir, "sources", "does-not-exist")
+	if _, statErr := os.Stat(cloneTarget); !os.IsNotExist(statErr) {
+		t.Errorf("clone target should be removed after a failed clone, stat err: %v", statErr)
+	}
+
+	// Config must be unchanged: only the builtin source remains, and nothing
+	// was written to disk.
+	if len(sm.Sources()) != 1 || sm.Sources()[0].ID != nd.BuiltinSourceID {
+		t.Errorf("config should be unchanged (builtin only), got %+v", sm.Sources())
+	}
+	if _, statErr := os.Stat(configPath); !os.IsNotExist(statErr) {
+		t.Errorf("config file should not be written on clone failure, stat err: %v", statErr)
+	}
+}
+
+// TestAddGitWriteConfigFailureRollback covers register.go:170-174: a successful
+// clone followed by a failing WriteConfig reverts sm.cfg.Sources and removes the
+// clone directory. WriteConfig fails because a directory sits at configPath.
+func TestAddGitWriteConfigFailureRollback(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+
+	// Manager is created while configPath does not exist (defaults are used).
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// A valid bare repo so the clone succeeds.
+	bareRepo := t.TempDir()
+	execGit(t, "init", "--bare", bareRepo)
+
+	// Now make configPath a directory so the atomic WriteConfig rename fails.
+	if err := os.Mkdir(configPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = sm.AddGit(bareRepo, "")
+	if err == nil {
+		t.Fatal("expected AddGit to fail when config cannot be written")
+	}
+	if !strings.Contains(err.Error(), "save config") {
+		t.Errorf("expected save config error, got: %v", err)
+	}
+
+	// In-memory sources rolled back to builtin only.
+	if len(sm.Sources()) != 1 || sm.Sources()[0].ID != nd.BuiltinSourceID {
+		t.Errorf("sources should be rolled back to builtin only, got %+v", sm.Sources())
+	}
+
+	// Clone directory removed.
+	cloneTarget := filepath.Join(dir, "sources", filepath.Base(bareRepo))
+	if _, statErr := os.Stat(cloneTarget); !os.IsNotExist(statErr) {
+		t.Errorf("clone directory should be removed after rollback, stat err: %v", statErr)
 	}
 }
 

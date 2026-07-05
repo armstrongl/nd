@@ -480,6 +480,41 @@ func TestSourceRemove_WithYes(t *testing.T) {
 	}
 }
 
+// TestSourceRemove_PurgesDeployments deploys an asset from a source, then
+// removes that source with --yes, and asserts both the symlink and the state
+// entry are gone (the removeSourceDeployments -> RemoveBulk cleanup path).
+func TestSourceRemove_PurgesDeployments(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy greeting from the pre-registered my-source.
+	runND(t, configPath, "deploy", "greeting")
+
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Fatalf("setup: expected deployed symlink at %s: %v", linkPath, err)
+	}
+
+	// Remove the source and all its deployed assets.
+	runND(t, configPath, "--yes", "source", "remove", "my-source")
+
+	// (a) The symlink under the agent dir is gone.
+	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
+		t.Errorf("expected symlink removed after source remove (err=%v)", err)
+	}
+
+	// (b) No state entry for that source remains.
+	data, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return // no state file is acceptable
+		}
+		t.Fatalf("read state file: %v", err)
+	}
+	if strings.Contains(string(data), "my-source") || strings.Contains(string(data), "greeting") {
+		t.Errorf("state should not reference the removed source's deployment, got: %s", data)
+	}
+}
+
 func TestSourceRemove_NonTTY_NoYes_Errors(t *testing.T) {
 	tmp, configPath := setupTestConfig(t)
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -48,6 +49,11 @@ func TestSyncCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// A dry-run sync must not create or modify the state file.
+	if _, err := os.Stat(envStateFile(configPath)); !os.IsNotExist(err) {
+		t.Errorf("dry-run sync must not write the state file (err=%v)", err)
 	}
 }
 

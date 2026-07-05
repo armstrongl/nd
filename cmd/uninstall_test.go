@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -40,6 +42,19 @@ func TestUninstallCmd_DryRun(t *testing.T) {
 	}
 	if !strings.Contains(got, "greeting") {
 		t.Errorf("expected 'greeting' in output, got: %s", got)
+	}
+
+	// Dry-run uninstall must leave symlinks and state untouched.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Errorf("dry-run uninstall must not remove the symlink at %s: %v", linkPath, err)
+	}
+	data, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state file: %v", err)
+	}
+	if !strings.Contains(string(data), "greeting") {
+		t.Errorf("dry-run uninstall must not drop the state entry, got: %s", data)
 	}
 }
 

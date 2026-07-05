@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -372,6 +373,12 @@ func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 		t.Fatalf("save failed: %v", err)
 	}
 
+	// Capture live deployment state before the dry-run restore.
+	before, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state before dry-run: %v", err)
+	}
+
 	// Dry-run restore
 	app2 := &App{}
 	rootCmd2 := NewRootCmd(app2)
@@ -386,6 +393,15 @@ func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Live deployment state must be byte-for-byte unchanged by a dry-run restore.
+	after, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state after dry-run: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("dry-run restore must not modify deployment state")
 	}
 }
 
