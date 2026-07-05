@@ -453,6 +453,55 @@ func TestGenerateCommandDocs_DocsRelated_CombinedWithCobraLinks(t *testing.T) {
 	}
 }
 
+func TestGenerateCommandDocs_EnhancedCodeFences(t *testing.T) {
+	outDir := t.TempDir()
+	root := &cobra.Command{
+		Use:   "testcli",
+		Short: "A test CLI tool",
+		Run:   func(cmd *cobra.Command, args []string) {},
+	}
+	root.DisableAutoGenTag = true
+
+	deploy := &cobra.Command{
+		Use:     "deploy <widget> [flags]",
+		Short:   "Deploy widgets",
+		Long:    "Deploy one or more widgets by creating symlinks.",
+		Example: "  # Deploy a widget\n  testcli deploy gizmo",
+		Run:     func(cmd *cobra.Command, args []string) {},
+	}
+	deploy.Flags().Bool("force", false, "force deployment")
+	root.AddCommand(deploy)
+
+	if err := generateCommandDocs(root, outDir); err != nil {
+		t.Fatalf("generateCommandDocs failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(outDir, "testcli_deploy.md"))
+	if err != nil {
+		t.Fatalf("failed to read testcli_deploy.md: %v", err)
+	}
+	text := string(content)
+
+	// The usage block wraps a terminal command, so it uses the Terminal fence.
+	if !strings.Contains(text, "```shell {filename=\"Terminal\"}\ntestcli deploy <widget> [flags]\n```") {
+		t.Errorf("usage block missing Terminal fence annotation:\n%s", text)
+	}
+	// The examples block also shows terminal commands.
+	if !strings.Contains(text, "```shell {filename=\"Terminal\"}\n  # Deploy a widget") {
+		t.Errorf("examples block missing Terminal fence annotation:\n%s", text)
+	}
+	// The options block lists flags, so it uses the Flags fence.
+	if !strings.Contains(text, "```text {filename=\"Flags\"}") {
+		t.Errorf("options block missing Flags fence annotation:\n%s", text)
+	}
+	// Every opening fence is annotated and every closing fence is bare, so the
+	// total count of ``` markers is exactly twice the number of annotated openers.
+	openers := strings.Count(text, "```shell {filename=\"Terminal\"}") + strings.Count(text, "```text {filename=\"Flags\"}")
+	if got, want := strings.Count(text, "```"), 2*openers; got != want {
+		t.Errorf("unbalanced or unannotated fences: found %d ``` markers, want %d (openers=%d)", got, want, openers)
+	}
+}
+
 // bodyAfterFrontMatter returns the content after the YAML front matter block.
 func bodyAfterFrontMatter(text string) string {
 	if !strings.HasPrefix(text, "---\n") {

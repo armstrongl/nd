@@ -216,6 +216,8 @@ nd deploy --type skills greeting
 nd source remove my-assets --yes
 ```
 
+> **Caution:** For [`nd source remove`](../reference/nd_source_remove.md), `--yes` also removes the source and deletes all of its deployed assets without prompting.
+
 ## Config already exists
 
 **Symptoms:** [`nd init`](../reference/nd_init.md) fails with `config already exists at ~/.config/nd/config.yaml; edit with 'nd settings edit'`.
