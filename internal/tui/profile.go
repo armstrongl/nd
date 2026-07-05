@@ -64,6 +64,7 @@ type profileScreen struct {
 	// create
 	createForm *huh.Form
 	createName string
+	creating   bool
 
 	// done
 	doneMsg string
@@ -324,6 +325,7 @@ func (s *profileScreen) runSwitch() tea.Cmd {
 func (s *profileScreen) buildCreateForm() (tea.Model, tea.Cmd) {
 	s.step = profileCreateName
 	s.createName = ""
+	s.creating = false
 	s.createForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -342,11 +344,15 @@ func (s *profileScreen) buildCreateForm() (tea.Model, tea.Cmd) {
 }
 
 func (s *profileScreen) updateCreateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.creating {
+		return s, nil
+	}
 	model, cmd := s.createForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.createForm = f
 	}
 	if s.createForm.State == huh.StateCompleted {
+		s.creating = true
 		return s, s.runCreate()
 	}
 	if s.createForm.State == huh.StateAborted {

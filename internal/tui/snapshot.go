@@ -57,6 +57,7 @@ type snapshotScreen struct {
 	// save
 	saveForm *huh.Form
 	saveName string
+	saving   bool
 
 	// restore
 	restoreForm   *huh.Form
@@ -243,6 +244,7 @@ func (s *snapshotScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *snapshotScreen) buildSaveForm() (tea.Model, tea.Cmd) {
 	s.step = snapshotSaveName
 	s.saveName = ""
+	s.saving = false
 	s.saveForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -261,11 +263,15 @@ func (s *snapshotScreen) buildSaveForm() (tea.Model, tea.Cmd) {
 }
 
 func (s *snapshotScreen) updateSaveForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.saving {
+		return s, nil
+	}
 	model, cmd := s.saveForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.saveForm = f
 	}
 	if s.saveForm.State == huh.StateCompleted {
+		s.saving = true
 		return s, s.runSave()
 	}
 	if s.saveForm.State == huh.StateAborted {

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/profile"
 )
@@ -149,5 +151,17 @@ func TestSnapshotScreen_RefreshHeaderAfterRestore(t *testing.T) {
 		// OK
 	default:
 		t.Errorf("restore should emit RefreshHeaderMsg, got %T", msg)
+	}
+}
+
+// double-fire guard — saving flag prevents repeated runSave calls
+func TestSnapshotScreen_DoubleFireGuard_Save(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.step = snapshotSaveName
+	s.saving = true
+
+	_, cmd := s.updateSaveForm(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateSaveForm should return nil cmd when saving guard is set")
 	}
 }
