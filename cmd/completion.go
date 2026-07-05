@@ -187,6 +187,74 @@ func defaultFishCompletionDir() string {
 	return filepath.Join(home, ".config", "fish", "completions")
 }
 
+// detectShellFromEnv inspects $SHELL and maps it to a completion shell nd can
+// generate for. Returns ("", false) when $SHELL is unset or names an
+// unsupported shell (e.g. csh, tcsh).
+func detectShellFromEnv() (string, bool) {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		return "", false
+	}
+	switch filepath.Base(shell) {
+	case "bash":
+		return "bash", true
+	case "zsh":
+		return "zsh", true
+	case "fish":
+		return "fish", true
+	default:
+		return "", false
+	}
+}
+
+// offerCompletionInstall offers to install shell completions during `nd init`.
+// It is an opt-in, interactive-only convenience step: it is skipped on the
+// non-interactive, JSON, quiet, and --yes paths, and any failure is reported as
+// a warning and never propagated, so it cannot fail `nd init`.
+func offerCompletionInstall(cmd *cobra.Command, app *App) {
+	// Opt-in only: guard short-circuits on --yes (and confirm is called with
+	// yesFlag=false below) so --yes neither prompts nor installs.
+	if app.JSON || app.Quiet || app.Yes || !isTerminal() {
+		return
+	}
+
+	shell, ok := detectShellFromEnv()
+	if !ok {
+		return
+	}
+
+	rootCmd := cmd.Root()
+	var (
+		dir      string
+		filename string
+		genFn    func(*bytes.Buffer) error
+	)
+	switch shell {
+	case "bash":
+		dir, filename = defaultBashCompletionDir(), "nd"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenBashCompletionV2(buf, true) }
+	case "zsh":
+		dir, filename = defaultZshCompletionDir(), "_nd"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenZshCompletion(buf) }
+	case "fish":
+		dir, filename = defaultFishCompletionDir(), "nd.fish"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenFishCompletion(buf, true) }
+	}
+	if dir == "" {
+		return
+	}
+
+	confirmed, err := confirm(cmd.InOrStdin(), cmd.OutOrStdout(),
+		fmt.Sprintf("Install shell completions for %s?", shell), false)
+	if err != nil || !confirmed {
+		return
+	}
+
+	if err := installCompletion(cmd, genFn, dir, filename); err != nil {
+		printHuman(cmd.ErrOrStderr(), "warning: could not install completions: %v\n", err)
+	}
+}
+
 func installCompletion(cmd *cobra.Command, genFn func(*bytes.Buffer) error, dir, filename string) error {
 	if dir == "" {
 		return fmt.Errorf("could not determine home directory; use --install-dir to specify a path")
