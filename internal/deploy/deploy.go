@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/armstrongl/nd/internal/agent"
@@ -32,6 +33,10 @@ type Engine struct {
 	agent         *agent.Agent
 	backupDir     string
 	snapshotSaver SnapshotSaver
+
+	// backupSeq makes same-second, same-basename backup paths unique within a
+	// process so a second backup never clobbers the first (see backupExistingFile).
+	backupSeq atomic.Uint64
 
 	// Injected for testing (default to os.*)
 	symlink  func(oldname, newname string) error
@@ -426,7 +431,14 @@ func (e *Engine) backupExistingFile(path string) (string, error) {
 
 	base := filepath.Base(path)
 	ts := e.now().Format("2006-01-02T15-04-05")
-	backupName := fmt.Sprintf("%s.%s.bak", base, ts)
+	// A per-process, monotonically increasing sequence is appended AFTER the
+	// timestamp and BEFORE ".bak" so that (a) two same-basename files backed up
+	// in the same wall-clock second get distinct paths instead of the second
+	// clobbering the first, and (b) chronological filename ordering still holds
+	// for pruneBackups (timestamp dominates; seq breaks same-second ties in
+	// creation order). Zero-padded so lexical order matches numeric order.
+	seq := e.backupSeq.Add(1)
+	backupName := fmt.Sprintf("%s.%s.%09d.bak", base, ts, seq)
 	backupPath := filepath.Join(e.backupDir, backupName)
 
 	if err := e.rename(path, backupPath); err != nil {

@@ -26,7 +26,10 @@ func NewStore(path string) *Store {
 }
 
 // Load reads and parses deployments.yaml.
-// Missing file returns empty state. Corrupt YAML renames the file and returns empty state with a warning.
+// Missing file returns empty state. Corrupt YAML is quarantined by renaming the
+// file, returning empty state with a warning; if that rename fails, Load returns
+// a non-nil error so the caller aborts before overwriting the still-present
+// original. Structurally-invalid (but parseable) state also returns an error.
 // Newer schema version refuses to load (NFR-014).
 func (s *Store) Load() (*DeploymentState, []string, error) {
 	data, err := os.ReadFile(s.path)
@@ -53,6 +56,12 @@ func (s *Store) Load() (*DeploymentState, []string, error) {
 		s.migrate(&st)
 	}
 
+	// Reject structurally-invalid (but parseable) state so callers don't Save()
+	// over it and silently accept/propagate corruption.
+	if errs := st.Validate(); len(errs) > 0 {
+		return nil, nil, fmt.Errorf("deployments.yaml is invalid: %w", errs[0])
+	}
+
 	return &st, nil, nil
 }
 
@@ -70,11 +79,21 @@ func (s *Store) migrate(st *DeploymentState) {
 	}
 }
 
-// handleCorrupt renames a corrupt state file and returns empty state with warning.
+// handleCorrupt quarantines a corrupt state file by renaming it to a timestamped
+// .corrupt.* path. Only on a successful rename does it return empty state plus a
+// warning and a nil error so the caller may continue. If the rename fails the
+// corrupt-but-present original must not be clobbered, so it returns a non-nil
+// error and no empty state, causing every "st, _, err := Load()" caller to abort
+// before Save().
 func (s *Store) handleCorrupt(_ error) (*DeploymentState, []string, error) {
 	ts := time.Now().Format("2006-01-02T15-04-05")
 	corruptPath := fmt.Sprintf("%s.corrupt.%s", s.path, ts)
-	os.Rename(s.path, corruptPath)
+	if err := os.Rename(s.path, corruptPath); err != nil {
+		return nil, nil, fmt.Errorf(
+			"deployments.yaml is corrupt and could not be quarantined (rename to %s failed: %w); refusing to continue to avoid overwriting it",
+			corruptPath, err,
+		)
+	}
 
 	warning := fmt.Sprintf(
 		"Warning: deployments.yaml was corrupted and has been renamed to %s. Run nd sync to rebuild deployment state from the filesystem.",
