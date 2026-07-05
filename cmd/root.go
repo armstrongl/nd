@@ -18,10 +18,14 @@ import (
 // NewRootCmd creates the root command with all global flags and subcommands.
 func NewRootCmd(app *App) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:           "nd",
-		Version:       version.String(),
-		Short:         "Napoleon Dynamite - coding agent asset manager",
-		Long:          "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
+		Use:     "nd",
+		Version: version.String(),
+		// Branding decision (task ahfhih): KEEP "Napoleon Dynamite". "nd" plays on
+		// the film's initials, it is the established product identity (whitelisted in
+		// .rumdl.toml), and the Long line below states the real purpose. This Short
+		// string is the single source gendocs propagates into docs/reference/.
+		Short: "Napoleon Dynamite - coding agent asset manager",
+		Long:  "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
 		Example: `  # Deploy an asset
   nd deploy skills/greeting
 
@@ -135,7 +139,6 @@ func persistentPostRun(cmd *cobra.Command, app *App) error {
 	return nil
 }
 
-
 func persistentPreRun(cmd *cobra.Command, app *App) error {
 	// Expand ~ in config path
 	if strings.HasPrefix(app.ConfigPath, "~/") {
@@ -248,7 +251,6 @@ func defaultConfigPath() string {
 	}
 	return "~/.config/nd/config.yaml"
 }
-
 
 // exitError wraps an error with an exit code.
 type exitError struct {
