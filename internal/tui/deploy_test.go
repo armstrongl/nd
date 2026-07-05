@@ -698,6 +698,41 @@ func TestDeploy_DryRunView(t *testing.T) {
 	}
 }
 
+// taskmd k63tsg: a project-scope deploy must thread the resolved project root
+// (from the resolving GetProjectRoot accessor) into every DeployRequest, even
+// when the TUI was launched in the default global scope inside a project.
+func TestDeploy_StartDeploy_ProjectScopeThreadsProjectRoot(t *testing.T) {
+	const resolvedRoot = "/resolved/project"
+	svc := newMockServices()
+	svc.getScopeFn = func() nd.Scope { return nd.ScopeProject }
+	svc.getProjectRootFn = func() string { return resolvedRoot }
+	svc.isDryRunFn = func() bool { return true } // stop after building reqs
+
+	assets := testAssets()
+	ds := &deployScreen{
+		svc:      svc,
+		styles:   testStyles(),
+		isDark:   true,
+		step:     deploySelectAssets,
+		assets:   assets,
+		selected: []string{assetKey(assets[0]), assetKey(assets[2])},
+	}
+
+	ds.startDeploy()
+
+	if len(ds.reqs) != 2 {
+		t.Fatalf("startDeploy built %d requests, want 2", len(ds.reqs))
+	}
+	for i, r := range ds.reqs {
+		if r.Scope != nd.ScopeProject {
+			t.Errorf("reqs[%d].Scope = %q, want project", i, r.Scope)
+		}
+		if r.ProjectRoot != resolvedRoot {
+			t.Errorf("reqs[%d].ProjectRoot = %q, want %q", i, r.ProjectRoot, resolvedRoot)
+		}
+	}
+}
+
 // Compile-time assertion: deployScreen satisfies FullHelpProvider.
 var _ FullHelpProvider = (*deployScreen)(nil)
 

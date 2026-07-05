@@ -49,7 +49,11 @@ func (a *App) SourceManager() (*sourcemanager.SourceManager, error) {
 	if a.sm != nil {
 		return a.sm, nil
 	}
-	sm, err := sourcemanager.New(a.ConfigPath, a.ProjectRoot)
+	// Resolve the project root on demand so .nd/config.yaml is merged when cwd is
+	// inside a project even if the TUI was launched in the default global scope.
+	// GetProjectRoot returns "" when not in a project, which sourcemanager.New
+	// treats as the supported non-project path (it skips the project-config merge).
+	sm, err := sourcemanager.New(a.ConfigPath, a.GetProjectRoot())
 	if err != nil {
 		return nil, fmt.Errorf("init source manager: %w", err)
 	}
@@ -208,9 +212,20 @@ func (a *App) IsDryRun() bool { return a.DryRun }
 // Named GetConfigPath (not ConfigPath) to avoid collision with the ConfigPath field.
 func (a *App) GetConfigPath() string { return a.ConfigPath }
 
-// GetProjectRoot returns the resolved project root path.
+// GetProjectRoot returns the resolved project root path, resolving it on demand
+// from the current working directory (via ResolveProjectRoot) when it was not
+// populated at launch — e.g. when the TUI is started in the default global scope
+// from inside a project. Returns "" when no project root can be resolved; callers
+// treat "" as "not in a project". ResolveProjectRoot caches into ProjectRoot, so
+// this stays cheap after the first call and is reset correctly by ResetForScope.
 // Named GetProjectRoot (not ProjectRoot) to avoid collision with the ProjectRoot field.
-func (a *App) GetProjectRoot() string { return a.ProjectRoot }
+func (a *App) GetProjectRoot() string {
+	root, err := a.ResolveProjectRoot()
+	if err != nil {
+		return ""
+	}
+	return root
+}
 
 // ResetForScope nils all cached services so they reinitialize for a new scope.
 // Used by the TUI when switching between global and project scope mid-session.
