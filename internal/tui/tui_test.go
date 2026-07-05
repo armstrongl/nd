@@ -396,7 +396,7 @@ func TestInit_ReturnsCmd(t *testing.T) {
 
 func TestGlobalKey_CtrlS_TogglesScopeWhenProjectRootExists(t *testing.T) {
 	svc := newMockServices()
-	svc.getProjectRootFn = func() string { return "/some/project" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
 	styles := NewStyles(true)
 	m := Model{
 		svc:     svc,
@@ -412,18 +412,53 @@ func TestGlobalKey_CtrlS_TogglesScopeWhenProjectRootExists(t *testing.T) {
 		t.Fatal("expected non-nil cmd from ctrl+s scope toggle")
 	}
 
-	// Verify ResetForScope was called.
+	// Verify ResetForScope was called with the resolved root.
 	if len(svc.resetCalls) != 1 {
 		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
 	}
 	if svc.resetCalls[0].Scope != "project" {
 		t.Errorf("expected scope 'project', got %q", svc.resetCalls[0].Scope)
 	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
+}
+
+// Launched in global scope from inside a project: the cached root is empty but
+// ctrl+s resolves it on demand and toggles to project scope with the found root.
+func TestGlobalKey_CtrlS_ResolvesRootWhenLaunchedInGlobal(t *testing.T) {
+	svc := newMockServices()
+	svc.getProjectRootFn = func() string { return "" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s when root resolves on demand")
+	}
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != nd.ScopeProject {
+		t.Errorf("expected scope %q, got %q", nd.ScopeProject, svc.resetCalls[0].Scope)
+	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
 }
 
 func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
 	svc := newMockServices()
-	// GetProjectRoot defaults to "" — no project root
+	// No .git/ or .claude/ marker: on-demand resolution fails (default mock),
+	// so the toggle is a silent no-op.
 	styles := NewStyles(true)
 	m := Model{
 		svc:     svc,

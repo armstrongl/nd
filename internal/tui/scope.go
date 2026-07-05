@@ -101,14 +101,24 @@ func (s *scopeScreen) View() tea.View {
 func (s *scopeScreen) handleScopeSelection() tea.Cmd {
 	newScope := nd.Scope(s.choice)
 
-	// Project scope requires a project root.
-	if newScope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
-		s.errorMsg = "Cannot switch to project scope: no project root detected."
-		s.step = scopeShowError
-		return nil
+	projectRoot := s.svc.GetProjectRoot()
+	// Project scope requires a project root; resolve it on demand from cwd so
+	// switching works even when the TUI was launched in global scope.
+	if newScope == nd.ScopeProject {
+		root, err := s.svc.ResolveProjectRoot()
+		if err != nil {
+			s.errorMsg = fmt.Sprintf("Cannot switch to project scope: %v", err)
+			s.step = scopeShowError
+			return nil
+		}
+		if root == "" {
+			s.errorMsg = "Cannot switch to project scope: no project root detected."
+			s.step = scopeShowError
+			return nil
+		}
+		projectRoot = root
 	}
 
-	projectRoot := s.svc.GetProjectRoot()
 	s.svc.ResetForScope(newScope, projectRoot)
 
 	return tea.Batch(
