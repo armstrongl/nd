@@ -428,6 +428,88 @@ func TestDeployContextWithExistingPlainFile(t *testing.T) {
 	}
 }
 
+func TestDeployBulkSameBasenameBackupsAreDistinct(t *testing.T) {
+	// Two existing context files that share the basename CLAUDE.md but live at
+	// different link paths (global vs project) are backed up within a single
+	// DeployBulk call, with e.now() pinned to a constant second. The backup
+	// paths must be distinct so the second backup does not clobber the first,
+	// and both originals must survive on disk.
+	store := newMockStore()
+	backupDir := t.TempDir()
+	engine := deploy.New(store, testAgent(), backupDir)
+
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: 0o644}, nil // plain file exists at every target
+	})
+	engine.SetSymlink(func(o, n string) error { return nil })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	// Materialize each backup on disk so a clobber would be observable as a
+	// missing file. Record the tag of the source that was backed up.
+	engine.SetRename(func(old, new string) error {
+		return os.WriteFile(new, []byte("backup of "+old), 0o644)
+	})
+	engine.SetNow(func() time.Time {
+		return time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC) // same second for both
+	})
+
+	reqs := []deploy.DeployRequest{
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+				SourcePath:  "/sources/context/rules/CLAUDE.md",
+				ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+			},
+			Scope:  nd.ScopeGlobal,
+			Origin: nd.OriginManual,
+		},
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "guide"},
+				SourcePath:  "/sources/context/guide/CLAUDE.md",
+				ContextFile: &asset.ContextInfo{FolderName: "guide", FileName: "CLAUDE.md"},
+			},
+			Scope:       nd.ScopeProject,
+			ProjectRoot: "/proj",
+			Origin:      nd.OriginManual,
+		},
+	}
+
+	result, err := engine.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk: %v", err)
+	}
+	if len(result.Failed) != 0 {
+		t.Fatalf("expected no failures, got %v", result.Failed)
+	}
+	if len(result.Succeeded) != 2 {
+		t.Fatalf("expected 2 successes, got %d", len(result.Succeeded))
+	}
+
+	// Both deployments must report a non-empty, distinct backup path.
+	b0, b1 := result.Succeeded[0].BackedUp, result.Succeeded[1].BackedUp
+	if b0 == "" || b1 == "" {
+		t.Fatalf("expected both backups recorded, got %q and %q", b0, b1)
+	}
+	if b0 == b1 {
+		t.Fatalf("backup paths collided: both are %q", b0)
+	}
+
+	// Both backup files must survive on disk (the bug leaves only one).
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "CLAUDE.md.") && strings.HasSuffix(e.Name(), ".bak") {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 distinct CLAUDE.md backups on disk, got %d (entries: %v)", count, entries)
+	}
+}
+
 func TestDeployForeignSymlinkContextBacksUp(t *testing.T) {
 	store := newMockStore()
 	backupDir := t.TempDir()

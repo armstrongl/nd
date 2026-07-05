@@ -95,6 +95,58 @@ func TestStoreLoadCorruptYAML(t *testing.T) {
 	}
 }
 
+func TestStoreLoadCorruptRenameFailurePreservesOriginal(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("cannot exercise read-only directory as root")
+	}
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "state")
+	if err := os.Mkdir(stateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(stateDir, "deployments.yaml")
+
+	corrupt := []byte("{{{{not yaml at all")
+	if err := os.WriteFile(path, corrupt, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the parent directory read-only so the quarantine rename in
+	// handleCorrupt fails. Restore perms on cleanup so t.TempDir() can remove it.
+	if err := os.Chmod(stateDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o755) })
+
+	store := state.NewStore(path)
+	st, warnings, err := store.Load()
+	if err == nil {
+		t.Fatal("expected error when corrupt file cannot be quarantined")
+	}
+	if st != nil {
+		t.Errorf("expected nil state on quarantine failure, got %+v", st)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("expected no (false) warnings on quarantine failure, got %v", warnings)
+	}
+
+	// The corrupt-but-present original must be untouched so it stays recoverable.
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatalf("original file should still exist: %v", readErr)
+	}
+	if string(got) != string(corrupt) {
+		t.Errorf("original content changed: got %q, want %q", got, corrupt)
+	}
+	// No .corrupt.* copy should have been created when the rename failed.
+	entries, _ := os.ReadDir(stateDir)
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".corrupt.") {
+			t.Errorf("no .corrupt.* file should exist when rename failed, found %s", e.Name())
+		}
+	}
+}
+
 func TestStoreLoadNewerVersion(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "deployments.yaml")

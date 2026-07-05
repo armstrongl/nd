@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/armstrongl/nd/internal/asset"
@@ -41,6 +42,25 @@ func (d *Deployment) Identity() asset.Identity {
 }
 
 // Validate checks the deployment state for internal consistency.
+// Reports duplicate deployment identities (keyed on {SourceID, AssetType,
+// AssetName}) and any deployment whose scope is not global or project.
+// A nil/empty result means the state is structurally valid.
 func (s *DeploymentState) Validate() []error {
-	return nil
+	var errs []error
+	seen := make(map[asset.Identity]bool)
+	for i := range s.Deployments {
+		d := &s.Deployments[i]
+		id := d.Identity()
+		if seen[id] {
+			errs = append(errs, fmt.Errorf("deployments[%d]: duplicate identity %s/%s from %s", i, id.Type, id.Name, id.SourceID))
+		}
+		seen[id] = true
+
+		switch d.Scope {
+		case nd.ScopeGlobal, nd.ScopeProject:
+		default:
+			errs = append(errs, fmt.Errorf("deployments[%d]: invalid scope %q", i, d.Scope))
+		}
+	}
+	return errs
 }

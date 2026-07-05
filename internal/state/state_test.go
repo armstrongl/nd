@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -60,5 +61,63 @@ func TestDeploymentIdentity(t *testing.T) {
 	id := d.Identity()
 	if id.SourceID != "src" || id.Name != "review" {
 		t.Errorf("unexpected identity: %+v", id)
+	}
+}
+
+func TestDeploymentStateValidateValid(t *testing.T) {
+	s := state.DeploymentState{
+		Version: nd.SchemaVersion,
+		Deployments: []state.Deployment{
+			{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review", Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "lint", Scope: nd.ScopeProject, ProjectPath: "/p", Origin: nd.OriginManual},
+		},
+	}
+	if errs := s.Validate(); len(errs) != 0 {
+		t.Errorf("expected no errors for valid state, got %v", errs)
+	}
+}
+
+func TestDeploymentStateValidateDuplicateIdentity(t *testing.T) {
+	s := state.DeploymentState{
+		Version: nd.SchemaVersion,
+		Deployments: []state.Deployment{
+			{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review", Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+			{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review", Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+		},
+	}
+	errs := s.Validate()
+	if len(errs) == 0 {
+		t.Fatal("expected error for duplicate identity, got none")
+	}
+	found := false
+	for _, err := range errs {
+		if strings.Contains(err.Error(), "duplicate identity") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a duplicate-identity error, got %v", errs)
+	}
+}
+
+func TestDeploymentStateValidateInvalidScope(t *testing.T) {
+	s := state.DeploymentState{
+		Version: nd.SchemaVersion,
+		Deployments: []state.Deployment{
+			{SourceID: "src", AssetType: nd.AssetSkill, AssetName: "review", Scope: nd.Scope("bogus"), Origin: nd.OriginManual},
+		},
+	}
+	errs := s.Validate()
+	if len(errs) == 0 {
+		t.Fatal("expected error for invalid scope, got none")
+	}
+	found := false
+	for _, err := range errs {
+		if strings.Contains(err.Error(), "invalid scope") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected an invalid-scope error, got %v", errs)
 	}
 }
