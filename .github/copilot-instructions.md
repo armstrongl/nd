@@ -38,7 +38,7 @@ tests/integration/   → Integration tests (full CLI exercising real filesystem)
 
 ### Coding conventions
 
-- **Go 1.25+** with modules. Module path: `github.com/armstrongl/nd`
+- **Go 1.25+** with modules. The exact toolchain is pinned once in `go.mod` (`go 1.25.8`); CI and release workflows read it via `go-version-file: go.mod` rather than hardcoding a version. Module path: `github.com/armstrongl/nd`
 - **`main.go` at repo root**, Cobra commands in `cmd/`, all logic in `internal/`
 - **Constructor pattern**: `New(...)` functions return `(*Type, error)` or `*Type`. No `init()` functions.
 - **Dependency injection for testability**: OS functions (`os.Symlink`, `os.Stat`, etc.) injected as struct fields with `Set*` methods for test stubs. See `internal/deploy/deploy.go` and `internal/agent/registry.go`.
