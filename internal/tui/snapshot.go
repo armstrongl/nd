@@ -89,28 +89,43 @@ func (s *snapshotScreen) InputActive() bool {
 // FullHelpItems returns step-specific keybindings for the help bar and overlay.
 func (s *snapshotScreen) FullHelpItems() []HelpItem {
 	switch s.step {
-	case snapshotSaveName:
-		return []HelpItem{
-			{"enter", "save"},
-			{"esc", "cancel"},
-		}
 	case snapshotList:
 		return []HelpItem{
+			{"esc", "back"},
 			{"j/k", "scroll"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
-	case snapshotDone:
+	case snapshotSaveName:
 		return []HelpItem{
-			{"enter", "return"},
-			{"esc", "back"},
+			{"esc", "cancel"},
+			{"enter", "submit"},
 			{"q", "quit"},
 		}
-	default: // menu, restoreSelect
+	case snapshotRestoreSelect:
+		if s.confirmForm != nil {
+			return []HelpItem{
+				{"h/l", "yes/no"},
+				{"enter", "confirm"},
+				{"q", "quit"},
+			}
+		}
 		return []HelpItem{
+			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
+			{"q", "quit"},
+		}
+	case snapshotLoading, snapshotDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // menu
+		return []HelpItem{
 			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
 		}
 	}
 }

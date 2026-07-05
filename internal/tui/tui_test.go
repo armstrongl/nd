@@ -358,9 +358,10 @@ func TestView_ContainsHeaderAndHelpBar(t *testing.T) {
 		t.Error("expected 'global' from header in view output")
 	}
 
-	// Help bar should contain default items.
-	if !strings.Contains(content, "esc") {
-		t.Error("expected 'esc' from help bar in view output")
+	// Help bar should contain default items. The main menu is the root screen,
+	// so its help bar shows navigation/quit hints (no "esc back").
+	if !strings.Contains(content, "navigate") {
+		t.Error("expected 'navigate' from help bar in view output")
 	}
 	if !strings.Contains(content, "quit") {
 		t.Error("expected 'quit' from help bar in view output")

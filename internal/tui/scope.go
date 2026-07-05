@@ -60,14 +60,14 @@ func (s *scopeScreen) FullHelpItems() []HelpItem {
 	case scopeShowError:
 		return []HelpItem{
 			{"enter", "return"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
 	default: // scopeFormStep
 		return []HelpItem{
+			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
-			{"esc", "back"},
+			{"q", "quit"},
 		}
 	}
 }

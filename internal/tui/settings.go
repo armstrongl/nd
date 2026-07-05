@@ -84,14 +84,14 @@ func (s *settingsScreen) FullHelpItems() []HelpItem {
 	case settingsShowResult:
 		return []HelpItem{
 			{"enter", "return"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
 	default: // menu, switchScope
 		return []HelpItem{
+			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
-			{"esc", "back"},
+			{"q", "quit"},
 		}
 	}
 }

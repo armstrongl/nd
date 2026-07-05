@@ -100,32 +100,33 @@ func (s *sourceScreen) FullHelpItems() []HelpItem {
 	switch s.step {
 	case sourceList:
 		return []HelpItem{
-			{"j/k", "scroll"},
 			{"esc", "back"},
+			{"j/k", "scroll"},
 			{"q", "quit"},
 		}
 	case sourceAddLocalInput, sourceAddGitInput:
 		return []HelpItem{
-			{"enter", "add"},
 			{"esc", "cancel"},
+			{"enter", "submit"},
+			{"q", "quit"},
 		}
 	case sourceRemoveConfirm:
 		return []HelpItem{
 			{"h/l", "yes/no"},
 			{"enter", "confirm"},
-			{"esc", "back"},
+			{"q", "quit"},
 		}
-	case sourceDone:
+	case sourceLoading, sourceSyncing, sourceDone:
 		return []HelpItem{
 			{"enter", "return"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
 	default: // menu, removeSelect
 		return []HelpItem{
+			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
-			{"esc", "back"},
+			{"q", "quit"},
 		}
 	}
 }
