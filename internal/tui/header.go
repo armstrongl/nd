@@ -31,7 +31,6 @@ func (h Header) View(s Styles, width int) string {
 
 	right := fmt.Sprintf("%d deployed  %d issues", h.Deployed, h.Issues)
 
-	leftStyled := left
 	var rightStyled string
 	if h.Issues > 0 {
 		rightStyled = fmt.Sprintf("%s  %s",
@@ -45,7 +44,7 @@ func (h Header) View(s Styles, width int) string {
 	if gap < 1 {
 		gap = 1
 	}
-	return leftStyled + strings.Repeat(" ", gap) + rightStyled
+	return left + strings.Repeat(" ", gap) + rightStyled
 }
 
 // Refresh re-queries the service layer and returns an updated Header.
