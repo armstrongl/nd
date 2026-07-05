@@ -122,7 +122,7 @@ nd deploy skills/greeting commands/hello agents/researcher
 
 Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — [`nd remove`](../reference/nd_remove.md), [`nd profile switch`](../reference/nd_profile_switch.md), [`nd snapshot restore`](../reference/nd_snapshot_restore.md), and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
-nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code, or `~/.copilot/skills/greeting` for Copilot CLI) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 **Deploy by type:**
 
