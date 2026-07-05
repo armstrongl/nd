@@ -170,7 +170,7 @@ Two things to keep in mind:
 
 ## Absolute vs relative symlinks
 
-nd supports two symlink strategies. The default is absolute:
+nd supports two symlink strategies. The default is absolute. The paths below use the Claude Code directory (`~/.claude/`) as an example; the same strategy applies to any agent's config directory, such as `~/.copilot/` for Copilot CLI.
 
 **Absolute** (default): the symlink target is a full path:
 
