@@ -4,8 +4,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 )
@@ -187,6 +189,48 @@ func TestRemove(t *testing.T) {
 	}
 	if sm.Sources()[0].ID != nd.BuiltinSourceID {
 		t.Errorf("remaining source should be builtin, got %q", sm.Sources()[0].ID)
+	}
+}
+
+func TestRemoveRollbackPreservesOrderOnWriteFailure(t *testing.T) {
+	// Build the manager inline (not via newTestManager) so the config
+	// directory path is known and can be deleted to force a write failure.
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Register two local sources so index 0 is a non-last, non-builtin source
+	// (order becomes [src1, src2, builtin]).
+	if _, err := sm.AddLocal(t.TempDir(), ""); err != nil {
+		t.Fatalf("AddLocal 1: %v", err)
+	}
+	if _, err := sm.AddLocal(t.TempDir(), ""); err != nil {
+		t.Fatalf("AddLocal 2: %v", err)
+	}
+
+	// Snapshot the exact source list (order + contents) before the failed Remove.
+	before := append([]config.SourceEntry(nil), sm.Config().Sources...)
+
+	// Delete the config directory so the next WriteConfig -> AtomicWrite ->
+	// os.CreateTemp(dir, ...) fails deterministically.
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+
+	// Remove the first (non-last) source; the write must fail.
+	id := sm.Sources()[0].ID
+	if err := sm.Remove(id); err == nil {
+		t.Fatal("expected Remove to return an error when WriteConfig fails")
+	}
+
+	// After a failed Remove, the in-memory source list must be restored
+	// verbatim, including order.
+	if !reflect.DeepEqual(sm.Config().Sources, before) {
+		t.Errorf("Sources not restored after failed Remove:\n got  %+v\n want %+v",
+			sm.Config().Sources, before)
 	}
 }
 

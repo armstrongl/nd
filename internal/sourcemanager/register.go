@@ -113,12 +113,18 @@ func (sm *SourceManager) Remove(sourceID string) error {
 		return fmt.Errorf("source %q not found", sourceID)
 	}
 
-	removed := sm.cfg.Sources[idx]
-	sm.cfg.Sources = append(sm.cfg.Sources[:idx], sm.cfg.Sources[idx+1:]...)
+	// Snapshot before mutating, then build the new slice in a fresh backing
+	// array so the original is never aliased or shifted in place. Mirrors the
+	// AddLocal/AddGit snapshot-and-restore pattern.
+	oldSources := sm.cfg.Sources
+	newSources := make([]config.SourceEntry, 0, len(oldSources)-1)
+	newSources = append(newSources, oldSources[:idx]...)
+	newSources = append(newSources, oldSources[idx+1:]...)
+	sm.cfg.Sources = newSources
 
 	if err := WriteConfig(sm.configPath, sm.cfg); err != nil {
-		// Roll back
-		sm.cfg.Sources = append(sm.cfg.Sources[:idx], append([]config.SourceEntry{removed}, sm.cfg.Sources[idx:]...)...)
+		// Roll back in-memory change
+		sm.cfg.Sources = oldSources
 		return fmt.Errorf("save config: %w", err)
 	}
 
