@@ -68,7 +68,7 @@ func (m *mainMenuScreen) FullHelpItems() []HelpItem {
 	return []HelpItem{
 		{"j/k", "navigate"},
 		{"enter", "select"},
-		{"esc", "back"},
+		{"?", "help"},
 		{"q", "quit"},
 	}
 }

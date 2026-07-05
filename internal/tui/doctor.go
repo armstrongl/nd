@@ -78,20 +78,14 @@ func (d *doctorScreen) FullHelpItems() []HelpItem {
 	switch d.step {
 	case doctorConfirm:
 		return []HelpItem{
-			{"j/k", "scroll issues"},
+			{"j/k", "scroll"},
 			{"h/l", "yes/no"},
 			{"enter", "confirm"},
-			{"esc", "back"},
-		}
-	case doctorDone:
-		return []HelpItem{
-			{"enter", "return"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
-	default:
+	default: // loading, fixing, done
 		return []HelpItem{
-			{"esc", "back"},
+			{"enter", "return"},
 			{"q", "quit"},
 		}
 	}

@@ -72,26 +72,21 @@ func (s *pinScreen) FullHelpItems() []HelpItem {
 	switch s.step {
 	case pinSelect:
 		return []HelpItem{
-			{"j/k", "navigate"},
-			{"x/space", "toggle pin"},
-			{"enter", "confirm"},
 			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
+			{"q", "quit"},
 		}
 	case pinConfirm:
 		return []HelpItem{
 			{"h/l", "yes/no"},
 			{"enter", "confirm"},
-			{"esc", "back"},
-		}
-	case pinDone:
-		return []HelpItem{
-			{"enter", "return"},
-			{"esc", "back"},
 			{"q", "quit"},
 		}
-	default:
+	default: // loading, running, done
 		return []HelpItem{
-			{"esc", "back"},
+			{"enter", "return"},
 			{"q", "quit"},
 		}
 	}

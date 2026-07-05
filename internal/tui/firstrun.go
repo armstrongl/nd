@@ -63,7 +63,7 @@ func (f *firstRunScreen) FullHelpItems() []HelpItem {
 	return []HelpItem{
 		{"j/k", "navigate"},
 		{"enter", "select"},
-		{"esc", "quit"},
+		{"q", "quit"},
 	}
 }
 
