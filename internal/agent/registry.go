@@ -36,7 +36,7 @@ func New(cfg config.Config) *Registry {
 		{
 			Name:                "claude-code",
 			GlobalDir:           filepath.Join(homeDir, ".claude"),
-			ProjectDir:          ".claude",
+			ProjectDir:          ".agents",
 			SourceAlias:         "claude",
 			Binary:              "claude",
 			SupportedTypes:      nd.DeployableAssetTypes(),

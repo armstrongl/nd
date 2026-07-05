@@ -11,7 +11,7 @@ func claudeCode() agent.Agent {
 	return agent.Agent{
 		Name:               "claude-code",
 		GlobalDir:          "/Users/dev/.claude",
-		ProjectDir:         ".claude",
+		ProjectDir:         ".agents",
 		SourceAlias:        "claude",
 		Binary:             "claude",
 		SupportedTypes:     nd.DeployableAssetTypes(),
@@ -57,7 +57,7 @@ func TestDeployPathSkillProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "/Users/dev/myapp/.claude/skills/review"
+	want := "/Users/dev/myapp/.agents/skills/review"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -81,7 +81,7 @@ func TestDeployPathContextProjectRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Context files deploy to project root, not inside .claude/
+	// Context files deploy to project root, not inside .agents/
 	want := "/Users/dev/myapp/CLAUDE.md"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)

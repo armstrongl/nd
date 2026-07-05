@@ -23,7 +23,7 @@ func testInitAgent(t *testing.T, tmp string) *agent.Agent {
 	return &agent.Agent{
 		Name:           "claude-code",
 		GlobalDir:      agentDir,
-		ProjectDir:     ".claude",
+		ProjectDir:     ".agents",
 		Binary:         "claude",
 		SupportedTypes: nd.DeployableAssetTypes(),
 		VersionPattern: `(?i)claude`,
