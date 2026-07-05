@@ -36,6 +36,9 @@ type Services interface {
 	// Display state — named to avoid collision with App field names
 	GetScope() nd.Scope
 	GetConfigPath() string
+	// GetProjectRoot returns the project root, resolving it on demand from cwd
+	// when it was not populated at launch (see ResolveProjectRoot). Returns ""
+	// when cwd is not inside a project; callers treat "" as "not in a project".
 	GetProjectRoot() string
 	// ResolveProjectRoot discovers the project root on demand (from cwd via
 	// nd.FindProjectRoot) when it was not populated at launch, e.g. when the

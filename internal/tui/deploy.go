@@ -448,7 +448,10 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 		}
 	}
 
-	// Build deploy requests (C1: include ProjectRoot)
+	// Build deploy requests (C1: include ProjectRoot).
+	// GetProjectRoot resolves the project root on demand (cmd.App), so a
+	// project-scope deploy gets a non-empty root even when the TUI was launched
+	// in the default global scope from inside a project.
 	scope := ds.svc.GetScope()
 	projectRoot := ds.svc.GetProjectRoot()
 	var reqs []deploy.DeployRequest

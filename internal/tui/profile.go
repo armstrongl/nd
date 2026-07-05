@@ -316,6 +316,9 @@ func (s *profileScreen) runSwitch() tea.Cmd {
 		if summary == nil || summary.Index == nil {
 			return profileSwitchedMsg{err: fmt.Errorf("no asset index available")}
 		}
+		// GetProjectRoot resolves the project root on demand (cmd.App), so a
+		// project-scope switch passes a non-empty root to Switch even when the
+		// TUI was launched in the default global scope from inside a project.
 		result, err := mgr.Switch(current, target, eng, summary.Index, svc.GetProjectRoot())
 		return profileSwitchedMsg{result: result, err: err}
 	}
