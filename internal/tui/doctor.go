@@ -73,6 +73,30 @@ func (d *doctorScreen) InputActive() bool {
 	return d.step == doctorConfirm
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (d *doctorScreen) FullHelpItems() []HelpItem {
+	switch d.step {
+	case doctorConfirm:
+		return []HelpItem{
+			{"j/k", "scroll issues"},
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"esc", "back"},
+		}
+	case doctorDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default:
+		return []HelpItem{
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	}
+}
+
 // Init starts an async health check.
 func (d *doctorScreen) Init() tea.Cmd {
 	svc := d.svc

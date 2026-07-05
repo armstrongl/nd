@@ -8,6 +8,13 @@ type HelpItem struct {
 	Desc string
 }
 
+// HelpSection groups related HelpItems under a heading for the '?' help overlay.
+// An item with an empty Key renders as a plain note line (used for tips).
+type HelpSection struct {
+	Title string
+	Items []HelpItem
+}
+
 // HelpProvider is an optional interface screens can implement to add custom help items.
 type HelpProvider interface {
 	HelpItems() []HelpItem
@@ -18,6 +25,14 @@ type HelpProvider interface {
 // help (e.g. MultiSelect uses "x/space toggle" instead of "enter select").
 type FullHelpProvider interface {
 	FullHelpItems() []HelpItem
+}
+
+// SectionedHelpProvider is an optional interface screens can implement to group
+// their '?' help overlay entries under section headings (e.g. "Navigation",
+// "Actions", "Tips"). It only affects the overlay; the one-line HelpBar keeps
+// using HelpProvider/FullHelpProvider.
+type SectionedHelpProvider interface {
+	HelpSections() []HelpSection
 }
 
 // HelpBar renders context-sensitive help at the bottom of the TUI.

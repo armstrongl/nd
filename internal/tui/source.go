@@ -93,6 +93,41 @@ func (s *sourceScreen) InputActive() bool {
 	return s.step == sourceMenu || s.step == sourceAddLocalInput || s.step == sourceAddGitInput || s.step == sourceRemoveSelect || s.step == sourceRemoveConfirm
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *sourceScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case sourceList:
+		return []HelpItem{
+			{"j/k", "scroll"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	case sourceAddLocalInput, sourceAddGitInput:
+		return []HelpItem{
+			{"enter", "add"},
+			{"esc", "cancel"},
+		}
+	case sourceRemoveConfirm:
+		return []HelpItem{
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"esc", "back"},
+		}
+	case sourceDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default: // menu, removeSelect
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"esc", "back"},
+		}
+	}
+}
+
 func (s *sourceScreen) Init() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {

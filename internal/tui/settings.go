@@ -78,6 +78,24 @@ func (s *settingsScreen) InputActive() bool {
 	return s.step == settingsMenu || s.step == settingsSwitchScope
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *settingsScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case settingsShowResult:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default: // menu, switchScope
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"esc", "back"},
+		}
+	}
+}
+
 func (s *settingsScreen) Init() tea.Cmd {
 	return s.form.Init()
 }

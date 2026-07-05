@@ -10,14 +10,21 @@ import (
 // Model is the root Bubble Tea model. It manages a stack of screens,
 // a persistent header, and a context-sensitive help bar.
 type Model struct {
-	svc     Services
-	styles  Styles
-	screens []Screen
-	header  Header
-	helpbar HelpBar
-	width   int
-	height  int
-	isDark  bool
+	svc         Services
+	styles      Styles
+	screens     []Screen
+	header      Header
+	helpbar     HelpBar
+	helpOverlay HelpOverlay
+	width       int
+	height      int
+	isDark      bool
+
+	// helpOpen is true while the '?' help overlay is showing.
+	helpOpen bool
+	// firstRunTip shows a one-time "Press ? for help" hint until the first
+	// key press dismisses it and the help_seen flag is persisted.
+	firstRunTip bool
 }
 
 // Run launches the TUI. It detects the terminal color scheme, determines the
@@ -35,10 +42,11 @@ func Run(svc Services) error {
 	}
 
 	m := Model{
-		svc:     svc,
-		styles:  styles,
-		isDark:  isDark,
-		screens: []Screen{initial},
+		svc:         svc,
+		styles:      styles,
+		isDark:      isDark,
+		screens:     []Screen{initial},
+		firstRunTip: !helpSeen(svc),
 	}
 
 	p := tea.NewProgram(m)
@@ -113,6 +121,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		current := m.screens[len(m.screens)-1]
 
+		// Dismiss the first-run tip on the first key press and persist the
+		// flag so it never reappears (best-effort, matching App.LogOp).
+		if m.firstRunTip {
+			m.firstRunTip = false
+			_ = markHelpSeen(m.svc)
+		}
+
+		// The help overlay is modal: while it is open, '?'/esc close it and
+		// every other key is swallowed so esc does not also pop the nav stack.
+		if m.helpOpen {
+			if s := msg.String(); s == "?" || s == "esc" {
+				m.helpOpen = false
+			}
+			return m, nil
+		}
+
 		// When text input is active, only ctrl+c force-quits.
 		if current.InputActive() {
 			if msg.String() == "ctrl+c" {
@@ -120,6 +144,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Fall through to delegate to screen.
 		} else {
+			// '?' opens the help overlay when no text input is focused.
+			if msg.String() == "?" {
+				m.helpOpen = true
+				return m, nil
+			}
 			// Global keys only when no text input is active.
 			switch msg.String() {
 			case "q", "ctrl+c":
@@ -196,11 +225,23 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 
+	currentScreen := m.screens[len(m.screens)-1]
 	header := m.header.View(m.styles, m.width)
-	content := m.screens[len(m.screens)-1].View().Content
-	helpbar := m.helpbar.View(m.styles, m.screens[len(m.screens)-1], m.width)
+	helpbar := m.helpbar.View(m.styles, currentScreen, m.width)
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, "", content, "", helpbar))
+	content := currentScreen.View().Content
+	if m.helpOpen {
+		content = m.helpOverlay.View(m.styles, currentScreen, m.width, m.height)
+	}
+
+	segments := []string{header, "", content, "", helpbar}
+	if m.firstRunTip && !m.helpOpen {
+		// One-time hint, shown until the first key press dismisses it.
+		tip := "  " + m.styles.Subtle.Render("Press ? for help at any time")
+		segments = []string{header, "", content, "", tip, helpbar}
+	}
+
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, segments...))
 	v.AltScreen = true
 	return v
 }

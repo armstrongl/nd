@@ -172,6 +172,53 @@ func (ds *deployScreen) FullHelpItems() []HelpItem {
 	}
 }
 
+// HelpSections groups the deploy keybindings under headings for the '?' overlay,
+// including step-specific tips (e.g. the multiselect toggle).
+func (ds *deployScreen) HelpSections() []HelpSection {
+	switch ds.step {
+	case deploySelectAssets:
+		return []HelpSection{
+			{Title: "Navigation", Items: []HelpItem{
+				{"j/k", "navigate"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+			{Title: "Selection", Items: []HelpItem{
+				{"x/space", "toggle asset"},
+				{"enter", "confirm"},
+			}},
+			{Title: "Tips", Items: []HelpItem{
+				{GlyphDot, "Toggle assets with x or space, then press enter to deploy."},
+			}},
+		}
+	case deployConflictConfirm:
+		return []HelpSection{
+			{Title: "Confirm", Items: []HelpItem{
+				{"h/l", "yes/no"},
+				{"enter", "confirm"},
+				{"q", "quit"},
+			}},
+		}
+	case deployPickType:
+		return []HelpSection{
+			{Title: "Navigation", Items: []HelpItem{
+				{"j/k", "navigate"},
+				{"enter", "select"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+		}
+	default:
+		return []HelpSection{
+			{Title: "Result", Items: []HelpItem{
+				{"enter", "return"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+		}
+	}
+}
+
 // Init initializes the type picker form.
 func (ds *deployScreen) Init() tea.Cmd {
 	return ds.typeForm.Init()

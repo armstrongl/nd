@@ -85,6 +85,35 @@ func (s *snapshotScreen) InputActive() bool {
 	return s.step == snapshotMenu || s.step == snapshotSaveName || s.step == snapshotRestoreSelect
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *snapshotScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case snapshotSaveName:
+		return []HelpItem{
+			{"enter", "save"},
+			{"esc", "cancel"},
+		}
+	case snapshotList:
+		return []HelpItem{
+			{"j/k", "scroll"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	case snapshotDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default: // menu, restoreSelect
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"esc", "back"},
+		}
+	}
+}
+
 func (s *snapshotScreen) Init() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {

@@ -67,6 +67,36 @@ func (s *pinScreen) InputActive() bool {
 	return s.step == pinSelect || s.step == pinConfirm
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *pinScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case pinSelect:
+		return []HelpItem{
+			{"j/k", "navigate"},
+			{"x/space", "toggle pin"},
+			{"enter", "confirm"},
+			{"esc", "back"},
+		}
+	case pinConfirm:
+		return []HelpItem{
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"esc", "back"},
+		}
+	case pinDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	default:
+		return []HelpItem{
+			{"esc", "back"},
+			{"q", "quit"},
+		}
+	}
+}
+
 func (s *pinScreen) Init() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
