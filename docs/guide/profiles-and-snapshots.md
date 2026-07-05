@@ -167,7 +167,19 @@ nd snapshot delete old-snapshot
 
 ### Auto-snapshots
 
-nd automatically saves snapshots before destructive operations like profile switching and snapshot restoring. nd retains the 5 most recent auto-snapshots and cleans up older ones.
+nd automatically saves a snapshot of the current deployment state before a destructive operation, so you can undo the change. This covers profile switching, snapshot restoring, and bulk operations: deploying or removing more than one asset at once ([`nd deploy a b c`](../reference/nd_deploy.md) or [`nd remove a b c`](../reference/nd_remove.md)) captures the state that existed *before* the operation ran. Deploying or removing a single asset does not trigger an auto-snapshot.
+
+Auto-snapshots are best-effort. If saving the snapshot fails, nd records the problem but does not block the operation: the deploy or remove proceeds anyway. nd tags these snapshots `(auto)` in `nd snapshot list` and retains the 5 most recent, cleaning up older ones.
+
+To undo a bulk operation, restore the auto-snapshot nd took immediately before it:
+
+```shell {filename="Terminal"}
+# Find the auto-snapshot taken before the operation
+nd snapshot list
+
+# Restore it (restoring itself saves another auto-snapshot first)
+nd snapshot restore <snapshot-name>
+```
 
 ## Workflow example
 

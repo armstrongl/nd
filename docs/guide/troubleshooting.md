@@ -276,6 +276,26 @@ Most troubleshooting steps in this guide show Claude Code paths. Substitute the 
 
 **Fix:** Install git and ensure it is in your `$PATH`. On macOS, `xcode-select --install` installs git. On Linux, use your package manager (`apt install git`, `dnf install git`).
 
+## Another nd process is running
+
+**Symptoms:** A command fails with `could not acquire lock on ~/.config/nd/state/deployments.yaml.lock within 5s: another nd process may be running`.
+
+**Cause:** nd guards its deployment state file (`~/.config/nd/state/deployments.yaml`) with an advisory lock so two processes cannot corrupt it. Every operation that changes deployments acquires the lock (`deployments.yaml.lock`), waits up to 5 seconds, runs, then releases it. If another nd process already holds the lock, the wait times out and the command stops rather than risk a partial write.
+
+**Fix:**
+
+```shell {filename="Terminal"}
+# Wait for the other operation to finish, then retry
+nd status
+
+# Look for a stuck nd process
+ps aux | grep '[n]d '
+```
+
+Most operations release the lock in well under a second, so retrying is usually enough. If a process is genuinely hung, stop it and retry.
+
+nd also recovers from abandoned locks on its own. When the lock file is older than 60 seconds, nd treats it as stale, removes it, and retries acquisition once. During that recovery you may see `stale lock on <path> (held >60s), breaking and retrying`. A lock left behind by a crashed process therefore self-heals after 60 seconds without manual cleanup.
+
 ## Related pages
 
 - **[`nd doctor` reference](../reference/nd_doctor.md):** Full flag and option reference for the doctor command
