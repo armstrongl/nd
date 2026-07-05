@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -115,6 +116,39 @@ func promptChoice(r io.Reader, w io.Writer, prompt string, choices []string) (st
 	return choices[n-1], nil
 }
 
+// promptDeployBuiltin presents the built-in asset deploy prompt used by
+// `nd init`. It offers three actions and defaults to Yes:
+//   - empty input (Enter), "y", or "yes" -> deploy all
+//   - "n" or "no"                         -> skip
+//   - "l" or "list"                       -> print each asset as "<type>/<name>",
+//     then re-prompt
+//
+// Unrecognized input re-prompts. Like confirm, it returns an error when stdin
+// is not a terminal so callers can fall back to the non-interactive skip path.
+func promptDeployBuiltin(r io.Reader, w io.Writer, prompt string, assets []asset.Asset) (bool, error) {
+	if !isTerminal() {
+		return false, fmt.Errorf("confirmation required but stdin is not a terminal (use --yes to skip)")
+	}
+
+	scanner := bufio.NewScanner(r)
+	for {
+		fmt.Fprintf(w, "%s [Y/n/list] ", prompt)
+		if !scanner.Scan() {
+			return false, nil
+		}
+		switch strings.TrimSpace(strings.ToLower(scanner.Text())) {
+		case "", "y", "yes":
+			return true, nil
+		case "n", "no":
+			return false, nil
+		case "l", "list":
+			for _, a := range assets {
+				fmt.Fprintf(w, "%s/%s\n", a.Type, a.Name)
+			}
+		}
+	}
+}
+
 // extractChoiceNames strips tab-separated descriptions from completion strings.
 // Input: ["skills/greeting\tglobal from src", "commands/hello.md\tglobal from src"]
 // Output: ["skills/greeting", "commands/hello.md"]
@@ -130,8 +164,9 @@ func extractChoiceNames(completions []string) []string {
 	return names
 }
 
-// isTerminal checks if stdin is a terminal. It is a package variable so tests
-// can inject a fake interactive check when exercising prompt-gated code paths.
+// isTerminal checks if stdin is a terminal. It is a package variable (not a
+// plain function) so tests can override it to exercise interactive,
+// prompt-gated code paths.
 var isTerminal = func() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }

@@ -324,6 +324,198 @@ func TestInitCmd_JSON_IncludesBuiltinDeployCount(t *testing.T) {
 	}
 }
 
+func TestInitCmd_Interactive_DefaultYesDeploys(t *testing.T) {
+	fakeTerminal(t, true)
+	// Isolate the built-in deploy prompt from the shell-completion prompt
+	// (ce0bw6): with no detected shell, offerCompletionInstall is a no-op, so
+	// stdin feeds the deploy prompt directly.
+	t.Setenv("SHELL", "")
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("\n")) // Enter => default Yes
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "[Y/n/list]") {
+		t.Errorf("expected interactive prompt '[Y/n/list]', got: %s", got)
+	}
+	if !strings.Contains(got, "Deployed") {
+		t.Errorf("expected deploy after Enter (default Yes), got: %s", got)
+	}
+
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	if len(entries) == 0 {
+		t.Error("expected at least one skill symlink deployed")
+	}
+}
+
+func TestInitCmd_Interactive_ListThenDeploys(t *testing.T) {
+	fakeTerminal(t, true)
+	// Isolate the built-in deploy prompt from the shell-completion prompt
+	// (ce0bw6): with no detected shell, offerCompletionInstall is a no-op, so
+	// stdin feeds the deploy prompt directly.
+	t.Setenv("SHELL", "")
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("list\n\n")) // list, then Enter => deploy
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+
+	// The list action prints each asset as "<type>/<name>"; built-in assets
+	// include skills, so at least one "skills/" line must appear.
+	if !strings.Contains(got, "skills/") {
+		t.Errorf("expected 'list' to print assets as '<type>/<name>', got: %s", got)
+	}
+	// Listing must happen before the deploy summary (no deploy until Y/n given).
+	listIdx := strings.Index(got, "skills/")
+	deployIdx := strings.Index(got, "Deployed")
+	if deployIdx < 0 {
+		t.Fatalf("expected deploy after list+Enter, got: %s", got)
+	}
+	if listIdx < 0 || listIdx > deployIdx {
+		t.Errorf("expected asset list before deploy summary, got: %s", got)
+	}
+
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	if len(entries) == 0 {
+		t.Error("expected at least one skill symlink deployed")
+	}
+}
+
+func TestInitCmd_JSON_IncludesBuiltinAssets(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "--json", "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+
+	data, ok := resp.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", resp.Data)
+	}
+
+	// The existing count key must be preserved.
+	if _, ok := data["builtin_deployed"]; !ok {
+		t.Error("expected builtin_deployed count to be preserved")
+	}
+
+	// builtin_assets must be a non-empty array of {name, type} objects.
+	assetsRaw, ok := data["builtin_assets"]
+	if !ok {
+		t.Fatal("expected builtin_assets in JSON data")
+	}
+	arr, ok := assetsRaw.([]interface{})
+	if !ok {
+		t.Fatalf("expected builtin_assets to be array, got %T", assetsRaw)
+	}
+	if len(arr) == 0 {
+		t.Fatal("expected builtin_assets to be non-empty")
+	}
+	for i, el := range arr {
+		obj, ok := el.(map[string]interface{})
+		if !ok {
+			t.Fatalf("builtin_assets[%d] not an object: %T", i, el)
+		}
+		if name, ok := obj["name"].(string); !ok || name == "" {
+			t.Errorf("builtin_assets[%d] missing string name, got: %v", i, obj)
+		}
+		if typ, ok := obj["type"].(string); !ok || typ == "" {
+			t.Errorf("builtin_assets[%d] missing string type, got: %v", i, obj)
+		}
+	}
+
+	// The count must equal the array length.
+	if cnt, ok := data["builtin_deployed"].(float64); ok {
+		if int(cnt) != len(arr) {
+			t.Errorf("builtin_deployed (%v) != len(builtin_assets) (%d)", cnt, len(arr))
+		}
+	}
+}
+
+func TestInitCmd_NonInteractiveNoYes_Skips(t *testing.T) {
+	fakeTerminal(t, false)
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("")) // piped stdin, non-TTY
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Skipped.") {
+		t.Errorf("expected 'Skipped.' hint on non-TTY without --yes, got: %s", got)
+	}
+	if strings.Contains(got, "Deployed") {
+		t.Errorf("expected no deploy on non-TTY without --yes, got: %s", got)
+	}
+
+	// Nothing should have been deployed into the agent dir.
+	skillsDir := filepath.Join(agentDir, "skills")
+	if entries, err := os.ReadDir(skillsDir); err == nil && len(entries) > 0 {
+		t.Errorf("expected no deployed skills on skip, found %d", len(entries))
+	}
+}
+
 // testInitRegistry creates a registry where claude-code is detected and copilot is not.
 // Agent GlobalDirs are redirected to tmp-based paths for safe testing.
 func testInitRegistry(t *testing.T, tmp string) *agent.Registry {
