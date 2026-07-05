@@ -35,3 +35,10 @@ func NoSnapshots() string {
 func AllDeployed(typeName string) string {
 	return fmt.Sprintf("All %s assets are already deployed.", typeName)
 }
+
+// ExportCLIOnly returns the notice shown when the user selects "Export plugin"
+// from the TUI menu. Export has no in-TUI flow; it runs as the nd export
+// command-line action.
+func ExportCLIOnly() string {
+	return "Export is a command-line action.\n\n  Run nd export --name <plugin> --assets <type>/<name> to export assets as a Claude Code plugin."
+}

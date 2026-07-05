@@ -125,8 +125,8 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 	case "settings":
 		screen = newSettingsScreen(m.svc, m.styles, m.isDark)
 	case "export":
-		// Export has no TUI screen yet — return to the main menu.
-		return func() tea.Msg { return BackMsg{} }
+		// Export is a CLI-only action; show a notice pointing to nd export.
+		screen = newExportScreen(m.svc, m.styles, m.isDark)
 	case "quit":
 		return tea.Quit
 	default:
