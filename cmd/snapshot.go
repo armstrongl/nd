@@ -164,7 +164,9 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Restore cancelled.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Restore cancelled.\n")
+				}
 				return nil
 			}
 
@@ -333,7 +335,9 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Cancelled.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Cancelled.\n")
+				}
 				return nil
 			}
 

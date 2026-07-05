@@ -245,6 +245,52 @@ func TestSnapshotDeleteCmd(t *testing.T) {
 	}
 }
 
+func TestSnapshotDeleteCmd_Quiet_SuppressesCancel(t *testing.T) {
+	setTestTerminal(t, true)
+	configPath, _ := setupDeployEnv(t)
+
+	// Save a snapshot to delete.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "save", "q-snap"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Decline the delete under --quiet: the cancellation line must be suppressed.
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetIn(strings.NewReader("n\n"))
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--quiet", "snapshot", "delete", "q-snap"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out.String(), "Cancelled") {
+		t.Errorf("expected cancellation message suppressed under --quiet, got: %s", out.String())
+	}
+
+	// The snapshot must still exist (delete was declined).
+	out.Reset()
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "snapshot", "list"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "q-snap") {
+		t.Errorf("expected snapshot to survive a declined delete, got: %s", out.String())
+	}
+}
+
 func TestSnapshotDeleteCmd_NotFound(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 

@@ -19,7 +19,7 @@ import (
 
 func newInitCmd(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:  "init",
+		Use:   "init",
 		Short: "Initialize nd configuration",
 		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. On the interactive path it also offers to install shell\ncompletions for your detected shell. Use --yes to skip the deploy confirmation prompt.",
 		Example: `  # Interactive setup
@@ -30,7 +30,7 @@ func newInitCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "getting-started,configuration",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -61,11 +61,14 @@ func newInitCmd(app *App) *cobra.Command {
 			deployedAssets, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)
 
 			if app.JSON {
+				// A failed builtin deploy must surface as a JSON error envelope
+				// plus a non-zero exit; never report status:"ok" when it failed.
 				if deployErr != nil {
-					return printJSONError(w, []output.JSONError{{
+					_ = printJSONError(w, []output.JSONError{{
 						Code:    "builtin_deploy_failed",
 						Message: deployErr.Error(),
 					}})
+					return deployErr
 				}
 				result := map[string]interface{}{
 					"config_path":     app.ConfigPath,
@@ -213,7 +216,8 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 	if !shouldDeploy {
 		confirmed, err := promptDeployBuiltin(cmd.InOrStdin(), w, promptMsg, scanResult.Assets)
 		if err != nil {
-			// Non-interactive without --yes: decline rather than deploy.
+			// Non-interactive (non-TTY) without --yes: treat as decline. The
+			// builtin deploy is opt-in; --yes and --json still deploy above.
 			shouldDeploy = false
 		} else {
 			shouldDeploy = confirmed

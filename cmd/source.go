@@ -188,6 +188,9 @@ If assets from the source are currently deployed, nd asks whether to remove them
 				if app.JSON {
 					return fmt.Errorf("source %q has %d deployed assets; use --yes to remove", sourceID, deployedCount)
 				}
+				if !isTerminal() {
+					return fmt.Errorf("source %q has %d deployed assets; use --yes to remove", sourceID, deployedCount)
+				}
 				choices := []string{
 					"Remove source and all deployed assets",
 					"Remove source only (orphan deployed assets)",
@@ -210,7 +213,7 @@ If assets from the source are currently deployed, nd asks whether to remove them
 				case choices[1]:
 					// Orphan — deployments stay
 				case choices[2]:
-					if !app.Quiet {
+					if !app.Quiet && !app.JSON {
 						printHuman(w, "Cancelled.\n")
 					}
 					return nil

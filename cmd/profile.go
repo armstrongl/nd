@@ -133,6 +133,9 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&assets, "assets", "", "comma-separated list of assets (type/name)")
 	cmd.Flags().BoolVar(&fromCurrent, "from-current", false, "create profile from current deployments")
 	cmd.Flags().StringVar(&description, "description", "", "profile description")
+	// --from-current and --assets are two different ways to populate a profile;
+	// passing both would silently ignore --assets, so reject the combination.
+	cmd.MarkFlagsMutuallyExclusive("from-current", "assets")
 	return cmd
 }
 
@@ -188,7 +191,7 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				if !app.Quiet {
+				if !app.Quiet && !app.JSON {
 					printHuman(w, "Delete cancelled.\n")
 				}
 				return nil
@@ -529,7 +532,7 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				if !app.Quiet {
+				if !app.Quiet && !app.JSON {
 					printHuman(w, "Switch cancelled.\n")
 				}
 				return nil
