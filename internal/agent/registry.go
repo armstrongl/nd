@@ -105,6 +105,17 @@ func (r *Registry) All() []Agent {
 	return result
 }
 
+// KnownAgentNames returns the names of all built-in agents, independent of
+// detection. Useful for flag validation and shell completion.
+func KnownAgentNames() []string {
+	r := New(config.Config{})
+	names := make([]string, len(r.agents))
+	for i := range r.agents {
+		names[i] = r.agents[i].Name
+	}
+	return names
+}
+
 // defaultRunCommand executes a binary with a 5-second timeout, capturing both stdout and stderr.
 func defaultRunCommand(name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

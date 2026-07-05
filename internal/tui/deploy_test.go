@@ -2,14 +2,20 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/armstrongl/nd/internal/state"
 )
 
@@ -259,7 +265,7 @@ func TestDeploy_DeployBulkCmd_AllSucceed(t *testing.T) {
 		{Asset: asset.Asset{Identity: asset.Identity{Name: "b", Type: nd.AssetRule}}},
 	}
 
-	cmd := deployBulkCmd(deployer, reqs)
+	cmd := deployBulkCmd(deployer, reqs, "claude-code")
 	msg := cmd()
 
 	done, ok := msg.(deployDoneMsg)
@@ -302,7 +308,7 @@ func TestDeploy_DeployBulkCmd_PartialFailure(t *testing.T) {
 		{Asset: asset.Asset{Identity: asset.Identity{Name: "c", Type: nd.AssetCommand}}},
 	}
 
-	cmd := deployBulkCmd(deployer, reqs)
+	cmd := deployBulkCmd(deployer, reqs, "claude-code")
 	msg := cmd()
 
 	done := msg.(deployDoneMsg)
@@ -327,7 +333,7 @@ func TestDeploy_DeployBulkCmd_TotalFailure(t *testing.T) {
 		{Asset: asset.Asset{Identity: asset.Identity{Name: "b", Type: nd.AssetRule}}},
 	}
 
-	cmd := deployBulkCmd(deployer, reqs)
+	cmd := deployBulkCmd(deployer, reqs, "claude-code")
 	msg := cmd()
 
 	done := msg.(deployDoneMsg)
@@ -337,6 +343,10 @@ func TestDeploy_DeployBulkCmd_TotalFailure(t *testing.T) {
 	if len(done.failed) != 2 {
 		t.Fatalf("failed = %d, want 2", len(done.failed))
 	}
+	// Total-failure errors are tagged with the target agent name.
+	if done.failed[0].Agent != "claude-code" {
+		t.Fatalf("failed[0].Agent = %q, want %q", done.failed[0].Agent, "claude-code")
+	}
 }
 
 func TestDeploy_DeployBulkCmd_Empty(t *testing.T) {
@@ -344,7 +354,7 @@ func TestDeploy_DeployBulkCmd_Empty(t *testing.T) {
 		return &deploy.BulkDeployResult{}, nil
 	}
 
-	cmd := deployBulkCmd(deployer, nil)
+	cmd := deployBulkCmd(deployer, nil, "claude-code")
 	msg := cmd()
 
 	done := msg.(deployDoneMsg)
@@ -805,5 +815,212 @@ func TestDeploy_RunningViewShowsAssetCount(t *testing.T) {
 	v := ds.View()
 	if !strings.Contains(v.Content, "3 asset(s)") {
 		t.Errorf("running view should show asset count, got: %q", v.Content)
+	}
+}
+
+// --- Multi-agent selection tests ---
+
+// registryWithDetected builds a registry where the named agents are "detected"
+// (their binary is found on PATH). Binary verification is skipped.
+func registryWithDetected(detected map[string]bool) *agent.Registry {
+	reg := agent.New(config.Config{})
+	reg.SetRunCommand(nil) // skip binary verification
+	reg.SetLookPath(func(bin string) (string, error) {
+		switch bin {
+		case "claude":
+			if detected["claude-code"] {
+				return "/usr/bin/claude", nil
+			}
+		case "copilot":
+			if detected["copilot"] {
+				return "/usr/bin/copilot", nil
+			}
+		}
+		return "", exec.ErrNotFound
+	})
+	reg.SetStat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	return reg
+}
+
+// testSourceManagerWithDeployAgents builds a real SourceManager whose config
+// sets default_deploy_agents.
+func testSourceManagerWithDeployAgents(t *testing.T, agentNames []string) *sourcemanager.SourceManager {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	lines := []string{
+		"version: 1",
+		"default_scope: global",
+		"default_agent: claude-code",
+		"symlink_strategy: absolute",
+		"default_deploy_agents:",
+	}
+	for _, a := range agentNames {
+		lines = append(lines, "  - "+a)
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	sm, err := sourcemanager.New(path, "")
+	if err != nil {
+		t.Fatalf("new source manager: %v", err)
+	}
+	return sm
+}
+
+func TestDeploy_DetectedAgents_OnlyDetected(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true, "copilot": false}), nil
+	}
+
+	got := ds.detectedAgents()
+	if len(got) != 1 || got[0].Name != "claude-code" {
+		t.Fatalf("detectedAgents() = %v, want only claude-code", got)
+	}
+}
+
+func TestDeploy_AfterPickType_TwoDetectedShowsPicker(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true, "copilot": true}), nil
+	}
+
+	updated, cmd := ds.afterPickType()
+	ds2 := updated.(*deployScreen)
+	if ds2.step != deployPickAgents {
+		t.Fatalf("step = %d, want deployPickAgents (%d)", ds2.step, deployPickAgents)
+	}
+	if ds2.agentForm == nil {
+		t.Fatal("agentForm should be built when 2+ agents are detected")
+	}
+	if cmd == nil {
+		t.Fatal("expected Init cmd for agent form")
+	}
+}
+
+func TestDeploy_AfterPickType_OneDetectedSkipsPicker(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true}), nil
+	}
+
+	updated, _ := ds.afterPickType()
+	ds2 := updated.(*deployScreen)
+	if ds2.step == deployPickAgents {
+		t.Fatal("picker should be skipped when exactly one agent is detected")
+	}
+	if len(ds2.selectedAgents) != 1 || ds2.selectedAgents[0] != "claude-code" {
+		t.Fatalf("selectedAgents = %v, want [claude-code]", ds2.selectedAgents)
+	}
+}
+
+func TestDeploy_AfterPickType_ConfigSkipsPicker(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.sourceManagerFn = func() (*sourcemanager.SourceManager, error) {
+		return testSourceManagerWithDeployAgents(t, []string{"claude-code", "copilot"}), nil
+	}
+	// Even with 2 agents detected, config default_deploy_agents takes precedence.
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true, "copilot": true}), nil
+	}
+
+	updated, _ := ds.afterPickType()
+	ds2 := updated.(*deployScreen)
+	if ds2.step == deployPickAgents {
+		t.Fatal("picker should be skipped when default_deploy_agents is configured")
+	}
+	if len(ds2.selectedAgents) != 2 {
+		t.Fatalf("selectedAgents = %v, want the 2 configured agents", ds2.selectedAgents)
+	}
+}
+
+func TestDeploy_FirstPassBatches_SingleAgent(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true}), nil
+	}
+	svc.deployEngineForFn = func(ag *agent.Agent) (*deploy.Engine, error) {
+		return deploy.New(nil, ag, ""), nil
+	}
+	ds.selectedAgents = []string{"claude-code"}
+
+	base := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "local", Type: nd.AssetSkill, Name: "greeting"}}},
+	}
+	batches, err := ds.firstPassBatches(base)
+	if err != nil {
+		t.Fatalf("firstPassBatches: %v", err)
+	}
+	if len(batches) != 1 {
+		t.Fatalf("batches = %d, want 1", len(batches))
+	}
+	if batches[0].name != "claude-code" || len(batches[0].reqs) != 1 {
+		t.Fatalf("batch = {name:%q, reqs:%d}, want {claude-code, 1}", batches[0].name, len(batches[0].reqs))
+	}
+}
+
+func TestDeploy_FirstPassBatches_TwoAgents(t *testing.T) {
+	ds := newTestDeployScreen(deployPickType)
+	svc := ds.svc.(*mockServices)
+	svc.agentRegistryFn = func() (*agent.Registry, error) {
+		return registryWithDetected(map[string]bool{"claude-code": true, "copilot": true}), nil
+	}
+	svc.deployEngineForFn = func(ag *agent.Agent) (*deploy.Engine, error) {
+		return deploy.New(nil, ag, ""), nil
+	}
+	ds.selectedAgents = []string{"claude-code", "copilot"}
+
+	base := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{SourceID: "local", Type: nd.AssetSkill, Name: "greeting"}}},
+	}
+	batches, err := ds.firstPassBatches(base)
+	if err != nil {
+		t.Fatalf("firstPassBatches: %v", err)
+	}
+	if len(batches) != 2 {
+		t.Fatalf("batches = %d, want 2 (one per agent)", len(batches))
+	}
+	if batches[0].name != "claude-code" || batches[1].name != "copilot" {
+		t.Fatalf("batch names = %q,%q, want claude-code,copilot", batches[0].name, batches[1].name)
+	}
+	for _, b := range batches {
+		if len(b.reqs) != 1 {
+			t.Errorf("agent %q got %d reqs, want 1 (same asset once per agent)", b.name, len(b.reqs))
+		}
+	}
+}
+
+func TestDeploy_RunBulk_TagsTotalFailureAgent(t *testing.T) {
+	deployer := func([]deploy.DeployRequest) (*deploy.BulkDeployResult, error) {
+		return nil, fmt.Errorf("lock failed")
+	}
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{Identity: asset.Identity{Name: "a", Type: nd.AssetSkill}}},
+	}
+	_, failed := runBulk(deployer, reqs, "copilot")
+	if len(failed) != 1 || failed[0].Agent != "copilot" {
+		t.Fatalf("runBulk failed = %+v, want 1 tagged copilot", failed)
+	}
+}
+
+func TestDeploy_ResultView_ShowsTargetAgent(t *testing.T) {
+	ds := newTestDeployScreen(deployResult)
+	ds.succeeded = []deploy.DeployResult{
+		{Deployment: state.Deployment{AssetName: "greeting", AssetType: nd.AssetSkill, Agent: "copilot"}},
+	}
+	ds.failed = nil
+
+	content := ds.View().Content
+	if !strings.Contains(content, "copilot") {
+		t.Errorf("result view should label the target agent; got:\n%s", content)
+	}
+	if !strings.Contains(content, GlyphArrow) {
+		t.Errorf("result view should show the arrow to the agent; got:\n%s", content)
 	}
 }

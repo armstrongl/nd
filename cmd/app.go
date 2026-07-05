@@ -91,7 +91,8 @@ func (a *App) ActiveAgent() (*agent.Agent, error) {
 	return reg.Default()
 }
 
-// DeployEngine returns the deploy engine, creating it on first call.
+// DeployEngine returns the deploy engine for the active agent, creating it on
+// first call and caching it.
 func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if a.eng != nil {
 		return a.eng, nil
@@ -100,17 +101,30 @@ func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	sstore := a.StateStore()
-	eng := deploy.New(sstore, ag, a.BackupDir)
+	eng, err := a.DeployEngineFor(ag)
+	if err != nil {
+		return nil, err
+	}
+	a.eng = eng
+	return a.eng, nil
+}
+
+// DeployEngineFor builds a deploy engine bound to the given agent. Unlike
+// DeployEngine, the result is not cached — callers deploying to multiple agents
+// build one fresh engine per selected agent and run each agent's requests
+// through it.
+func (a *App) DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error) {
+	if ag == nil {
+		return nil, fmt.Errorf("deploy engine requires a target agent")
+	}
+	eng := deploy.New(a.StateStore(), ag, a.BackupDir)
 
 	// Wire auto-snapshot saver
-	pstore, err := a.ProfileStore()
-	if err == nil {
+	if pstore, err := a.ProfileStore(); err == nil {
 		eng.SetSnapshotSaver(pstore)
 	}
 
-	a.eng = eng
-	return a.eng, nil
+	return eng, nil
 }
 
 // ProfileManager returns the profile manager, creating it on first call.
