@@ -317,6 +317,54 @@ func TestRemoveAsset(t *testing.T) {
 	}
 }
 
+// TestRemoveOnlyTargetsRequestedAgent verifies that a populated
+// RemoveRequest.Agent scopes removal to that agent's deployment and never
+// deletes a same-identity deployment recorded under a different agent.
+func TestRemoveOnlyTargetsRequestedAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/s/skills/review", LinkPath: "/home/user/.claude/skills/review",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual, Agent: "claude-code",
+		},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/s/skills/review", LinkPath: "/home/user/.copilot/skills/review",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual, Agent: "copilot",
+		},
+	}
+
+	// Engine is bound to claude-code, but the request targets copilot; removeOne
+	// filters on RemoveRequest.Agent, not the engine's bound agent.
+	var removedPaths []string
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(name string) error { removedPaths = append(removedPaths, name); return nil })
+
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+		Agent:    "copilot",
+	})
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	if len(removedPaths) != 1 || removedPaths[0] != "/home/user/.copilot/skills/review" {
+		t.Fatalf("expected only the copilot symlink removed, got: %v", removedPaths)
+	}
+
+	if store.saved == nil {
+		t.Fatal("expected state to be saved")
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Fatalf("expected 1 surviving deployment, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].Agent != "claude-code" {
+		t.Errorf("expected the claude-code deployment to survive, got agent %q", store.saved.Deployments[0].Agent)
+	}
+}
+
 func TestRemoveAlreadyGone(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{

@@ -28,41 +28,55 @@ func newStatusCmd(app *App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
-			eng, err := app.DeployEngine()
+			agents, err := app.DeployAgents()
 			if err != nil {
 				return err
 			}
 
-			// Prune ghost deployments for all agents (best-effort pre-op cleanup)
-			if pruned, pruneErr := eng.PruneAll(); pruneErr != nil {
-				if !app.Quiet {
-					printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
+			// Prune ghost deployments for all agents once (PruneAll ignores the
+			// engine's bound agent, so a single call covers every agent).
+			if eng0, engErr := app.DeployEngineFor(agents[0]); engErr == nil {
+				if pruned, pruneErr := eng0.PruneAll(); pruneErr != nil {
+					if !app.Quiet {
+						printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
+					}
+				} else if pruned > 0 && !app.Quiet {
+					printHuman(cmd.ErrOrStderr(), "Pruned %d stale deployment(s)\n", pruned)
 				}
-			} else if pruned > 0 && !app.Quiet {
-				printHuman(cmd.ErrOrStderr(), "Pruned %d stale deployment(s)\n", pruned)
 			}
 
-			entries, err := eng.Status()
-			if err != nil {
-				return fmt.Errorf("load status: %w", err)
-			}
-
-			// Filter by scope/project
+			// Collect status across every detected agent (per-agent engines each
+			// see only their own deployments in the shared state file).
 			var filtered []statusDisplay
-			for _, e := range entries {
-				if app.Scope == nd.ScopeProject && e.Deployment.Scope == nd.ScopeProject &&
-					e.Deployment.ProjectPath != app.ProjectRoot {
-					continue
+			for _, ag := range agents {
+				eng, engErr := app.DeployEngineFor(ag)
+				if engErr != nil {
+					return engErr
 				}
-				filtered = append(filtered, statusDisplay{
-					AssetType: string(e.Deployment.AssetType),
-					AssetName: e.Deployment.AssetName,
-					Source:    e.Deployment.SourceID,
-					Scope:     string(e.Deployment.Scope),
-					Origin:    string(e.Deployment.Origin),
-					Health:    e.Health.String(),
-					Detail:    e.Detail,
-				})
+				entries, err := eng.Status()
+				if err != nil {
+					return fmt.Errorf("load status: %w", err)
+				}
+				for _, e := range entries {
+					if app.Scope == nd.ScopeProject && e.Deployment.Scope == nd.ScopeProject &&
+						e.Deployment.ProjectPath != app.ProjectRoot {
+						continue
+					}
+					agentName := e.Deployment.Agent
+					if agentName == "" {
+						agentName = "claude-code"
+					}
+					filtered = append(filtered, statusDisplay{
+						AssetType: string(e.Deployment.AssetType),
+						AssetName: e.Deployment.AssetName,
+						Source:    e.Deployment.SourceID,
+						Scope:     string(e.Deployment.Scope),
+						Origin:    string(e.Deployment.Origin),
+						Agent:     agentName,
+						Health:    e.Health.String(),
+						Detail:    e.Detail,
+					})
+				}
 			}
 
 			// Active profile
@@ -109,8 +123,8 @@ func newStatusCmd(app *App) *cobra.Command {
 					if d.Health != state.HealthOK.String() {
 						healthMark = "✗"
 					}
-					printHuman(w, "  %s %-25s  %-8s  %-8s  %s\n",
-						healthMark, d.AssetName, d.Scope, d.Origin, d.Source)
+					printHuman(w, "  %s %-25s  %-8s  %-8s  %-12s  %s\n",
+						healthMark, d.AssetName, d.Scope, d.Origin, d.Agent, d.Source)
 				}
 			}
 
@@ -125,6 +139,7 @@ type statusDisplay struct {
 	Source    string `json:"source"`
 	Scope     string `json:"scope"`
 	Origin    string `json:"origin"`
+	Agent     string `json:"agent"`
 	Health    string `json:"health"`
 	Detail    string `json:"detail,omitempty"`
 }

@@ -30,6 +30,7 @@ type SnapshotEntry struct {
 	Scope       nd.Scope        `yaml:"scope"                  json:"scope"`
 	ProjectPath string          `yaml:"project_path,omitempty" json:"project_path,omitempty"`
 	Origin      nd.DeployOrigin `yaml:"origin"                 json:"origin"`
+	Agent       string          `yaml:"agent,omitempty"        json:"agent,omitempty"`
 	DeployedAt  time.Time       `yaml:"deployed_at"            json:"deployed_at"`
 }
 

@@ -91,6 +91,97 @@ func (a *App) ActiveAgent() (*agent.Agent, error) {
 	return reg.Default()
 }
 
+// DeployAgents resolves the set of target agents for status/list/sync and other
+// multi-agent commands. Precedence, mirroring ActiveAgent():
+//  1. --agent flag (single explicit target, must be known + detected);
+//  2. config default_deploy_agents (each must be known + detected);
+//  3. all detected agents.
+//
+// Returns an error if no agents are detected. With no --agent flag and no
+// default_deploy_agents, a single-agent system resolves to exactly the active
+// agent, so callers behave identically to the previous single-agent path.
+func (a *App) DeployAgents() ([]*agent.Agent, error) {
+	reg, err := a.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	// (1) --agent flag: single explicit target (same checks as ActiveAgent).
+	if a.AgentFlag != "" {
+		ag, err := reg.Get(a.AgentFlag)
+		if err != nil {
+			return nil, fmt.Errorf("unknown agent %q; available agents: use 'nd doctor' to list", a.AgentFlag)
+		}
+		reg.Detect()
+		if !ag.Detected {
+			return nil, fmt.Errorf("agent %q is not detected on this system; install it or check config", a.AgentFlag)
+		}
+		return []*agent.Agent{ag}, nil
+	}
+
+	reg.Detect()
+
+	// (2) config default_deploy_agents: explicit list, each must be detected.
+	if sm, smErr := a.SourceManager(); smErr == nil {
+		if names := sm.Config().DefaultDeployAgents; len(names) > 0 {
+			var agents []*agent.Agent
+			seen := make(map[string]bool)
+			for _, name := range names {
+				if seen[name] {
+					continue
+				}
+				seen[name] = true
+				ag, gErr := reg.Get(name)
+				if gErr != nil {
+					return nil, fmt.Errorf("unknown agent %q in default_deploy_agents; run 'nd doctor' to list", name)
+				}
+				if !ag.Detected {
+					return nil, fmt.Errorf("agent %q is not detected on this system; install it or check config", name)
+				}
+				agents = append(agents, ag)
+			}
+			if len(agents) > 0 {
+				return agents, nil
+			}
+		}
+	}
+
+	// (3) all detected agents (iteration model mirrors cmd/doctor.go).
+	var agents []*agent.Agent
+	for _, ag := range reg.All() {
+		if !ag.Detected {
+			continue
+		}
+		if got, gErr := reg.Get(ag.Name); gErr == nil {
+			agents = append(agents, got)
+		}
+	}
+	if len(agents) == 0 {
+		return nil, fmt.Errorf("no coding agents detected; install Claude Code or configure a custom agent path in config.yaml")
+	}
+	return agents, nil
+}
+
+// deployEngineForName builds a deploy engine bound to the agent with the given
+// name, resolving the name through the registry. An empty name is treated as
+// "claude-code" to match the v1→v2 state migration rule. Used by snapshot
+// restore to recreate each deployment on its recorded agent.
+func (a *App) deployEngineForName(name string) (*deploy.Engine, error) {
+	if name == "" {
+		name = "claude-code"
+	}
+	reg, err := a.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+	reg.Detect()
+	ag, err := reg.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("unknown agent %q: %w", name, err)
+	}
+	return a.DeployEngineFor(ag)
+}
+
 // DeployEngine returns the deploy engine for the active agent, creating it on
 // first call and caching it.
 func (a *App) DeployEngine() (*deploy.Engine, error) {

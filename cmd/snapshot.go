@@ -175,12 +175,18 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 				return fmt.Errorf("scan sources: %w", err)
 			}
 
-			eng, err := app.DeployEngine()
-			if err != nil {
+			// Verify a deploy engine can be built for the active agent before
+			// restoring; Restore itself resolves a per-agent engine for each
+			// snapshot entry via engineFor so deployments land on their
+			// recorded agent.
+			if _, err := app.DeployEngine(); err != nil {
 				return fmt.Errorf("init deploy engine: %w", err)
 			}
+			engineFor := func(agentName string) (profile.DeployEngine, error) {
+				return app.deployEngineForName(agentName)
+			}
 
-			result, err := profMgr.Restore(name, eng, summary.Index)
+			result, err := profMgr.Restore(name, engineFor, summary.Index)
 			if err != nil {
 				return err
 			}
