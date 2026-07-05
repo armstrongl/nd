@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -86,6 +88,19 @@ func TestRemoveCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Dry-run remove must leave the deployed symlink and its state entry intact.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Errorf("dry-run remove must not delete the symlink at %s: %v", linkPath, err)
+	}
+	data, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state file: %v", err)
+	}
+	if !strings.Contains(string(data), "greeting") {
+		t.Errorf("dry-run remove must not drop the state entry, got: %s", data)
 	}
 }
 

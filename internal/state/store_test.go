@@ -273,6 +273,53 @@ deployments:
 	}
 }
 
+func TestStoreSaveMkdirAllError(t *testing.T) {
+	// Point the store at a path whose parent directory cannot be created:
+	// a regular file sits where a directory would need to be.
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(blocker, "state", "deployments.yaml")
+	store := state.NewStore(path)
+
+	err := store.Save(&state.DeploymentState{Version: nd.SchemaVersion})
+	if err == nil {
+		t.Fatal("expected Save to fail when the state directory cannot be created")
+	}
+	if !strings.Contains(err.Error(), "create state directory") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// NOTE: store.go:92-95 (yaml.Marshal failure -> "marshal state") is not covered:
+// yaml.v3 cannot fail marshaling a valid *DeploymentState, whose fields are all
+// representable scalar/slice types, so there is no reachable input that trips it.
+
+func TestStoreWithLockAcquireError(t *testing.T) {
+	// Place a directory where the ".lock" file must be opened, so the lock's
+	// os.OpenFile(..., O_RDWR) fails and Acquire returns before fn runs.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "deployments.yaml")
+	if err := os.Mkdir(path+".lock", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store := state.NewStore(path)
+
+	called := false
+	err := store.WithLock(func() error {
+		called = true
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected WithLock to fail when the lock file cannot be opened")
+	}
+	if called {
+		t.Error("fn must not run when lock acquisition fails")
+	}
+}
+
 func TestStoreV2RoundTripsAgent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "deployments.yaml")

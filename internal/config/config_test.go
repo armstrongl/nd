@@ -173,6 +173,45 @@ func TestValidationErrorImplementsError(t *testing.T) {
 	}
 }
 
+func TestConfigValidateEmptySourceID(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources: []config.SourceEntry{
+			{ID: "", Type: nd.SourceLocal, Path: "/a"},
+		},
+	}
+	errs := c.Validate()
+	var found bool
+	for _, e := range errs {
+		if e.Field == "sources[0].id" && e.Message == "must not be empty" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a sources[0].id must-not-be-empty error, got %v", errs)
+	}
+}
+
+func TestValidationErrorNoFile(t *testing.T) {
+	ve := config.ValidationError{Field: "version", Message: "must be >= 1"}
+	if got := ve.Error(); got != "field version: must be >= 1" {
+		t.Errorf("no-file Error(): got %q", got)
+	}
+}
+
+func TestValidationErrorWithFile(t *testing.T) {
+	ve := config.ValidationError{
+		File: "config.yaml", Line: 5, Field: "sources[0].path", Message: "path does not exist",
+	}
+	want := "config.yaml:5: field sources[0].path: path does not exist"
+	if got := ve.Error(); got != want {
+		t.Errorf("with-file Error(): got %q, want %q", got, want)
+	}
+}
+
 func TestConfigValidateInvalidSourceType(t *testing.T) {
 	c := config.Config{
 		Version:         1,
