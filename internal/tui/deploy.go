@@ -19,7 +19,8 @@ import (
 type deployStep int
 
 const (
-	deployPickType deployStep = iota
+	deployPickScope deployStep = iota
+	deployPickType
 	deploySelectAssets
 	deployRunning
 	deployConflictConfirm
@@ -53,6 +54,10 @@ type deployScreen struct {
 	styles Styles
 	isDark bool
 	step   deployStep
+
+	// pickScope step
+	scopeForm   *huh.Form
+	scopeChoice string
 
 	// pickType step
 	typeForm   *huh.Form
@@ -110,8 +115,22 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 		svc:    svc,
 		styles: styles,
 		isDark: isDark,
-		step:   deployPickType,
+		step:   deployPickScope,
 	}
+
+	// Scope picker (first step): default to the current session scope.
+	ds.scopeChoice = string(svc.GetScope())
+	ds.scopeForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Deploy scope").
+				Options(
+					huh.NewOption("Global", "global"),
+					huh.NewOption("Project", "project"),
+				).
+				Value(&ds.scopeChoice),
+		),
+	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
 
 	entries := typeDisplayNames()
 	opts := make([]huh.Option[string], len(entries))
@@ -135,13 +154,20 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 func (ds *deployScreen) Title() string { return "Deploy" }
 
 func (ds *deployScreen) InputActive() bool {
-	return ds.step == deployPickType || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
+	return ds.step == deployPickScope || ds.step == deployPickType || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
 }
 
 // FullHelpItems returns step-specific help items for the deploy screen.
 // MultiSelect steps show "x/space toggle" instead of the default "enter select".
 func (ds *deployScreen) FullHelpItems() []HelpItem {
 	switch ds.step {
+	case deployPickScope:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
 	case deployPickType:
 		return []HelpItem{
 			{"esc", "back"},
@@ -172,9 +198,9 @@ func (ds *deployScreen) FullHelpItems() []HelpItem {
 	}
 }
 
-// Init initializes the type picker form.
+// Init initializes the scope picker form (the first step).
 func (ds *deployScreen) Init() tea.Cmd {
-	return ds.typeForm.Init()
+	return ds.scopeForm.Init()
 }
 
 // Update handles messages for each step of the deploy flow.
@@ -246,6 +272,8 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch ds.step {
+	case deployPickScope:
+		return ds.updatePickScope(msg)
 	case deployPickType:
 		return ds.updatePickType(msg)
 	case deploySelectAssets:
@@ -274,6 +302,9 @@ func (ds *deployScreen) View() tea.View {
 	}
 
 	switch ds.step {
+	case deployPickScope:
+		return tea.NewView(ds.scopeForm.View())
+
 	case deployPickType:
 		return tea.NewView(ds.typeForm.View())
 
@@ -296,6 +327,40 @@ func (ds *deployScreen) View() tea.View {
 	}
 
 	return tea.NewView("")
+}
+
+// updatePickScope delegates to the scope picker form and, on completion,
+// applies the chosen scope (resetting scope-dependent services) before
+// advancing to the type picker. Selecting project scope with no detectable
+// project root shows an error instead of deploying.
+func (ds *deployScreen) updatePickScope(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	model, cmd := ds.scopeForm.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		ds.scopeForm = f
+	}
+
+	if ds.scopeForm.State == huh.StateCompleted {
+		newScope := nd.Scope(ds.scopeChoice)
+		// Project scope requires a project root (mirrors internal/tui/scope.go).
+		if newScope == nd.ScopeProject && ds.svc.GetProjectRoot() == "" {
+			ds.err = fmt.Errorf("cannot deploy to project scope: no project root detected")
+			ds.step = deployResult // non-input step so esc/enter exit cleanly
+			return ds, nil
+		}
+		ds.svc.ResetForScope(newScope, ds.svc.GetProjectRoot())
+		ds.step = deployPickType
+		return ds, ds.typeForm.Init()
+	}
+
+	if ds.scopeForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	return ds, cmd
 }
 
 // updatePickType delegates to the type picker form and transitions on completion.
