@@ -42,6 +42,13 @@ var homePathRe = regexp.MustCompile(`^/(Users|home)/[^/]+/`)
 // multiSpaceRe collapses runs of multiple spaces to a single space.
 var multiSpaceRe = regexp.MustCompile(`  +`)
 
+// Enhanced code-fence annotations for Hextra rendering. Terminal frames wrap
+// runnable commands (usage and examples); Flags frames wrap option listings.
+const (
+	terminalFence = `shell {filename="Terminal"}`
+	flagsFence    = `text {filename="Flags"}`
+)
+
 func generateCommandDocs(root *cobra.Command, outDir string) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
@@ -87,6 +94,12 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 		lines := strings.SplitAfter(body, "\n")
 		var out []string
 		skippedTitle := false
+		inFence := false
+		// fenceInfo selects the enhanced code-fence annotation for the current
+		// section: Terminal for the usage and examples blocks, Flags for the
+		// options blocks. This mirrors the hand-authored style already in
+		// docs/reference so regeneration is a no-op on existing pages.
+		fenceInfo := terminalFence
 		for _, line := range lines {
 			if !skippedTitle && strings.HasPrefix(line, "## ") {
 				skippedTitle = true
@@ -106,6 +119,22 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 				line = strings.ReplaceAll(line, "\t", " ")
 				// Collapse multiple spaces (Cobra pads for alignment).
 				line = multiSpaceRe.ReplaceAllString(line, " ")
+			}
+			// Choose the fence annotation by section: options blocks list flags,
+			// while usage and examples show terminal commands.
+			switch strings.TrimSpace(line) {
+			case "## Options", "## Options inherited from parent commands":
+				fenceInfo = flagsFence
+			case "## Examples":
+				fenceInfo = terminalFence
+			}
+			// Annotate opening code fences with Hextra's enhanced syntax; leave
+			// closing fences bare.
+			if strings.TrimSpace(line) == "```" {
+				if !inFence {
+					line = "```" + fenceInfo + "\n"
+				}
+				inFence = !inFence
 			}
 			out = append(out, line)
 		}
@@ -175,20 +204,19 @@ func generateCommandDocs(root *cobra.Command, outDir string) error {
 
 // guideTitles maps guide file slugs to display titles for cross-links.
 var guideTitles = map[string]string{
-	"getting-started":        "Getting started",
-	"how-nd-works":           "How nd works",
-	"configuration":          "Configuration",
-	"creating-sources":       "Create sources",
-	"profiles-and-snapshots": "Profiles and snapshots",
-	"glossary":               "Glossary",
-	"troubleshooting":        "Troubleshoot",
-	"asset-types/skills":     "Skills",
-	"asset-types/agents":     "Agents",
-	"asset-types/commands":   "Commands",
-	"asset-types/rules":      "Rules",
-	"asset-types/context":    "Context files",
-	"asset-types/hooks":      "Hooks",
-	"asset-types/plugins":    "Plugins",
+	"getting-started":           "Getting started",
+	"how-nd-works":              "How nd works",
+	"configuration":             "Configuration",
+	"creating-sources":          "Create sources",
+	"profiles-and-snapshots":    "Profiles and snapshots",
+	"troubleshooting":           "Troubleshoot",
+	"asset-types/skills":        "Skills",
+	"asset-types/agents":        "Agents",
+	"asset-types/commands":      "Commands",
+	"asset-types/rules":         "Rules",
+	"asset-types/context":       "Context files",
+	"asset-types/hooks":         "Hooks",
+	"asset-types/plugins":       "Plugins",
 	"asset-types/output-styles": "Output styles",
 }
 
