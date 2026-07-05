@@ -112,6 +112,21 @@ Asset references can be:
 				assets = append(assets, *resolved)
 			}
 
+			// Resolve deployment scope (may prompt interactively; an explicit
+			// --scope flag or a non-interactive invocation skips the prompt).
+			// Resolved before the multi-agent branch so every deploy path
+			// (single- and multi-agent) honors the chosen scope.
+			resolvedScope, err := resolveDeployScope(cmd, app)
+			if err != nil {
+				return err
+			}
+			if resolvedScope == nd.ScopeProject {
+				if _, err := app.ResolveProjectRoot(); err != nil {
+					return err
+				}
+			}
+			app.Scope = resolvedScope
+
 			// Resolve target agents: --agents flag > config default_deploy_agents.
 			// When neither is set, fall through to the single active-agent path
 			// below (byte-for-byte unchanged).

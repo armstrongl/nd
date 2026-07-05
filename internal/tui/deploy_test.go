@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 
 	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
@@ -127,8 +128,104 @@ func TestDeploy_InitialStep(t *testing.T) {
 	svc := newMockServices()
 	s := testStyles()
 	ds := newDeployScreen(svc, s, true)
-	if ds.step != deployPickType {
-		t.Fatalf("initial step = %d, want deployPickType (%d)", ds.step, deployPickType)
+	// The scope picker is now the first step, shown before the type picker.
+	if ds.step != deployPickScope {
+		t.Fatalf("initial step = %d, want deployPickScope (%d)", ds.step, deployPickScope)
+	}
+}
+
+func TestDeploy_InputActive_PickScope(t *testing.T) {
+	ds := newTestDeployScreen(deployPickScope)
+	if !ds.InputActive() {
+		t.Fatal("InputActive() at pickScope step should be true (form active)")
+	}
+}
+
+func TestDeploy_ScopeFormNotNil(t *testing.T) {
+	svc := newMockServices()
+	s := testStyles()
+	ds := newDeployScreen(svc, s, true)
+	if ds.scopeForm == nil {
+		t.Fatal("scopeForm should not be nil after construction")
+	}
+	// Pre-selection defaults to the current session scope.
+	if ds.scopeChoice != string(svc.GetScope()) {
+		t.Fatalf("scopeChoice = %q, want %q", ds.scopeChoice, string(svc.GetScope()))
+	}
+}
+
+func TestDeploy_PickScope_GlobalAdvancesToType(t *testing.T) {
+	svc := newMockServices() // GetScope() defaults to global, GetProjectRoot() to ""
+	s := testStyles()
+	ds := newDeployScreen(svc, s, true)
+
+	ds.scopeChoice = "global"
+	ds.scopeForm.State = huh.StateCompleted
+
+	updated, cmd := ds.updatePickScope(nil)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.step != deployPickType {
+		t.Fatalf("step after selecting global = %d, want deployPickType (%d)", ds2.step, deployPickType)
+	}
+	if cmd == nil {
+		t.Fatal("expected a command (typeForm.Init) after advancing to the type picker")
+	}
+	if ds2.err != nil {
+		t.Fatalf("unexpected error after selecting global: %v", ds2.err)
+	}
+}
+
+func TestDeploy_PickScope_ProjectNoRootShowsError(t *testing.T) {
+	svc := newMockServices() // GetProjectRoot() defaults to "" (no project root)
+	s := testStyles()
+	ds := newDeployScreen(svc, s, true)
+
+	ds.scopeChoice = "project"
+	ds.scopeForm.State = huh.StateCompleted
+
+	updated, _ := ds.updatePickScope(nil)
+	ds2 := updated.(*deployScreen)
+
+	if ds2.err == nil {
+		t.Fatal("expected an error when selecting project scope with no project root")
+	}
+	if !strings.Contains(ds2.err.Error(), "no project root detected") {
+		t.Errorf("error should mention 'no project root detected'; got: %v", ds2.err)
+	}
+	if ds2.step == deployPickType {
+		t.Error("should not advance to the type picker when project root is missing")
+	}
+	if len(svc.resetCalls) != 0 {
+		t.Errorf("ResetForScope should not be called when project root is missing; got %d calls", len(svc.resetCalls))
+	}
+}
+
+func TestDeploy_EscOnPickScope_SendsBackMsg(t *testing.T) {
+	svc := newMockServices()
+	s := testStyles()
+	ds := newDeployScreen(svc, s, true)
+	_, cmd := ds.updatePickScope(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd == nil {
+		t.Fatal("expected BackMsg cmd on ESC at pickScope, got nil")
+	}
+	if _, ok := cmd().(BackMsg); !ok {
+		t.Fatalf("expected BackMsg, got %T", cmd())
+	}
+}
+
+func TestDeploy_FullHelpItems_PickScope(t *testing.T) {
+	ds := newTestDeployScreen(deployPickScope)
+	items := ds.FullHelpItems()
+
+	hasEnterSelect := false
+	for _, item := range items {
+		if item.Key == "enter" && item.Desc == "select" {
+			hasEnterSelect = true
+		}
+	}
+	if !hasEnterSelect {
+		t.Errorf("FullHelpItems at pickScope should include 'enter select'; got: %v", items)
 	}
 }
 

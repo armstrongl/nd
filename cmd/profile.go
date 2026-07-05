@@ -350,6 +350,20 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 				return nil
 			}
 
+			// Resolve deployment scope (may prompt interactively; an explicit
+			// --scope flag or a non-interactive invocation skips the prompt).
+			// Reuses the same session preference as `nd deploy`.
+			resolvedScope, err := resolveDeployScope(cmd, app)
+			if err != nil {
+				return err
+			}
+			if resolvedScope == nd.ScopeProject {
+				if _, err := app.ResolveProjectRoot(); err != nil {
+					return err
+				}
+			}
+			app.Scope = resolvedScope
+
 			summary, err := app.ScanIndex()
 			if err != nil {
 				return fmt.Errorf("scan sources: %w", err)
