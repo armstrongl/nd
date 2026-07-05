@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/source"
 )
 
@@ -172,5 +174,17 @@ func TestSourceScreen_MenuView_AfterLoad(t *testing.T) {
 	v := s.View()
 	if v.Content == "" {
 		t.Fatal("menu view should not be empty after load")
+	}
+}
+
+// double-fire guard — adding flag prevents repeated runAdd calls
+func TestSourceScreen_DoubleFireGuard_Add(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.step = sourceAddGitInput
+	s.adding = true
+
+	_, cmd := s.updateAddForm(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateAddForm should return nil cmd when adding guard is set")
 	}
 }

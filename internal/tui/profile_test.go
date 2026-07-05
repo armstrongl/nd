@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/profile"
 )
@@ -155,5 +157,17 @@ func TestProfileScreen_CreateDone_Error(t *testing.T) {
 	v := s.View()
 	if !strings.Contains(v.Content, "profile already exists") {
 		t.Errorf("create error view should show error, got: %q", v.Content)
+	}
+}
+
+// double-fire guard — creating flag prevents repeated runCreate calls
+func TestProfileScreen_DoubleFireGuard_Create(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+	s.step = profileCreateName
+	s.creating = true
+
+	_, cmd := s.updateCreateForm(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateCreateForm should return nil cmd when creating guard is set")
 	}
 }

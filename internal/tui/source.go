@@ -66,6 +66,7 @@ type sourceScreen struct {
 	// add forms
 	addForm  *huh.Form
 	addInput string
+	adding   bool
 
 	// remove
 	removeForm   *huh.Form
@@ -258,6 +259,7 @@ func (s *sourceScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sourceScreen) buildAddForm(kind string) (tea.Model, tea.Cmd) {
 	s.addInput = ""
+	s.adding = false
 	title := "Local source path"
 	placeholder := "/path/to/assets"
 	if kind == "git" {
@@ -285,6 +287,9 @@ func (s *sourceScreen) buildAddForm(kind string) (tea.Model, tea.Cmd) {
 }
 
 func (s *sourceScreen) updateAddForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.adding {
+		return s, nil
+	}
 	model, cmd := s.addForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.addForm = f
@@ -294,6 +299,7 @@ func (s *sourceScreen) updateAddForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s.step == sourceAddGitInput {
 			kind = "git"
 		}
+		s.adding = true
 		return s, s.runAdd(kind, s.addInput)
 	}
 	if s.addForm.State == huh.StateAborted {
