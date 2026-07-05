@@ -420,7 +420,7 @@ func (m *removeScreen) buildResultContent() string {
 	// H2: Dry-run preview
 	if m.dryRun {
 		fmt.Fprintf(&b, "  %s Would remove %d asset(s):\n\n",
-			m.styles.Warning.Render("[DRY RUN]"), len(m.dryReqs))
+			m.styles.Warning.Render(GlyphDryRun), len(m.dryReqs))
 		for _, req := range m.dryReqs {
 			fmt.Fprintf(&b, "    %s %s/%s\n",
 				GlyphArrow, req.Identity.Type, req.Identity.Name)

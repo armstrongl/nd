@@ -13,6 +13,9 @@ type Config struct {
 	Sources         []SourceEntry      `yaml:"sources"          json:"sources"`
 	Agents          []AgentOverride    `yaml:"agents,omitempty" json:"agents,omitempty"`
 	ContextTypes    []string           `yaml:"context_types,omitempty" json:"context_types,omitempty"`
+	// RecencyDays is the window (in days) within which a modified source file
+	// marks an asset as "new" in the TUI. Zero (unset) means the 7-day default.
+	RecencyDays int `yaml:"recency_days,omitempty" json:"recency_days,omitempty"`
 }
 
 // SourceEntry represents a source registration in the config file.

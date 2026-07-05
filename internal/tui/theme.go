@@ -48,16 +48,8 @@ func NewStyles(isDark bool) Styles {
 	}
 }
 
-// Glyphs — text-based status indicators, readable without color.
-const (
-	GlyphOK      = "ok"
-	GlyphBroken  = "!!"
-	GlyphDrifted = "??"
-	GlyphOrphan  = "--"
-	GlyphMissing = "xx"
-	GlyphDot     = "\u00b7" // middle dot ·
-	GlyphArrow   = "->"
-)
+// Glyph constants and their styled render helpers live in glyphs.go, the
+// single home for shared TUI status indicators.
 
 // NdTheme returns huh form styles using the Catppuccin color scheme.
 func NdTheme(isDark bool) *huh.Styles {

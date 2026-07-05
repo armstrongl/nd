@@ -343,7 +343,7 @@ func (d *doctorScreen) viewDone() tea.View {
 
 	for _, w := range warnings {
 		fmt.Fprintf(&b, "  %s %s\n",
-			d.styles.Warning.Render("!"), w)
+			d.styles.Warning.Render(GlyphWarning), w)
 	}
 
 	fmt.Fprintf(&b, "\n  %s", d.styles.Subtle.Render("Press enter to return."))

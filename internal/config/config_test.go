@@ -189,6 +189,56 @@ func TestConfigValidateInvalidSourceType(t *testing.T) {
 	}
 }
 
+func TestConfigRecencyDaysYAML(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		RecencyDays:     14,
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !contains(string(data), "recency_days") {
+		t.Errorf("set recency_days should appear in YAML, got:\n%s", data)
+	}
+
+	var got config.Config
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.RecencyDays != 14 {
+		t.Errorf("recency_days round-trip: got %d, want 14", got.RecencyDays)
+	}
+
+	// A newly added field must not trip validation.
+	for _, e := range got.Validate() {
+		if e.Field == "recency_days" {
+			t.Errorf("recency_days should not be validated, got error: %v", e)
+		}
+	}
+}
+
+func TestConfigRecencyDaysOmitEmpty(t *testing.T) {
+	// Unset (zero) recency_days should be omitted from YAML.
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if contains(string(data), "recency_days") {
+		t.Error("unset recency_days should be omitted from YAML")
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }

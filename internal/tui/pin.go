@@ -155,7 +155,7 @@ func (s *pinScreen) handleLoaded(msg pinLoadedMsg) (tea.Model, tea.Cmd) {
 		key := d.Identity().String()
 		label := deploymentLabel(d)
 		if d.Origin == nd.OriginPinned {
-			label += " [pinned]"
+			label += " " + s.styles.Pinned()
 			s.selected = append(s.selected, key)
 		}
 		opts[i] = huh.NewOption(label, key)

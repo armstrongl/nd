@@ -60,10 +60,11 @@ type deployScreen struct {
 	scanning   bool // H1: guards against double-fire after type form completion
 
 	// selectAssets step
-	assetForm *huh.Form
-	selected  []string       // "sourceID:type/name" keys
-	assets    []*asset.Asset // available (undeployed) assets
-	deploying bool           // H1: guards against double-fire after asset form completion
+	assetForm   *huh.Form
+	selected    []string       // "sourceID:type/name" keys
+	assets      []*asset.Asset // available (undeployed) assets
+	recencyDays int            // recency_days from config (0 = 7-day default)
+	deploying   bool           // H1: guards against double-fire after asset form completion
 
 	// running step
 	progress progressBar
@@ -101,8 +102,9 @@ type deployDoneMsg struct {
 
 // scanDoneMsg signals that the background scan+filter completed.
 type scanDoneMsg struct {
-	assets []*asset.Asset
-	err    error
+	assets      []*asset.Asset
+	recencyDays int // resolved recency_days from config (0 = 7-day default)
+	err         error
 }
 
 func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
@@ -240,6 +242,7 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return ds, nil
 		}
 		ds.assets = msg.assets
+		ds.recencyDays = msg.recencyDays
 		ds.step = deploySelectAssets
 		ds.buildAssetForm()
 		return ds, ds.assetForm.Init()
@@ -369,20 +372,42 @@ func (ds *deployScreen) startScan() tea.Cmd {
 			}
 		}
 
+		// Resolve the recency window from config so the picker can flag newly
+		// modified assets (mirrors browseScreen.Init). 0 = 7-day default.
+		recencyDays := 0
+		if sm, err := svc.SourceManager(); err == nil && sm != nil {
+			if cfg := sm.Config(); cfg != nil {
+				recencyDays = cfg.RecencyDays
+			}
+		}
+
 		undeployed := filterUndeployed(deployable, deployed)
-		return scanDoneMsg{assets: undeployed}
+		return scanDoneMsg{assets: undeployed, recencyDays: recencyDays}
 	}
+}
+
+// assetOptionLabel builds a deploy-picker label for an asset: "name  source",
+// with the description appended when present and a styled "new" badge when the
+// asset's source file was modified within window. Deployed-badge logic is
+// available via the shared helper, but ds.assets here is the undeployed set so
+// it is a no-op in this picker today.
+func assetOptionLabel(styles Styles, a *asset.Asset, window time.Duration) string {
+	label := fmt.Sprintf("%s  %s", a.Name, a.SourceID)
+	if a.Meta != nil && a.Meta.Description != "" {
+		label = fmt.Sprintf("%s  %s  %s", a.Name, a.SourceID, a.Meta.Description)
+	}
+	if isNew(a, window) {
+		label += "  " + styles.NewBadge()
+	}
+	return label
 }
 
 // buildAssetForm creates the multi-select form from the available (undeployed) assets.
 func (ds *deployScreen) buildAssetForm() {
+	window := recencyWindow(ds.recencyDays)
 	opts := make([]huh.Option[string], len(ds.assets))
 	for i, a := range ds.assets {
-		label := fmt.Sprintf("%s  %s", a.Name, a.SourceID)
-		if a.Meta != nil && a.Meta.Description != "" {
-			label = fmt.Sprintf("%s  %s  %s", a.Name, a.SourceID, a.Meta.Description)
-		}
-		opts[i] = huh.NewOption(label, assetKey(a))
+		opts[i] = huh.NewOption(assetOptionLabel(ds.styles, a, window), assetKey(a))
 	}
 
 	ds.assetForm = huh.NewForm(
@@ -545,7 +570,7 @@ func (ds *deployScreen) buildResultContent() string {
 	// H2: Dry-run preview
 	if ds.dryRun {
 		fmt.Fprintf(&b, "  %s Would deploy %d asset(s):\n\n",
-			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs))
+			ds.styles.Warning.Render(GlyphDryRun), len(ds.dryReqs))
 		for _, req := range ds.dryReqs {
 			fmt.Fprintf(&b, "    %s %s/%s from %s\n",
 				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID)
