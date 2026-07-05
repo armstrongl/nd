@@ -163,12 +163,19 @@ func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 		newScope = nd.ScopeProject
 	}
 
-	// Project scope requires a project root.
-	if newScope == nd.ScopeProject && m.svc.GetProjectRoot() == "" {
-		return m, nil
+	projectRoot := m.svc.GetProjectRoot()
+	// Project scope requires a project root; resolve it on demand from cwd.
+	// This is a silent toggle: a genuine resolution failure is a no-op with
+	// no error surface.
+	if newScope == nd.ScopeProject {
+		root, err := m.svc.ResolveProjectRoot()
+		if err != nil || root == "" {
+			return m, nil
+		}
+		projectRoot = root
 	}
 
-	m.svc.ResetForScope(newScope, m.svc.GetProjectRoot())
+	m.svc.ResetForScope(newScope, projectRoot)
 	return m, tea.Batch(
 		func() tea.Msg { return ScopeSwitchedMsg{} },
 		func() tea.Msg { return RefreshHeaderMsg{} },

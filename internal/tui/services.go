@@ -37,6 +37,10 @@ type Services interface {
 	GetScope() nd.Scope
 	GetConfigPath() string
 	GetProjectRoot() string
+	// ResolveProjectRoot discovers the project root on demand (from cwd via
+	// nd.FindProjectRoot) when it was not populated at launch, e.g. when the
+	// TUI is started in the default global scope from inside a project.
+	ResolveProjectRoot() (string, error)
 	IsDryRun() bool
 
 	// Mid-session reset (scope/agent switching).

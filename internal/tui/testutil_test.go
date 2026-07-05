@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+
 	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -14,20 +16,21 @@ import (
 // All methods return sensible zero values by default. Override individual
 // function fields to inject custom behavior in tests.
 type mockServices struct {
-	sourceManagerFn  func() (*sourcemanager.SourceManager, error)
-	scanIndexFn      func() (*sourcemanager.ScanSummary, error)
-	agentRegistryFn  func() (*agent.Registry, error)
-	defaultAgentFn   func() (*agent.Agent, error)
-	deployEngineFn   func() (*deploy.Engine, error)
-	stateStoreFn     func() *state.Store
-	profileManagerFn func() (*profile.Manager, error)
-	profileStoreFn   func() (*profile.Store, error)
-	opLogFn          func() *oplog.Writer
-	getScopeFn        func() nd.Scope
-	getConfigPathFn   func() string
-	getProjectRootFn  func() string
-	isDryRunFn        func() bool
-	resetForScopeFn  func(scope nd.Scope, projectRoot string)
+	sourceManagerFn      func() (*sourcemanager.SourceManager, error)
+	scanIndexFn          func() (*sourcemanager.ScanSummary, error)
+	agentRegistryFn      func() (*agent.Registry, error)
+	defaultAgentFn       func() (*agent.Agent, error)
+	deployEngineFn       func() (*deploy.Engine, error)
+	stateStoreFn         func() *state.Store
+	profileManagerFn     func() (*profile.Manager, error)
+	profileStoreFn       func() (*profile.Store, error)
+	opLogFn              func() *oplog.Writer
+	getScopeFn           func() nd.Scope
+	getConfigPathFn      func() string
+	getProjectRootFn     func() string
+	resolveProjectRootFn func() (string, error)
+	isDryRunFn           func() bool
+	resetForScopeFn      func(scope nd.Scope, projectRoot string)
 
 	// Track ResetForScope calls for assertions.
 	resetCalls []resetForScopeCall
@@ -124,6 +127,16 @@ func (m *mockServices) GetProjectRoot() string {
 		return m.getProjectRootFn()
 	}
 	return ""
+}
+
+func (m *mockServices) ResolveProjectRoot() (string, error) {
+	if m.resolveProjectRootFn != nil {
+		return m.resolveProjectRootFn()
+	}
+	// Default to a genuine-failure result so tests that exercise the
+	// "not in a project" path pass with zero configuration. Tests that need
+	// a successful resolution set resolveProjectRootFn explicitly.
+	return "", errors.New("no project root found (looked for .git/ or .claude/)")
 }
 
 func (m *mockServices) IsDryRun() bool {

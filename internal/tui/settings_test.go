@@ -110,7 +110,10 @@ func TestSettingsScreen_ScopeSwitchStep_FormNotNil(t *testing.T) {
 
 func TestSettingsScreen_ScopeSwitch_ProjectWithNoRootShowsError(t *testing.T) {
 	svc := newMockServices()
-	// GetProjectRoot defaults to "" — no project root
+	// Simulate a directory with no .git/ or .claude/ marker: resolution fails.
+	svc.resolveProjectRootFn = func() (string, error) {
+		return "", errors.New("no project root found (looked for .git/ or .claude/ from /tmp/not-a-project)")
+	}
 	s := newSettingsScreen(svc, NewStyles(true), true)
 
 	s.Update(settingsActionMsg{action: "scope"})
@@ -121,12 +124,37 @@ func TestSettingsScreen_ScopeSwitch_ProjectWithNoRootShowsError(t *testing.T) {
 		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
 	}
 
-	// Should show an error message in the result step.
+	// Should show an error message in the result step referencing the markers.
 	if s.step != settingsShowResult {
 		t.Fatalf("step should be settingsShowResult, got %d", s.step)
 	}
-	if !strings.Contains(s.result, "Cannot switch") {
-		t.Errorf("result should contain guard message, got %q", s.result)
+	if !strings.Contains(s.result, ".git") || !strings.Contains(s.result, ".claude") {
+		t.Errorf("result should reference .git/ and .claude/ markers, got %q", s.result)
+	}
+}
+
+// Launched in global scope from inside a project (cached root empty), the
+// settings scope submenu resolves the root on demand and switches successfully.
+func TestSettingsScreen_ScopeSwitch_ResolvesRootWhenLaunchedInGlobal(t *testing.T) {
+	svc := newMockServices()
+	svc.getProjectRootFn = func() string { return "" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
+	s := newSettingsScreen(svc, NewStyles(true), true)
+
+	s.Update(settingsActionMsg{action: "scope"})
+	s.Update(settingsScopeSelectedMsg{scope: "project"})
+
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != "project" {
+		t.Errorf("expected scope 'project', got %q", svc.resetCalls[0].Scope)
+	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
+	if s.step != settingsShowResult {
+		t.Fatalf("step should be settingsShowResult, got %d", s.step)
 	}
 }
 
