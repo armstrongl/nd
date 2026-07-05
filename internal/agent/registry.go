@@ -183,7 +183,8 @@ func (r *Registry) Get(name string) (*Agent, error) {
 }
 
 // Default returns the default agent: the one named in config.DefaultAgent if
-// detected, otherwise the first detected agent, otherwise an error.
+// detected, otherwise the first agent whose binary is in PATH, otherwise the
+// first detected agent, otherwise an error.
 // Calls Detect() automatically if not already called.
 func (r *Registry) Default() (*Agent, error) {
 	if !r.detected {
@@ -195,6 +196,14 @@ func (r *Registry) Default() (*Agent, error) {
 			if r.agents[i].Name == r.defaultCfg && r.agents[i].Detected {
 				return &r.agents[i], nil
 			}
+		}
+	}
+
+	// Prefer an agent whose binary is verified in PATH over one that is only
+	// "detected" via a stale, binary-less GlobalDir.
+	for i := range r.agents {
+		if r.agents[i].InPath {
+			return &r.agents[i], nil
 		}
 	}
 

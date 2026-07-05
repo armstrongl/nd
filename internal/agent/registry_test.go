@@ -233,6 +233,60 @@ func TestDefaultFallsBackToFirstDetected(t *testing.T) {
 	}
 }
 
+func TestDefaultPrefersInPathAgentOverStaleDir(t *testing.T) {
+	cfg := config.Config{}
+	// claude-code's binary is in PATH; copilot has only a stale GlobalDir.
+	lookPath := func(file string) (string, error) {
+		if strings.Contains(file, "claude") {
+			return lookPathFound(file)
+		}
+		return lookPathNotFound(file)
+	}
+	stat := func(path string) (os.FileInfo, error) {
+		if strings.Contains(path, "copilot") {
+			return statFound(path)
+		}
+		return statNotFound(path)
+	}
+	r := stubRegistry(cfg, lookPath, stat)
+	r.Detect()
+	a, err := r.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "claude-code" {
+		t.Errorf("got %q, want %q", a.Name, "claude-code")
+	}
+}
+
+func TestDefaultSkipsBinarylessStaleDir(t *testing.T) {
+	cfg := config.Config{}
+	// claude-code has only a stale GlobalDir (no binary in PATH); copilot's
+	// binary IS in PATH. Default() must skip the earlier, binary-less claude-code
+	// dir and return the in-PATH copilot rather than the first merely-detected agent.
+	lookPath := func(file string) (string, error) {
+		if strings.Contains(file, "copilot") {
+			return lookPathFound(file)
+		}
+		return lookPathNotFound(file)
+	}
+	stat := func(path string) (os.FileInfo, error) {
+		if strings.Contains(path, "copilot") {
+			return statNotFound(path)
+		}
+		return statFound(path)
+	}
+	r := stubRegistry(cfg, lookPath, stat)
+	r.Detect()
+	a, err := r.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "copilot" {
+		t.Errorf("got %q, want %q: Default() must not return a binary-less stale dir over an in-PATH agent", a.Name, "copilot")
+	}
+}
+
 func TestDefaultErrorsWhenNoneDetected(t *testing.T) {
 	cfg := config.Config{}
 	r := stubRegistry(cfg, lookPathNotFound, statNotFound)
