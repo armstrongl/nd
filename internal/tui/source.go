@@ -94,6 +94,13 @@ func (s *sourceScreen) InputActive() bool {
 }
 
 func (s *sourceScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the source list. It is used both by
+// Init() and after a successful add/remove/sync so the cached slice reflects the
+// change without leaving the screen.
+func (s *sourceScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		sm, err := svc.SourceManager()
@@ -120,30 +127,40 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		}
 		s.sources = msg.sources
+		// A reload triggered after a mutation must not yank the user off the
+		// "done" confirmation; only refresh the cached data in that case.
+		if s.step == sourceDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case sourceAddedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Source %q added.", s.styles.Success.Render(GlyphOK), msg.src.ID)
+			s.step = sourceDone
+			return s, func() tea.Msg { return RefreshHeaderMsg{} }
 		}
+		s.doneMsg = fmt.Sprintf("%s Source %q added.", s.styles.Success.Render(GlyphOK), msg.src.ID)
 		s.step = sourceDone
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so the new source appears in List/Remove without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 
 	case sourceRemovedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Source %q removed.", s.styles.Success.Render(GlyphOK), msg.id)
+			s.step = sourceDone
+			return s, func() tea.Msg { return RefreshHeaderMsg{} }
 		}
+		s.doneMsg = fmt.Sprintf("%s Source %q removed.", s.styles.Success.Render(GlyphOK), msg.id)
 		s.step = sourceDone
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so the removed source disappears from List/Remove without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 
 	case sourceSyncedMsg:
 		s.step = sourceDone
 		s.doneMsg = s.formatSyncResult(msg)
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so any synced-state changes appear without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 	}
 
 	switch s.step {

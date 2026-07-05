@@ -157,3 +157,39 @@ func TestProfileScreen_CreateDone_Error(t *testing.T) {
 		t.Errorf("create error view should show error, got: %q", v.Content)
 	}
 }
+
+func TestProfileScreen_CreateReloadsList(t *testing.T) {
+	s := newProfileScreen(newMockServices(), NewStyles(true), true)
+
+	// A successful create should emit a reload command.
+	_, cmd := s.Update(profileCreatedMsg{name: "new-profile", err: nil})
+	if cmd == nil {
+		t.Fatal("create success should emit a reload cmd")
+	}
+	msg := cmd()
+	switch msg.(type) {
+	case profileLoadedMsg:
+		// OK: create triggers a fresh load of the profile list.
+	default:
+		t.Fatalf("reload cmd should yield profileLoadedMsg, got %T", msg)
+	}
+	if s.step != profileDone {
+		t.Fatalf("step = %v after create, want profileDone", s.step)
+	}
+
+	// The reload result arriving while the confirmation is shown should refresh
+	// the cached slice without bouncing the user back to the menu.
+	profiles := []profile.ProfileSummary{{Name: "new-profile", AssetCount: 3}}
+	s.Update(profileLoadedMsg{profiles: profiles, active: "new-profile"})
+
+	if len(s.profiles) != 1 || s.profiles[0].Name != "new-profile" {
+		t.Fatalf("profiles not reloaded on done screen: %+v", s.profiles)
+	}
+	if s.step != profileDone {
+		t.Fatalf("step = %v after reload, want profileDone preserved", s.step)
+	}
+	v := s.View()
+	if !strings.Contains(v.Content, "created.") {
+		t.Errorf("done view should still show success text, got: %q", v.Content)
+	}
+}
