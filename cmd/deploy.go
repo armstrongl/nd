@@ -110,6 +110,19 @@ Asset references can be:
 				assets = append(assets, *resolved)
 			}
 
+			// Resolve deployment scope (may prompt interactively; an explicit
+			// --scope flag or a non-interactive invocation skips the prompt).
+			resolvedScope, err := resolveDeployScope(cmd, app)
+			if err != nil {
+				return err
+			}
+			if resolvedScope == nd.ScopeProject {
+				if _, err := app.ResolveProjectRoot(); err != nil {
+					return err
+				}
+			}
+			app.Scope = resolvedScope
+
 			eng, err := app.DeployEngine()
 			if err != nil {
 				return err
