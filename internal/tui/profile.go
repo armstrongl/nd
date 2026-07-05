@@ -286,7 +286,7 @@ func (s *profileScreen) buildSwitchForm() (tea.Model, tea.Cmd) {
 	for _, p := range s.profiles {
 		label := p.Name
 		if p.Name == s.active {
-			label += " (active)"
+			label += " " + s.styles.Active()
 		}
 		opts = append(opts, huh.NewOption(label, p.Name))
 	}
@@ -438,7 +438,7 @@ func (s *profileScreen) buildListContent() string {
 	for _, p := range s.profiles {
 		marker := " "
 		if p.Name == s.active {
-			marker = "*"
+			marker = s.styles.Active()
 		}
 		fmt.Fprintf(&b, "  %s  %-30s  %s\n",
 			marker, p.Name,

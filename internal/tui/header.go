@@ -26,7 +26,7 @@ type Header struct {
 func (h Header) View(s Styles, width int) string {
 	left := fmt.Sprintf("  %s %s %s %s %s", h.Profile, GlyphDot, h.Scope, GlyphDot, h.Agent)
 	if h.DryRun {
-		left = "  [DRY RUN] " + left[2:]
+		left = "  " + GlyphDryRun + " " + left[2:]
 	}
 
 	right := fmt.Sprintf("%d deployed  %d issues", h.Deployed, h.Issues)

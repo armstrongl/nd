@@ -88,9 +88,9 @@ func TestProfileScreen_ListViewActiveMarker(t *testing.T) {
 	s.step = profileList
 
 	v := s.View()
-	// Active profile should have a marker.
-	if !strings.Contains(v.Content, "*") {
-		t.Errorf("active profile should show '*' marker, got: %q", v.Content)
+	// Active profile should have the shared active marker.
+	if !strings.Contains(v.Content, GlyphActive) {
+		t.Errorf("active profile should show active glyph %q, got: %q", GlyphActive, v.Content)
 	}
 }
 
