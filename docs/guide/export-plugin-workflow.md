@@ -58,6 +58,17 @@ nd export \
 
 When you omit `--output`, nd writes to `./<name>`. Preview the plan without writing anything by adding `--dry-run`.
 
+Exporting into a directory that already exists fails unless you add `--overwrite`, which replaces the previous contents:
+
+```shell {filename="Terminal"}
+# Replace a previous export in place
+nd export \
+  --name my-toolbox \
+  --assets skills/greeting,commands/hello \
+  --output ./my-toolbox \
+  --overwrite
+```
+
 ### Interactive export
 
 Run `nd export` in a terminal without `--name` or `--assets` and nd walks you through it: a multi-select list of exportable assets, then a form for the name, description, version, author, email, and license, then a confirmation. Provide any flags you already know as defaults, and nd only prompts for the rest.
@@ -74,7 +85,12 @@ Once you have one or more exported plugin directories, bundle them into a market
 
 ```shell {filename="Terminal"}
 # Generate a marketplace from exported plugins
-nd export marketplace --plugins ./plugin-a,./plugin-b --output ./marketplace
+nd export marketplace \
+  --name my-marketplace \
+  --owner "Ada Lovelace" \
+  --description "Handy plugins for Claude Code" \
+  --plugins ./plugin-a,./plugin-b \
+  --output ./marketplace
 ```
 
 Each `--plugins` path must point to a directory that already contains a `.claude-plugin/plugin.json` file: an output directory from phase 1. nd reads each plugin's name, version, description, and author from that manifest.
