@@ -64,6 +64,7 @@ type profileScreen struct {
 	// create
 	createForm *huh.Form
 	createName string
+	creating   bool
 
 	// done
 	doneMsg string
@@ -84,7 +85,44 @@ func (s *profileScreen) InputActive() bool {
 	return s.step == profileMenu || s.step == profileSwitch || s.step == profileCreateName
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *profileScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case profileList:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "scroll"},
+			{"q", "quit"},
+		}
+	case profileCreateName:
+		return []HelpItem{
+			{"esc", "cancel"},
+			{"enter", "submit"},
+			{"q", "quit"},
+		}
+	case profileLoading, profileDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // menu, switch
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	}
+}
+
 func (s *profileScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the profile list and active
+// profile. It is used both by Init() and after a successful mutation so the
+// cached slice reflects the change without leaving the screen.
+func (s *profileScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		mgr, err := svc.ProfileManager()
@@ -117,6 +155,11 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		s.profiles = msg.profiles
 		s.active = msg.active
+		// A reload triggered after a mutation must not yank the user off the
+		// "done" confirmation; only refresh the cached data in that case.
+		if s.step == profileDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case profileSwitchedMsg:
@@ -135,11 +178,13 @@ func (s *profileScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case profileCreatedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Profile %q created.", s.styles.Success.Render(GlyphOK), msg.name)
+			s.step = profileDone
+			return s, nil
 		}
+		s.doneMsg = fmt.Sprintf("%s Profile %q created.", s.styles.Success.Render(GlyphOK), msg.name)
 		s.step = profileDone
-		return s, nil
+		// Reload so the new profile appears in List/Switch without re-entering.
+		return s, s.reload()
 	}
 
 	switch s.step {
@@ -256,7 +301,7 @@ func (s *profileScreen) buildSwitchForm() (tea.Model, tea.Cmd) {
 	for _, p := range s.profiles {
 		label := p.Name
 		if p.Name == s.active {
-			label += " (active)"
+			label += " " + s.styles.Active()
 		}
 		opts = append(opts, huh.NewOption(label, p.Name))
 	}
@@ -316,6 +361,9 @@ func (s *profileScreen) runSwitch() tea.Cmd {
 		if summary == nil || summary.Index == nil {
 			return profileSwitchedMsg{err: fmt.Errorf("no asset index available")}
 		}
+		// GetProjectRoot resolves the project root on demand (cmd.App), so a
+		// project-scope switch passes a non-empty root to Switch even when the
+		// TUI was launched in the default global scope from inside a project.
 		result, err := mgr.Switch(current, target, eng, summary.Index, svc.GetProjectRoot())
 		return profileSwitchedMsg{result: result, err: err}
 	}
@@ -324,6 +372,7 @@ func (s *profileScreen) runSwitch() tea.Cmd {
 func (s *profileScreen) buildCreateForm() (tea.Model, tea.Cmd) {
 	s.step = profileCreateName
 	s.createName = ""
+	s.creating = false
 	s.createForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -342,11 +391,15 @@ func (s *profileScreen) buildCreateForm() (tea.Model, tea.Cmd) {
 }
 
 func (s *profileScreen) updateCreateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.creating {
+		return s, nil
+	}
 	model, cmd := s.createForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.createForm = f
 	}
 	if s.createForm.State == huh.StateCompleted {
+		s.creating = true
 		return s, s.runCreate()
 	}
 	if s.createForm.State == huh.StateAborted {
@@ -403,7 +456,7 @@ func (s *profileScreen) buildListContent() string {
 	for _, p := range s.profiles {
 		marker := " "
 		if p.Name == s.active {
-			marker = "*"
+			marker = s.styles.Active()
 		}
 		fmt.Fprintf(&b, "  %s  %-30s  %s\n",
 			marker, p.Name,

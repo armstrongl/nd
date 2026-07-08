@@ -67,6 +67,31 @@ func (s *pinScreen) InputActive() bool {
 	return s.step == pinSelect || s.step == pinConfirm
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *pinScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case pinSelect:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	case pinConfirm:
+		return []HelpItem{
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	default: // loading, running, done
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	}
+}
+
 func (s *pinScreen) Init() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
@@ -155,7 +180,7 @@ func (s *pinScreen) handleLoaded(msg pinLoadedMsg) (tea.Model, tea.Cmd) {
 		key := d.Identity().String()
 		label := deploymentLabel(d)
 		if d.Origin == nd.OriginPinned {
-			label += " [pinned]"
+			label += " " + s.styles.Pinned()
 			s.selected = append(s.selected, key)
 		}
 		opts[i] = huh.NewOption(label, key)
@@ -196,8 +221,11 @@ func (s *pinScreen) buildConfirm() (tea.Model, tea.Cmd) {
 	newPins, newUnpins := s.computeDiff()
 	title := fmt.Sprintf("Pin %d, unpin %d asset(s)?", newPins, newUnpins)
 	if newPins == 0 && newUnpins == 0 {
-		// No changes — go back directly.
-		return s, func() tea.Msg { return BackMsg{} }
+		// No changes — land on the done step so viewDone renders "No changes
+		// made." (s.pinned/s.unpinned are both 0 here) instead of silently
+		// bouncing back with no feedback.
+		s.step = pinDone
+		return s, nil
 	}
 	s.confirmed = false
 	s.confirmForm = huh.NewForm(

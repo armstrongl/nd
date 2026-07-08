@@ -608,8 +608,9 @@ func TestIntegration_ViewComposition_AllSections(t *testing.T) {
 		t.Error("composed view missing header scope")
 	}
 
-	// Help bar section.
-	if !strings.Contains(content, "esc") {
+	// Help bar section. The main menu is the root screen, so its help bar shows
+	// navigation/quit hints (no "esc back").
+	if !strings.Contains(content, "navigate") {
 		t.Error("composed view missing help bar")
 	}
 	if !strings.Contains(content, "quit") {

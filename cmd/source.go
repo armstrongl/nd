@@ -23,6 +23,9 @@ func newSourceCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "creating-sources",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(
@@ -129,10 +132,13 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <source-id>",
 		Short: "Remove a registered source",
-		Example: `  # Remove a source by ID
+		Long: `Remove a registered source from nd.
+
+If assets from the source are currently deployed, nd asks whether to remove them along with the source, orphan them (remove the source only), or cancel. Passing --yes (or -y) skips this prompt and removes the source AND deletes all of its deployed assets without confirmation — a destructive default. To keep the deployed assets, omit --yes and choose "Remove source only" at the prompt.`,
+		Example: `  # Remove a source by ID (prompts when assets are deployed)
   nd source remove my-assets
 
-  # Skip confirmation prompt
+  # Skip the prompt AND delete all of the source's deployed assets
   nd source remove my-assets --yes`,
 		Annotations: map[string]string{
 			"docs.guides": "creating-sources",
@@ -182,6 +188,9 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 				if app.JSON {
 					return fmt.Errorf("source %q has %d deployed assets; use --yes to remove", sourceID, deployedCount)
 				}
+				if !isTerminal() {
+					return fmt.Errorf("source %q has %d deployed assets; use --yes to remove", sourceID, deployedCount)
+				}
 				choices := []string{
 					"Remove source and all deployed assets",
 					"Remove source only (orphan deployed assets)",
@@ -204,7 +213,7 @@ func newSourceRemoveCmd(app *App) *cobra.Command {
 				case choices[1]:
 					// Orphan — deployments stay
 				case choices[2]:
-					if !app.Quiet {
+					if !app.Quiet && !app.JSON {
 						printHuman(w, "Cancelled.\n")
 					}
 					return nil

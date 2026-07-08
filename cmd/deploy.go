@@ -5,10 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/oplog"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +19,7 @@ func newDeployCmd(app *App) *cobra.Command {
 		assetType string
 		relative  bool
 		absolute  bool
+		agents    []string
 	)
 
 	cmd := &cobra.Command{
@@ -54,6 +57,13 @@ Asset references can be:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
+			// Scan at most once. The interactive picker (no args) scans to build
+			// its choices and that same summary is reused to resolve the pick;
+			// the args-supplied path scans once below. summary stays nil until a
+			// scan happens so the JSON/non-terminal guards can return early
+			// without scanning at all.
+			var summary *sourcemanager.ScanSummary
+
 			// Interactive picker when no args provided
 			if len(args) == 0 {
 				if app.JSON {
@@ -67,12 +77,13 @@ Asset references can be:
 				if err != nil {
 					return fmt.Errorf("scan sources: %w", err)
 				}
+				summary = scanResult
 				agentAlias := ""
 				if ag, err := app.ActiveAgent(); err == nil {
 					agentAlias = ag.SourceAlias
 				}
 				var completions []string
-				for _, a := range scanResult.Index.FilterByAgent(agentAlias) {
+				for _, a := range summary.Index.FilterByAgent(agentAlias) {
 					completions = append(completions, fmt.Sprintf("%s/%s\t%s from %s", a.Type, a.Name, a.Type, a.SourceID))
 				}
 				if len(completions) == 0 {
@@ -86,9 +97,12 @@ Asset references can be:
 				args = []string{choice}
 			}
 
-			summary, err := app.ScanIndex()
-			if err != nil {
-				return fmt.Errorf("scan sources: %w", err)
+			if summary == nil {
+				scanResult, err := app.ScanIndex()
+				if err != nil {
+					return fmt.Errorf("scan sources: %w", err)
+				}
+				summary = scanResult
 			}
 			index := summary.Index
 
@@ -108,6 +122,34 @@ Asset references can be:
 					return withExitCode(nd.ExitInvalidUsage, err)
 				}
 				assets = append(assets, *resolved)
+			}
+
+			// Resolve deployment scope (may prompt interactively; an explicit
+			// --scope flag or a non-interactive invocation skips the prompt).
+			// Resolved before the multi-agent branch so every deploy path
+			// (single- and multi-agent) honors the chosen scope.
+			resolvedScope, err := resolveDeployScope(cmd, app)
+			if err != nil {
+				return err
+			}
+			if resolvedScope == nd.ScopeProject {
+				if _, err := app.ResolveProjectRoot(); err != nil {
+					return err
+				}
+			}
+			app.Scope = resolvedScope
+
+			// Resolve target agents: --agents flag > config default_deploy_agents.
+			// When neither is set, fall through to the single active-agent path
+			// below (byte-for-byte unchanged).
+			targetNames := agents
+			if len(targetNames) == 0 {
+				if sm, smErr := app.SourceManager(); smErr == nil {
+					targetNames = sm.Config().DefaultDeployAgents
+				}
+			}
+			if len(targetNames) > 0 {
+				return runMultiAgentDeploy(cmd, app, assets, targetNames, relative, absolute)
 			}
 
 			eng, err := app.DeployEngine()
@@ -291,7 +333,179 @@ Asset references can be:
 	cmd.Flags().BoolVar(&relative, "relative", false, "use relative symlinks (overrides config)")
 	cmd.Flags().BoolVar(&absolute, "absolute", false, "use absolute symlinks (overrides config)")
 	cmd.MarkFlagsMutuallyExclusive("relative", "absolute")
+	cmd.Flags().StringSliceVar(&agents, "agents", nil, "comma-separated target agents (overrides config default_deploy_agents)")
+	cmd.RegisterFlagCompletionFunc("agents", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return agent.KnownAgentNames(), cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
+}
+
+// runMultiAgentDeploy deploys the given assets to each named target agent,
+// building one deploy engine per agent. Used when --agents or config
+// default_deploy_agents selects explicit targets.
+func runMultiAgentDeploy(cmd *cobra.Command, app *App, assets []asset.Asset, targetNames []string, relative, absolute bool) error {
+	w := cmd.OutOrStdout()
+
+	reg, err := app.AgentRegistry()
+	if err != nil {
+		return err
+	}
+	reg.Detect()
+
+	// Resolve and validate every requested agent (dedup, must be known + detected).
+	var targets []*agent.Agent
+	seen := make(map[string]bool)
+	for _, name := range targetNames {
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		ag, gErr := reg.Get(name)
+		if gErr != nil {
+			return withExitCode(nd.ExitInvalidUsage,
+				fmt.Errorf("unknown agent %q; run 'nd doctor' to list detected agents", name))
+		}
+		if !ag.Detected {
+			return withExitCode(nd.ExitInvalidUsage,
+				fmt.Errorf("agent %q is not detected on this system; install it or check config", name))
+		}
+		targets = append(targets, ag)
+	}
+
+	// Resolve symlink strategy: flag > config > default (absolute)
+	strategy := nd.SymlinkAbsolute
+	if sm, smErr := app.SourceManager(); smErr == nil {
+		if cfg := sm.Config(); cfg.SymlinkStrategy != "" {
+			strategy = cfg.SymlinkStrategy
+		}
+	}
+	if relative {
+		strategy = nd.SymlinkRelative
+	} else if absolute {
+		strategy = nd.SymlinkAbsolute
+	}
+
+	// Prune ghost deployments for all agents (best-effort pre-op cleanup).
+	if eng0, engErr := app.DeployEngineFor(targets[0]); engErr == nil {
+		if pruned, pruneErr := eng0.PruneAll(); pruneErr != nil {
+			if !app.Quiet {
+				printHuman(cmd.ErrOrStderr(), "warning: prune failed: %v\n", pruneErr)
+			}
+		} else if pruned > 0 && !app.Quiet {
+			printHuman(cmd.ErrOrStderr(), "Pruned %d stale deployment(s)\n", pruned)
+		}
+	}
+
+	// Dry-run: preview per agent without executing.
+	if app.DryRun {
+		if app.JSON {
+			type dryRunEntry struct {
+				AssetType string `json:"asset_type"`
+				AssetName string `json:"asset_name"`
+				Source    string `json:"source"`
+				Agent     string `json:"agent"`
+			}
+			var entries []dryRunEntry
+			for _, ag := range targets {
+				for _, a := range assets {
+					entries = append(entries, dryRunEntry{
+						AssetType: string(a.Type),
+						AssetName: a.Name,
+						Source:    a.SourceID,
+						Agent:     ag.Name,
+					})
+				}
+			}
+			return printJSON(w, entries, true)
+		}
+		for _, ag := range targets {
+			for _, a := range assets {
+				printHuman(w, "[dry-run] would deploy %s/%s from %s -> %s\n", a.Type, a.Name, a.SourceID, ag.Name)
+			}
+		}
+		return nil
+	}
+
+	// Deploy the same asset set to each target agent, merging results.
+	var succeeded []deploy.DeployResult
+	var failed []deploy.DeployError
+	for _, ag := range targets {
+		eng, engErr := app.DeployEngineFor(ag)
+		if engErr != nil {
+			return engErr
+		}
+		reqs := make([]deploy.DeployRequest, len(assets))
+		for i, a := range assets {
+			reqs[i] = deploy.DeployRequest{
+				Asset:       a,
+				Scope:       app.Scope,
+				ProjectRoot: app.ProjectRoot,
+				Origin:      nd.OriginManual,
+				Strategy:    strategy,
+			}
+		}
+		bulk, bErr := eng.DeployBulk(reqs)
+		if bErr != nil {
+			return bErr
+		}
+		succeeded = append(succeeded, bulk.Succeeded...)
+		failed = append(failed, bulk.Failed...)
+	}
+
+	var logAssets []asset.Identity
+	for _, a := range assets {
+		logAssets = append(logAssets, a.Identity)
+	}
+	app.LogOp(oplog.LogEntry{
+		Timestamp: time.Now(),
+		Operation: oplog.OpDeploy,
+		Assets:    logAssets,
+		Scope:     app.Scope,
+		Succeeded: len(succeeded),
+		Failed:    len(failed),
+	})
+
+	if app.JSON {
+		return printJSON(w, deploy.BulkDeployResult{Succeeded: succeeded, Failed: failed}, false)
+	}
+
+	if !app.Quiet {
+		for _, s := range succeeded {
+			printHuman(w, "Deployed %s/%s -> %s\n", s.Deployment.AssetType, s.Deployment.AssetName, s.Deployment.Agent)
+		}
+		unsupportedByAgent := make(map[string]int)
+		for _, f := range failed {
+			if f.UnsupportedType {
+				unsupportedByAgent[f.Agent]++
+				continue
+			}
+			printHuman(cmd.ErrOrStderr(), "Failed: %s/%s -> %s: %v\n", f.AssetType, f.AssetName, f.Agent, f.Err)
+		}
+		for name, count := range unsupportedByAgent {
+			printHuman(cmd.ErrOrStderr(), "Skipped %d asset(s) (unsupported by agent %s)\n", count, name)
+		}
+		// Print settings reminder once per type that needs registration.
+		settingsTypes := make(map[nd.AssetType]bool)
+		for _, s := range succeeded {
+			if s.Deployment.AssetType.RequiresSettingsRegistration() {
+				settingsTypes[s.Deployment.AssetType] = true
+			}
+		}
+		for t := range settingsTypes {
+			printSettingsReminder(w, t)
+		}
+	}
+
+	if len(failed) > 0 {
+		if !app.Quiet {
+			if name := latestAutoSnapshot(app); name != "" {
+				printHuman(w, "Auto-snapshot saved. Restore with: nd snapshot restore %s\n", name)
+			}
+		}
+		return withExitCode(nd.ExitPartialFailure,
+			fmt.Errorf("%d of %d deployments failed", len(failed), len(assets)*len(targets)))
+	}
+	return nil
 }
 
 // resolveAssetRef resolves an asset reference string to a single asset.

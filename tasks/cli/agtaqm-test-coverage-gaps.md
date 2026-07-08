@@ -99,34 +99,34 @@ cancels (per the verified handler line). Mirror
 `TestFirstRun_StateAborted_*`.
 
 - [ ] deploy: `updatePickType` (abort handler `internal/tui/deploy.go:321`,
-      emits `BackMsg{}`), `updateSelectAssets` (handler
-      `internal/tui/deploy.go:422`), and conflict-confirm abort
-      (`internal/tui/deploy.go:661` → `cancelConflictResolution`,
-      `internal/tui/deploy.go:669`)
+  emits `BackMsg{}`), `updateSelectAssets` (handler
+  `internal/tui/deploy.go:422`), and conflict-confirm abort
+  (`internal/tui/deploy.go:661` → `cancelConflictResolution`,
+  `internal/tui/deploy.go:669`)
 - [ ] remove: asset form abort (`internal/tui/remove.go:264`) and confirm
-      form abort (`internal/tui/remove.go:309`)
+  form abort (`internal/tui/remove.go:309`)
 - [ ] doctor: confirm form abort (`internal/tui/doctor.go:242`)
 - [ ] profile: menu (`internal/tui/profile.go:238`), switch
-      (`internal/tui/profile.go:287`), create
-      (`internal/tui/profile.go:352`) form aborts
+  (`internal/tui/profile.go:287`), create
+  (`internal/tui/profile.go:352`) form aborts
 - [ ] snapshot: menu (`internal/tui/snapshot.go:237`), save
-      (`internal/tui/snapshot.go:271`), restore
-      (`internal/tui/snapshot.go:338`), confirm
-      (`internal/tui/snapshot.go:356`) form aborts
+  (`internal/tui/snapshot.go:271`), restore
+  (`internal/tui/snapshot.go:338`), confirm
+  (`internal/tui/snapshot.go:356`) form aborts
 - [ ] source: menu (`internal/tui/source.go:253`), add
-      (`internal/tui/source.go:299`), remove
-      (`internal/tui/source.go:369`), confirm
-      (`internal/tui/source.go:390`) form aborts
+  (`internal/tui/source.go:299`), remove
+  (`internal/tui/source.go:369`), confirm
+  (`internal/tui/source.go:390`) form aborts
 - [ ] pin: asset form (`internal/tui/pin.go:187`) and confirm form
-      (`internal/tui/pin.go:231`) aborts
+  (`internal/tui/pin.go:231`) aborts
 - [ ] settings: form (`internal/tui/settings.go:159`) and scope form
-      (`internal/tui/settings.go:220`) aborts
+  (`internal/tui/settings.go:220`) aborts
 - [ ] ~~status screen StateAborted~~ — N/A: `internal/tui/status.go` uses a
-      `filterInput` (`internal/tui/listview.go:83`), not a `huh.Form`; it has
-      no `StateAborted`. Covered instead by the filter edge-case item below.
+  `filterInput` (`internal/tui/listview.go:83`), not a `huh.Form`; it has
+  no `StateAborted`. Covered instead by the filter edge-case item below.
 - [ ] ~~browse screen StateAborted~~ — N/A: `internal/tui/browse.go` is the
-      same `filterInput` pattern, no `huh.Form`, no `StateAborted`. Covered by
-      the filter edge-case item below.
+  same `filterInput` pattern, no `huh.Form`, no `StateAborted`. Covered by
+  the filter edge-case item below.
 
 #### OpLog recording tests
 
@@ -144,22 +144,22 @@ flow to its done state, then reading back `operations.log` and JSON-decoding
 the line.
 
 - [ ] deploy: assert `logOplog` writes one `oplog.OpDeploy` entry with
-      `Succeeded`/`Failed` counts matching `ds.succeeded`/`ds.failed` and
-      `Scope` from `svc.GetScope()` (drive `Update(deployDoneMsg{...})` with
-      no conflicts so the `internal/tui/deploy.go:224` path runs)
+  `Succeeded`/`Failed` counts matching `ds.succeeded`/`ds.failed` and
+  `Scope` from `svc.GetScope()` (drive `Update(deployDoneMsg{...})` with
+  no conflicts so the `internal/tui/deploy.go:224` path runs)
 - [ ] remove: assert the `internal/tui/remove.go:161` block writes one
-      `oplog.OpRemove` entry; drive the remove flow to the equivalent
-      done/result transition
+  `oplog.OpRemove` entry; drive the remove flow to the equivalent
+  done/result transition
 - [ ] ~~OpLog test for profile deploy/switch~~ — N/A: `internal/tui/profile.go`
-      makes no `svc.OpLog()` call (verified: only OpLog sites are deploy.go
-      and remove.go). No behavior to test without a production change, which is
-      out of scope for this chore.
+  makes no `svc.OpLog()` call (verified: only OpLog sites are deploy.go
+  and remove.go). No behavior to test without a production change, which is
+  out of scope for this chore.
 - [ ] ~~OpLog test for snapshot restore~~ — N/A: `internal/tui/snapshot.go`
-      makes no `svc.OpLog()` call. Same rationale as above; out of scope.
+  makes no `svc.OpLog()` call. Same rationale as above; out of scope.
 - [ ] Verify the written `LogEntry` has a non-zero `Timestamp` (set via
-      `time.Now()` at `internal/tui/deploy.go:686`) and the correct
-      `Operation`, `Assets` (`asset.Identity` list), `Scope`, `Succeeded`,
-      `Failed` fields
+  `time.Now()` at `internal/tui/deploy.go:686`) and the correct
+  `Operation`, `Assets` (`asset.Identity` list), `Scope`, `Succeeded`,
+  `Failed` fields
 
 #### Dry-run behavior tests
 
@@ -169,21 +169,21 @@ Deploy guard: `internal/tui/deploy.go:471` (sets `ds.dryRun=true`,
 guard: `internal/tui/remove.go:321`.
 
 - [ ] deploy dry-run: with `svc.isDryRunFn` true and `svc.deployEngineFn` set
-      to a fn that fails the test if called, drive the asset-confirm path and
-      assert no engine call, `ds.dryRun == true`, `ds.step == deployResult`
+  to a fn that fails the test if called, drive the asset-confirm path and
+  assert no engine call, `ds.dryRun == true`, `ds.step == deployResult`
 - [ ] remove dry-run: same shape against the `internal/tui/remove.go:321`
-      guard
+  guard
 - [ ] dry-run view format: assert deploy `View().Content` contains
-      `"[DRY RUN]"` and lists asset names (rendered by `buildResultContent` at
-      `internal/tui/deploy.go:546`; mirror `TestDeploy_DryRunView`,
-      `internal/tui/deploy_test.go:574`); assert remove dry-run view contains
-      `"Would remove"` (mirror the existing integration test near
-      `internal/tui/integration_test.go:570`)
+  `"[DRY RUN]"` and lists asset names (rendered by `buildResultContent` at
+  `internal/tui/deploy.go:546`; mirror `TestDeploy_DryRunView`,
+  `internal/tui/deploy_test.go:574`); assert remove dry-run view contains
+  `"Would remove"` (mirror the existing integration test near
+  `internal/tui/integration_test.go:570`)
 - [ ] ~~dry-run tests for bulk profile deploy / snapshot restore~~ — verify
-      before writing: `profile.go`/`snapshot.go` do not branch on
-      `svc.IsDryRun()` (only deploy.go and remove.go do). If no dry-run branch
-      exists, strike this item with that note rather than asserting absent
-      behavior.
+  before writing: `profile.go`/`snapshot.go` do not branch on
+  `svc.IsDryRun()` (only deploy.go and remove.go do). If no dry-run branch
+  exists, strike this item with that note rather than asserting absent
+  behavior.
 
 #### Nil DeployEngine safety tests
 
@@ -197,16 +197,16 @@ re-run), `internal/tui/profile.go:309-311` (`profileSwitchedMsg{err:...}`),
 and its nil check).
 
 - [ ] deploy: drive the start-deploy path (non-dry-run) with the default
-      nil-engine mock; assert `ds.err` is non-nil and the message is
-      "deploy engine not available"; assert no panic
+  nil-engine mock; assert `ds.err` is non-nil and the message is
+  "deploy engine not available"; assert no panic
 - [ ] remove: same for the remove screen's engine guard
 - [ ] profile switch: assert `profileSwitchedMsg.err` is non-nil
-      ("deploy engine not available") from the cmd built at
-      `internal/tui/profile.go:289`/`runSwitch`
+  ("deploy engine not available") from the cmd built at
+  `internal/tui/profile.go:289`/`runSwitch`
 - [ ] snapshot restore: assert `snapshotRestoredMsg.err` non-nil from
-      `runRestore` (`internal/tui/snapshot.go:377`)
+  `runRestore` (`internal/tui/snapshot.go:377`)
 - [ ] assert each error is user-facing (rendered by the screen's error view,
-      not a panic/empty string)
+  not a panic/empty string)
 
 #### Symlink strategy tests
 
@@ -218,45 +218,45 @@ detection is surfaced via `state.HealthCheck`/`state.HealthStatus`
 behavior; do not duplicate `internal/deploy`/`internal/state` package tests.
 
 - [ ] deploy request strategy: assert `startDeploy` populates each
-      `deploy.DeployRequest.Strategy` from config — default `nd.SymlinkAbsolute`
-      (`internal/tui/deploy.go:443`, `nd.SymlinkStrategy` defined
-      `internal/nd/symlink.go:4-8`), overridden by
-      `SourceManager().Config().SymlinkStrategy` when set
-      (`internal/tui/deploy.go:446-448`). Capture requests by injecting a
-      `deployEngineFn` whose `DeployBulk` records its argument.
+  `deploy.DeployRequest.Strategy` from config — default `nd.SymlinkAbsolute`
+  (`internal/tui/deploy.go:443`, `nd.SymlinkStrategy` defined
+  `internal/nd/symlink.go:4-8`), overridden by
+  `SourceManager().Config().SymlinkStrategy` when set
+  (`internal/tui/deploy.go:446-448`). Capture requests by injecting a
+  `deployEngineFn` whose `DeployBulk` records its argument.
 - [ ] deploy request source path: assert each request's `Asset.SourcePath`
-      matches the selected asset (built at `internal/tui/deploy.go:459-465`)
+  matches the selected asset (built at `internal/tui/deploy.go:459-465`)
 - [ ] doctor stale/broken rendering: with mock health-check data containing a
-      `state.HealthBroken`/`state.HealthMissing` entry, assert the doctor view
-      renders it via `styleGlyphWith` (`internal/tui/doctor.go:357`) /
-      `GlyphBroken`
+  `state.HealthBroken`/`state.HealthMissing` entry, assert the doctor view
+  renders it via `styleGlyphWith` (`internal/tui/doctor.go:357`) /
+  `GlyphBroken`
 - [ ] ~~symlink conflict handling (existing file at target)~~ — covered at the
-      TUI layer by the deploy conflict-resolution flow (`ConflictError` →
-      `deployConflictConfirm` step, `internal/tui/deploy.go:198-217`). Add a
-      test that a `deployDoneMsg` whose `failed` contains an
-      `errors.As`-matchable `*nd.ConflictError` transitions to
-      `deployConflictConfirm` (mirror existing conflict tests in
-      `deploy_test.go` if present; otherwise this is the new coverage).
+  TUI layer by the deploy conflict-resolution flow (`ConflictError` →
+  `deployConflictConfirm` step, `internal/tui/deploy.go:198-217`). Add a
+  test that a `deployDoneMsg` whose `failed` contains an
+  `errors.As`-matchable `*nd.ConflictError` transitions to
+  `deployConflictConfirm` (mirror existing conflict tests in
+  `deploy_test.go` if present; otherwise this is the new coverage).
 
 #### Miscellaneous coverage gaps
 
 - [ ] filter edge cases for status (`internal/tui/status.go`, filter at
-      `:124`/`:162`) and browse (`internal/tui/browse.go:145`/`:323`): empty
-      query (all rows shown), no-match query (0 rows, status footer "0/N
-      matching" rendered at `internal/tui/status.go:202-203`), and Esc clears
-      the filter (`InputActive()` false afterward,
-      `internal/tui/status.go:50`, `internal/tui/browse.go:52`)
+  `:124`/`:162`) and browse (`internal/tui/browse.go:145`/`:323`): empty
+  query (all rows shown), no-match query (0 rows, status footer "0/N
+  matching" rendered at `internal/tui/status.go:202-203`), and Esc clears
+  the filter (`InputActive()` false afterward,
+  `internal/tui/status.go:50`, `internal/tui/browse.go:52`)
 - [ ] scroll boundary tests for screens using `RenderScrolledLines`
-      (`internal/tui/listview.go:13`): verify behavior at offset 0 (scroll-up
-      no-op via `listScroll.ScrollUp`, `internal/tui/scroll.go:38`) and at the
-      bottom (`listScroll.ScrollDown` clamps, `internal/tui/scroll.go:27`) for
-      a representative consumer (e.g. deploy result lines via
-      `internal/tui/deploy.go:595`, or doctor `internal/tui/doctor.go:286`)
+  (`internal/tui/listview.go:13`): verify behavior at offset 0 (scroll-up
+  no-op via `listScroll.ScrollUp`, `internal/tui/scroll.go:38`) and at the
+  bottom (`listScroll.ScrollDown` clamps, `internal/tui/scroll.go:27`) for
+  a representative consumer (e.g. deploy result lines via
+  `internal/tui/deploy.go:595`, or doctor `internal/tui/doctor.go:286`)
 - [ ] empty-state rendering: assert the relevant screens render the helpers in
-      `internal/tui/empty.go` when their data slice is empty —
-      `NothingDeployed()` (status/remove), `NoAssets()` (browse),
-      `NoProfiles()` (profile), `NoSnapshots()` (snapshot), `NoSources()`
-      (source)
+  `internal/tui/empty.go` when their data slice is empty —
+  `NothingDeployed()` (status/remove), `NoAssets()` (browse),
+  `NoProfiles()` (profile), `NoSnapshots()` (snapshot), `NoSources()`
+  (source)
 
 ### Acceptance criteria
 

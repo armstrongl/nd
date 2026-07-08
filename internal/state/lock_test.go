@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -151,7 +152,9 @@ func TestFileLockStaleBreakFailsWhenStillHeld(t *testing.T) {
 	dir := t.TempDir()
 	lockPath := filepath.Join(dir, "test.lock")
 
-	// Create a lock file held by another fd with old mod time.
+	// A stale-aged lock file that is STILL actively flocked by another fd: the
+	// mod time is old enough to trip stale detection, but a live holder keeps
+	// the flock, so breaking the lock would corrupt state.
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		t.Fatal(err)
@@ -168,15 +171,88 @@ func TestFileLockStaleBreakFailsWhenStillHeld(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Try to acquire — stale detection triggers, removes file, creates new file,
-	// but the original fd still holds flock on the inode. The new file gets a new
-	// inode, so flock on it should succeed. This tests the remove-and-retry path.
+	// Acquire must NOT break the still-held lock onto a fresh inode. Because the
+	// lock file is never unlinked, the second Acquire contends on the same inode
+	// as the live holder, so flock keeps it out and Acquire fails with a
+	// *nd.LockError (Stale=true) instead of entering the critical section.
 	lock := state.NewFileLock(lockPath)
 	err = lock.Acquire(200 * time.Millisecond)
-	// After removing the stale file, the retry opens a new file (new inode),
-	// so flock should succeed since no one holds a lock on the new inode.
-	if err != nil {
-		t.Fatalf("expected retry to succeed on new inode after stale break, got: %v", err)
+	if err == nil {
+		lock.Release()
+		t.Fatal("expected Acquire to fail while the stale lock is still actively held, got nil")
 	}
-	defer lock.Release()
+
+	var lockErr *nd.LockError
+	if !errors.As(err, &lockErr) {
+		t.Fatalf("expected *nd.LockError, got %T: %v", err, err)
+	}
+	if !lockErr.Stale {
+		t.Error("expected Stale=true when a stale-aged lock is still actively held")
+	}
+}
+
+// TestFileLockStaleBreakSerializesConcurrentBreakers is the regression test for
+// the unsafe unlink-then-relock race: two holders that both observe the same
+// stale (>60s) lock file and both take the stale-break path must never both be
+// inside the post-Acquire critical section at once. The old implementation
+// os.Remove'd the lock file and relocked a fresh inode, so both breakers
+// succeeded; the fix retries on the same inode, so exactly one wins at a time.
+func TestFileLockStaleBreakSerializesConcurrentBreakers(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "test.lock")
+
+	// A stale-aged lock file with NO active flock holder, so both goroutines
+	// reach the stale-break path: whichever loses the initial flock times out
+	// while the winner is still in its critical section.
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	oldTime := time.Now().Add(-2 * time.Minute)
+	if err := os.Chtimes(lockPath, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		mu         sync.Mutex
+		inCritical int
+		maxInCrit  int
+	)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			lock := state.NewFileLock(lockPath)
+			// Losing the race and returning *nd.LockError is acceptable; both
+			// entering the critical section together is the bug under test.
+			if err := lock.Acquire(200 * time.Millisecond); err != nil {
+				return
+			}
+			defer lock.Release()
+
+			mu.Lock()
+			inCritical++
+			if inCritical > maxInCrit {
+				maxInCrit = inCritical
+			}
+			mu.Unlock()
+
+			// Hold long enough that the other goroutine's Acquire times out and
+			// takes the stale-break path while this one is still inside.
+			time.Sleep(300 * time.Millisecond)
+
+			mu.Lock()
+			inCritical--
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	if maxInCrit != 1 {
+		t.Fatalf("mutual exclusion violated: max %d holders inside the critical section at once (want exactly 1)", maxInCrit)
+	}
 }

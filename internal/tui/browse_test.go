@@ -181,9 +181,9 @@ func TestBrowseScreen_DeployedMarkerShown(t *testing.T) {
 	})
 
 	v := s.View()
-	// deployed assets show a marker (e.g. "*")
-	if !strings.Contains(v.Content, "*") {
-		t.Errorf("deployed asset should show '*' marker, got: %q", v.Content)
+	// deployed assets show the styled deployed glyph (checkmark) in place of "*"
+	if !strings.Contains(v.Content, GlyphDeployed) {
+		t.Errorf("deployed asset should show deployed glyph %q, got: %q", GlyphDeployed, v.Content)
 	}
 }
 

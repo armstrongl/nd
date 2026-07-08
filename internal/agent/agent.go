@@ -34,7 +34,7 @@ func (a *Agent) SupportsType(t nd.AssetType) bool {
 
 // DeployPath computes the full path where an asset's symlink should be created.
 // Handles the special cases:
-//   - Context files deploy to project root (not inside .claude/) at project scope
+//   - Context files deploy to project root (not inside .agents/) at project scope
 //   - Context files deploy to the agent's global dir (not a subdirectory) at global scope
 //   - .local.md context files deploy only at project scope; returns an error
 //     if scope=global and IsLocalOnlyContext(contextFile) is true

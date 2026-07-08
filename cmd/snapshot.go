@@ -22,6 +22,9 @@ func newSnapshotCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(
@@ -43,7 +46,7 @@ func newSnapshotSaveCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			name := args[0]
@@ -102,7 +105,7 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -161,7 +164,9 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Restore cancelled.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Restore cancelled.\n")
+				}
 				return nil
 			}
 
@@ -175,12 +180,18 @@ func newSnapshotRestoreCmd(app *App) *cobra.Command {
 				return fmt.Errorf("scan sources: %w", err)
 			}
 
-			eng, err := app.DeployEngine()
-			if err != nil {
+			// Verify a deploy engine can be built for the active agent before
+			// restoring; Restore itself resolves a per-agent engine for each
+			// snapshot entry via engineFor so deployments land on their
+			// recorded agent.
+			if _, err := app.DeployEngine(); err != nil {
 				return fmt.Errorf("init deploy engine: %w", err)
 			}
+			engineFor := func(agentName string) (profile.DeployEngine, error) {
+				return app.deployEngineForName(agentName)
+			}
 
-			result, err := profMgr.Restore(name, eng, summary.Index)
+			result, err := profMgr.Restore(name, engineFor, summary.Index)
 			if err != nil {
 				return err
 			}
@@ -241,7 +252,7 @@ func newSnapshotListCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -290,7 +301,7 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -330,7 +341,9 @@ func newSnapshotDeleteCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Cancelled.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Cancelled.\n")
+				}
 				return nil
 			}
 

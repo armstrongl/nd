@@ -95,6 +95,58 @@ func TestStoreLoadCorruptYAML(t *testing.T) {
 	}
 }
 
+func TestStoreLoadCorruptRenameFailurePreservesOriginal(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("cannot exercise read-only directory as root")
+	}
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "state")
+	if err := os.Mkdir(stateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(stateDir, "deployments.yaml")
+
+	corrupt := []byte("{{{{not yaml at all")
+	if err := os.WriteFile(path, corrupt, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the parent directory read-only so the quarantine rename in
+	// handleCorrupt fails. Restore perms on cleanup so t.TempDir() can remove it.
+	if err := os.Chmod(stateDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o755) })
+
+	store := state.NewStore(path)
+	st, warnings, err := store.Load()
+	if err == nil {
+		t.Fatal("expected error when corrupt file cannot be quarantined")
+	}
+	if st != nil {
+		t.Errorf("expected nil state on quarantine failure, got %+v", st)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("expected no (false) warnings on quarantine failure, got %v", warnings)
+	}
+
+	// The corrupt-but-present original must be untouched so it stays recoverable.
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatalf("original file should still exist: %v", readErr)
+	}
+	if string(got) != string(corrupt) {
+		t.Errorf("original content changed: got %q, want %q", got, corrupt)
+	}
+	// No .corrupt.* copy should have been created when the rename failed.
+	entries, _ := os.ReadDir(stateDir)
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".corrupt.") {
+			t.Errorf("no .corrupt.* file should exist when rename failed, found %s", e.Name())
+		}
+	}
+}
+
 func TestStoreLoadNewerVersion(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "deployments.yaml")
@@ -270,6 +322,53 @@ deployments:
 	}
 	if st2.Deployments[0].Agent != "claude-code" {
 		t.Errorf("expected Agent='claude-code' persisted, got %q", st2.Deployments[0].Agent)
+	}
+}
+
+func TestStoreSaveMkdirAllError(t *testing.T) {
+	// Point the store at a path whose parent directory cannot be created:
+	// a regular file sits where a directory would need to be.
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(blocker, "state", "deployments.yaml")
+	store := state.NewStore(path)
+
+	err := store.Save(&state.DeploymentState{Version: nd.SchemaVersion})
+	if err == nil {
+		t.Fatal("expected Save to fail when the state directory cannot be created")
+	}
+	if !strings.Contains(err.Error(), "create state directory") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// NOTE: store.go:92-95 (yaml.Marshal failure -> "marshal state") is not covered:
+// yaml.v3 cannot fail marshaling a valid *DeploymentState, whose fields are all
+// representable scalar/slice types, so there is no reachable input that trips it.
+
+func TestStoreWithLockAcquireError(t *testing.T) {
+	// Place a directory where the ".lock" file must be opened, so the lock's
+	// os.OpenFile(..., O_RDWR) fails and Acquire returns before fn runs.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "deployments.yaml")
+	if err := os.Mkdir(path+".lock", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store := state.NewStore(path)
+
+	called := false
+	err := store.WithLock(func() error {
+		called = true
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected WithLock to fail when the lock file cannot be opened")
+	}
+	if called {
+		t.Error("fn must not run when lock acquisition fails")
 	}
 }
 

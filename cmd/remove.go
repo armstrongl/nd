@@ -76,8 +76,8 @@ func newRemoveCmd(app *App) *cobra.Command {
 
 				d := dep.Deployment
 
-				// Warn if pinned
-				if d.Origin == nd.OriginPinned && !app.Yes {
+				// Warn if pinned (skip the prompt under --dry-run, which only prints a plan)
+				if d.Origin == nd.OriginPinned && !app.Yes && !app.DryRun {
 					ok, err := confirm(cmd.InOrStdin(), w,
 						fmt.Sprintf("Asset %s/%s is pinned. Remove anyway?", d.AssetType, d.AssetName),
 						app.Yes,
@@ -110,6 +110,14 @@ func newRemoveCmd(app *App) *cobra.Command {
 					}
 				}
 
+				// Scope the removal to the resolved deployment's agent so a
+				// same-named deployment on another agent is never deleted. Empty
+				// d.Agent is treated as "claude-code" per the v1→v2 migration rule
+				// in removeOne (internal/deploy/deploy.go).
+				agentName := d.Agent
+				if agentName == "" {
+					agentName = "claude-code"
+				}
 				reqs = append(reqs, deploy.RemoveRequest{
 					Identity: asset.Identity{
 						SourceID: d.SourceID,
@@ -118,6 +126,7 @@ func newRemoveCmd(app *App) *cobra.Command {
 					},
 					Scope:       d.Scope,
 					ProjectRoot: d.ProjectPath,
+					Agent:       agentName,
 				})
 			}
 

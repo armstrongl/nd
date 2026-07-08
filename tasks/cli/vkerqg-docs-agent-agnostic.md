@@ -143,8 +143,7 @@ agent", "the agent's config directory") OR show both agents.
   "Claude Code and Copilot CLI" / "Deploy to Claude Code or Copilot CLI" — these
   are correct multi-agent statements. Verify only; no edit expected.
 - [ ] Run `scripts/lint-docs.sh` (no args) and fix any new style errors the
-  rewrites introduce (notably: forbidden words "simply/just/easy", `\`\`\`bash`
-  fences must be `\`\`\`shell`, sentence-case headings).
+  rewrites introduce (notably: forbidden words "simply/just/easy", `\`\`\`bash`fences must be`\`\`\`shell`, sentence-case headings).
 - [ ] Re-check all intra-doc links after edits: `grep -rnoE '\]\([^)#][^)]*\)' docs/guide`
   targets must resolve relative to their file, and `](#anchor)` targets must
   match a heading slug in the same file.

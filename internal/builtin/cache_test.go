@@ -53,6 +53,75 @@ func TestEnsureExtracted_Idempotent(t *testing.T) {
 	}
 }
 
+func TestEnsureExtracted_ReextractsOnStampMismatch(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "cache", sanitizeVersion(version.Version))
+
+	if err := EnsureExtracted(dir); err != nil {
+		t.Fatalf("first extract: %v", err)
+	}
+
+	// A sentinel file that survives only if the dir is NOT re-extracted.
+	sentinel := filepath.Join(dir, "SENTINEL")
+	if err := os.WriteFile(sentinel, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	// Matching stamp: EnsureExtracted must be a no-op (sentinel preserved).
+	if err := EnsureExtracted(dir); err != nil {
+		t.Fatalf("no-op extract: %v", err)
+	}
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Errorf("matching stamp should not re-extract (sentinel gone): %v", err)
+	}
+
+	// Mismatching stamp (simulated nd upgrade with changed embedded assets):
+	// EnsureExtracted must wipe and re-extract.
+	if err := os.WriteFile(filepath.Join(dir, stampFile), []byte("stale-stamp"), 0o644); err != nil {
+		t.Fatalf("corrupt stamp: %v", err)
+	}
+	if err := EnsureExtracted(dir); err != nil {
+		t.Fatalf("re-extract: %v", err)
+	}
+	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+		t.Errorf("expected re-extract to remove sentinel, got stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "skills")); err != nil {
+		t.Errorf("skills/ missing after re-extract: %v", err)
+	}
+	// A fresh, matching stamp must have been rewritten.
+	if _, err := os.Stat(filepath.Join(dir, stampFile)); err != nil {
+		t.Errorf("stamp not rewritten after re-extract: %v", err)
+	}
+}
+
+func TestEnsureExtracted_ReextractsWhenStampMissing(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "cache", sanitizeVersion(version.Version))
+
+	if err := EnsureExtracted(dir); err != nil {
+		t.Fatalf("first extract: %v", err)
+	}
+
+	sentinel := filepath.Join(dir, "SENTINEL")
+	if err := os.WriteFile(sentinel, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	// Simulate a cache directory extracted by a pre-stamp binary version.
+	if err := os.Remove(filepath.Join(dir, stampFile)); err != nil {
+		t.Fatalf("remove stamp: %v", err)
+	}
+
+	if err := EnsureExtracted(dir); err != nil {
+		t.Fatalf("re-extract: %v", err)
+	}
+	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+		t.Errorf("expected re-extract to remove sentinel, got stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, stampFile)); err != nil {
+		t.Errorf("stamp not written after re-extract: %v", err)
+	}
+}
+
 func TestEnsureExtracted_SkillsHaveSKILLmd(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "cache", sanitizeVersion(version.Version))
 

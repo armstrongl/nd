@@ -51,8 +51,37 @@ func newScopeScreen(svc Services, styles Styles, isDark bool) *scopeScreen {
 	return s
 }
 
+// newScopeErrorScreen builds a scopeScreen already parked on its error step,
+// rendering msg with a "Press enter to return." hint. Used by the inline Ctrl+S
+// toggle (Model.toggleScope) to surface a project-root resolution failure with a
+// visible message instead of silently doing nothing.
+func newScopeErrorScreen(svc Services, styles Styles, isDark bool, msg string) *scopeScreen {
+	s := newScopeScreen(svc, styles, isDark)
+	s.step = scopeShowError
+	s.errorMsg = msg
+	return s
+}
+
 func (s *scopeScreen) Title() string    { return "Switch Scope" }
 func (s *scopeScreen) InputActive() bool { return s.step == scopeFormStep && !s.navigated }
+
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *scopeScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case scopeShowError:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // scopeFormStep
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	}
+}
 
 func (s *scopeScreen) Init() tea.Cmd {
 	return s.form.Init()
@@ -101,14 +130,24 @@ func (s *scopeScreen) View() tea.View {
 func (s *scopeScreen) handleScopeSelection() tea.Cmd {
 	newScope := nd.Scope(s.choice)
 
-	// Project scope requires a project root.
-	if newScope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
-		s.errorMsg = "Cannot switch to project scope: no project root detected."
-		s.step = scopeShowError
-		return nil
+	projectRoot := s.svc.GetProjectRoot()
+	// Project scope requires a project root; resolve it on demand from cwd so
+	// switching works even when the TUI was launched in global scope.
+	if newScope == nd.ScopeProject {
+		root, err := s.svc.ResolveProjectRoot()
+		if err != nil {
+			s.errorMsg = fmt.Sprintf("Cannot switch to project scope: %v", err)
+			s.step = scopeShowError
+			return nil
+		}
+		if root == "" {
+			s.errorMsg = "Cannot switch to project scope: no project root detected."
+			s.step = scopeShowError
+			return nil
+		}
+		projectRoot = root
 	}
 
-	projectRoot := s.svc.GetProjectRoot()
 	s.svc.ResetForScope(newScope, projectRoot)
 
 	return tea.Batch(

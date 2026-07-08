@@ -208,6 +208,86 @@ func TestSourceList_Empty(t *testing.T) {
 	}
 }
 
+func TestSourceBare_DelegatesToList(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// Bare `nd source` should behave exactly like `nd source list`.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var bare bytes.Buffer
+	rootCmd.SetOut(&bare)
+	rootCmd.SetErr(&bare)
+	rootCmd.SetArgs([]string{"--config", configPath, "source"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	var list bytes.Buffer
+	rootCmd2.SetOut(&list)
+	rootCmd2.SetErr(&list)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "list"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+
+	if bare.String() != list.String() {
+		t.Errorf("bare `nd source` output %q != `nd source list` output %q", bare.String(), list.String())
+	}
+	if strings.Contains(bare.String(), "Usage:") || strings.Contains(bare.String(), "Available Commands:") {
+		t.Errorf("bare `nd source` should not print Cobra usage, got:\n%s", bare.String())
+	}
+	// The builtin source is always listed, confirming the list path ran.
+	if !strings.Contains(bare.String(), "builtin") {
+		t.Errorf("expected builtin source in bare output, got: %s", bare.String())
+	}
+}
+
+func TestSourceBare_JSON(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// `--json` must behave the same on the bare parent as on the explicit list.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--json", "source"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+}
+
+func TestSourceBare_UnknownSubcommand(t *testing.T) {
+	_, configPath := setupTestConfig(t)
+
+	// An unrecognized subcommand must still error, not be swallowed by the
+	// delegating RunE.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "source", "bogus"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("expected 'unknown command' error, got: %v", err)
+	}
+}
+
 func TestSourceList_JSON(t *testing.T) {
 	tmp, configPath := setupTestConfig(t)
 
@@ -400,6 +480,41 @@ func TestSourceRemove_WithYes(t *testing.T) {
 	}
 }
 
+// TestSourceRemove_PurgesDeployments deploys an asset from a source, then
+// removes that source with --yes, and asserts both the symlink and the state
+// entry are gone (the removeSourceDeployments -> RemoveBulk cleanup path).
+func TestSourceRemove_PurgesDeployments(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy greeting from the pre-registered my-source.
+	runND(t, configPath, "deploy", "greeting")
+
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Fatalf("setup: expected deployed symlink at %s: %v", linkPath, err)
+	}
+
+	// Remove the source and all its deployed assets.
+	runND(t, configPath, "--yes", "source", "remove", "my-source")
+
+	// (a) The symlink under the agent dir is gone.
+	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
+		t.Errorf("expected symlink removed after source remove (err=%v)", err)
+	}
+
+	// (b) No state entry for that source remains.
+	data, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return // no state file is acceptable
+		}
+		t.Fatalf("read state file: %v", err)
+	}
+	if strings.Contains(string(data), "my-source") || strings.Contains(string(data), "greeting") {
+		t.Errorf("state should not reference the removed source's deployment, got: %s", data)
+	}
+}
+
 func TestSourceRemove_NonTTY_NoYes_Errors(t *testing.T) {
 	tmp, configPath := setupTestConfig(t)
 
@@ -427,6 +542,42 @@ func TestSourceRemove_NonTTY_NoYes_Errors(t *testing.T) {
 	err := rootCmd2.Execute()
 	if err == nil {
 		t.Fatal("expected error when confirm reads EOF in non-TTY")
+	}
+}
+
+func TestSourceRemove_DeployedAssets_NonTTY_Actionable(t *testing.T) {
+	setTestTerminal(t, false)
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy an asset from my-source so the source has deployed assets.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	// Remove the source without --yes in a non-TTY: must return the actionable
+	// "use --yes to remove" error, NOT the opaque promptChoice message.
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "source", "remove", "my-source"})
+
+	err := rootCmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error removing a source with deployed assets in non-TTY without --yes")
+	}
+	if !strings.Contains(err.Error(), "use --yes to remove") {
+		t.Errorf("expected actionable 'use --yes to remove' error, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "interactive choice required") {
+		t.Errorf("got opaque promptChoice error instead of actionable one: %v", err)
 	}
 }
 

@@ -258,3 +258,84 @@ func TestWriterPartialFailureEntry(t *testing.T) {
 		t.Error("detail should contain failure info")
 	}
 }
+
+// TestWriterLogReturnsNilAndPersistsOnSuccess guards the happy path after
+// Writer.Log switched to a named return plus a deferred-close closure: a
+// successful write must still return nil and durably persist the entry.
+//
+// The Close-failure branch (Log returning the close error when f.Close fails
+// after a successful f.Write) cannot be forced through the public API without
+// an injectable file handle, so it is verified by inspecting the deferred
+// closure in Writer.Log rather than by a test that forces Close to fail.
+func TestWriterLogReturnsNilAndPersistsOnSuccess(t *testing.T) {
+	dir := t.TempDir()
+	w := oplog.NewWriter(dir)
+
+	entry := oplog.LogEntry{
+		Timestamp: time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC),
+		Operation: oplog.OpDeploy,
+		Assets:    []asset.Identity{{SourceID: "src", Type: nd.AssetSkill, Name: "greeting"}},
+		Scope:     nd.ScopeGlobal,
+		Succeeded: 1,
+	}
+
+	if err := w.Log(entry); err != nil {
+		t.Fatalf("Log() error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "operations.log"))
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+
+	var got oplog.LogEntry
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Operation != oplog.OpDeploy {
+		t.Errorf("operation = %q, want %q", got.Operation, oplog.OpDeploy)
+	}
+	if got.Succeeded != 1 {
+		t.Errorf("succeeded = %d, want 1", got.Succeeded)
+	}
+}
+
+// TestWriterSurfacesNonNotExistStatError verifies that a stat failure other
+// than "file does not exist" is surfaced to the Log caller rather than silently
+// skipping rotation. It removes all permissions on the log directory so that
+// os.Stat on the log file inside it fails with EACCES (not fs.ErrNotExist).
+//
+// This asserts the public contract; the isolated rotateIfNeeded branch is
+// covered white-box in writer_internal_test.go.
+func TestWriterSurfacesNonNotExistStatError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permission checks")
+	}
+
+	dir := t.TempDir()
+	logDir := filepath.Join(dir, "logs")
+	w := oplog.NewWriter(logDir)
+
+	entry := oplog.LogEntry{
+		Timestamp: time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC),
+		Operation: oplog.OpDeploy,
+		Succeeded: 1,
+	}
+
+	// First write creates logDir/operations.log successfully.
+	if err := w.Log(entry); err != nil {
+		t.Fatalf("initial Log() error: %v", err)
+	}
+
+	// Remove all permissions on the log directory so os.Stat on the log file
+	// inside it fails with EACCES rather than fs.ErrNotExist.
+	if err := os.Chmod(logDir, 0o000); err != nil {
+		t.Fatalf("chmod logDir: %v", err)
+	}
+	// Restore permissions so t.TempDir cleanup can remove the directory.
+	t.Cleanup(func() { _ = os.Chmod(logDir, 0o755) })
+
+	if err := w.Log(entry); err == nil {
+		t.Fatal("Log() = nil; want a non-nil error when os.Stat fails with a non-not-exist error")
+	}
+}

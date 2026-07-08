@@ -16,6 +16,9 @@ func newSettingsCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "configuration",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "edit")
+		},
 	}
 
 	cmd.AddCommand(newSettingsEditCmd(app))
@@ -31,7 +34,7 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "configuration,getting-started,troubleshooting,asset-types/hooks,asset-types/output-styles",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			configPath := app.ConfigPath
@@ -44,6 +47,12 @@ func newSettingsEditCmd(app *App) *cobra.Command {
 			if app.DryRun {
 				printHuman(w, "[dry-run] would open %s in editor\n", configPath)
 				return nil
+			}
+
+			// An interactive editor cannot be driven by a scripted/--json/--quiet
+			// or non-TTY caller; exec-ing it would hang. Return an actionable error.
+			if app.JSON || app.Quiet || !isTerminal() {
+				return fmt.Errorf("settings edit requires an interactive terminal; edit %s directly or use --dry-run", configPath)
 			}
 
 			editor := os.Getenv("EDITOR")

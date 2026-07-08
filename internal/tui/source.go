@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -66,6 +67,7 @@ type sourceScreen struct {
 	// add forms
 	addForm  *huh.Form
 	addInput string
+	adding   bool
 
 	// remove
 	removeForm   *huh.Form
@@ -93,7 +95,50 @@ func (s *sourceScreen) InputActive() bool {
 	return s.step == sourceMenu || s.step == sourceAddLocalInput || s.step == sourceAddGitInput || s.step == sourceRemoveSelect || s.step == sourceRemoveConfirm
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *sourceScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case sourceList:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "scroll"},
+			{"q", "quit"},
+		}
+	case sourceAddLocalInput, sourceAddGitInput:
+		return []HelpItem{
+			{"esc", "cancel"},
+			{"enter", "submit"},
+			{"q", "quit"},
+		}
+	case sourceRemoveConfirm:
+		return []HelpItem{
+			{"h/l", "yes/no"},
+			{"enter", "confirm"},
+			{"q", "quit"},
+		}
+	case sourceLoading, sourceSyncing, sourceDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // menu, removeSelect
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	}
+}
+
 func (s *sourceScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the source list. It is used both by
+// Init() and after a successful add/remove/sync so the cached slice reflects the
+// change without leaving the screen.
+func (s *sourceScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		sm, err := svc.SourceManager()
@@ -120,30 +165,47 @@ func (s *sourceScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		}
 		s.sources = msg.sources
+		// A reload triggered after a mutation must not yank the user off the
+		// "done" confirmation; only refresh the cached data in that case.
+		if s.step == sourceDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case sourceAddedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Source %q added.", s.styles.Success.Render(GlyphOK), msg.src.ID)
+			s.step = sourceDone
+			return s, func() tea.Msg { return RefreshHeaderMsg{} }
 		}
+		s.doneMsg = fmt.Sprintf("%s Source %q added.", s.styles.Success.Render(GlyphOK), msg.src.ID)
 		s.step = sourceDone
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so the new source appears in List/Remove without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 
 	case sourceRemovedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Source %q removed.", s.styles.Success.Render(GlyphOK), msg.id)
+			s.step = sourceDone
+			return s, func() tea.Msg { return RefreshHeaderMsg{} }
 		}
+		s.doneMsg = fmt.Sprintf("%s Source %q removed.", s.styles.Success.Render(GlyphOK), msg.id)
 		s.step = sourceDone
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so the removed source disappears from List/Remove without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 
 	case sourceSyncedMsg:
 		s.step = sourceDone
+		if len(msg.errors) > 0 {
+			// Route failures through the shared s.err error branch so they
+			// match load-error (and other-screen) presentation. Error path
+			// refreshes the header only (no reload).
+			s.err = s.syncError(msg)
+			return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		}
 		s.doneMsg = s.formatSyncResult(msg)
-		return s, func() tea.Msg { return RefreshHeaderMsg{} }
+		// Reload so any synced-state changes appear without re-entering.
+		return s, tea.Batch(s.reload(), func() tea.Msg { return RefreshHeaderMsg{} })
 	}
 
 	switch s.step {
@@ -202,6 +264,7 @@ func (s *sourceScreen) View() tea.View {
 
 func (s *sourceScreen) buildMenu() (tea.Model, tea.Cmd) {
 	s.step = sourceMenu
+	s.err = nil // clear any prior done-screen error so it does not leak
 	s.menuChoice = ""
 	s.navigated = false
 	s.menuForm = huh.NewForm(
@@ -258,6 +321,7 @@ func (s *sourceScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sourceScreen) buildAddForm(kind string) (tea.Model, tea.Cmd) {
 	s.addInput = ""
+	s.adding = false
 	title := "Local source path"
 	placeholder := "/path/to/assets"
 	if kind == "git" {
@@ -285,6 +349,9 @@ func (s *sourceScreen) buildAddForm(kind string) (tea.Model, tea.Cmd) {
 }
 
 func (s *sourceScreen) updateAddForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.adding {
+		return s, nil
+	}
 	model, cmd := s.addForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.addForm = f
@@ -294,6 +361,7 @@ func (s *sourceScreen) updateAddForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s.step == sourceAddGitInput {
 			kind = "git"
 		}
+		s.adding = true
 		return s, s.runAdd(kind, s.addInput)
 	}
 	if s.addForm.State == huh.StateAborted {
@@ -504,16 +572,19 @@ func (s *sourceScreen) viewList() tea.View {
 	return tea.NewView(RenderScrolledLines(s.styles, &s.scroll, s.listLines, s.contentHeight()))
 }
 
+// formatSyncResult renders the success summary shown in the done view. Sync
+// failures are routed through s.err (see syncError) rather than doneMsg.
 func (s *sourceScreen) formatSyncResult(msg sourceSyncedMsg) string {
-	if len(msg.errors) == 0 {
-		return fmt.Sprintf("%s Synced %d source(s).", s.styles.Success.Render(GlyphOK), msg.synced)
-	}
-	var b strings.Builder
+	return fmt.Sprintf("%s Synced %d source(s).", s.styles.Success.Render(GlyphOK), msg.synced)
+}
+
+// syncError combines sync failures into a single error so they render through
+// the shared s.err error branch in View(), matching load-error presentation.
+// On partial success it keeps the synced count visible alongside the failures.
+func (s *sourceScreen) syncError(msg sourceSyncedMsg) error {
+	joined := errors.Join(msg.errors...)
 	if msg.synced > 0 {
-		fmt.Fprintf(&b, "%s Synced %d source(s).\n", s.styles.Success.Render(GlyphOK), msg.synced)
+		return fmt.Errorf("synced %d source(s), %d failed:\n%w", msg.synced, len(msg.errors), joined)
 	}
-	for _, err := range msg.errors {
-		fmt.Fprintf(&b, "  %s %s\n", s.styles.Danger.Render(GlyphBroken), err.Error())
-	}
-	return strings.TrimRight(b.String(), "\n")
+	return joined
 }

@@ -315,7 +315,7 @@ func generateREADME(cfg ExportConfig, result *ExportResult) string {
 
 		if len(rules) > 0 {
 			sb.WriteString("\n### Rules\n\n")
-			sb.WriteString("Copy to your `.claude/rules/` directory:\n")
+			sb.WriteString("Copy to your `.agents/rules/` directory:\n")
 			for _, r := range rules {
 				sb.WriteString("- `extras/rules/" + r.Name + "`\n")
 			}

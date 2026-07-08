@@ -142,3 +142,29 @@ func TestPinScreen_RefreshHeaderAfterDone(t *testing.T) {
 		t.Errorf("pin done should emit RefreshHeaderMsg, got %T", msg)
 	}
 }
+
+// A completed selection form with no pin/unpin changes should land on the done
+// step and render "No changes made." rather than silently bouncing back.
+func TestPinScreen_BuildConfirm_NoChanges_ShowsDone(t *testing.T) {
+	s := newPinScreen(newMockServices(), NewStyles(true), true)
+	// No deployments and no selection => zero diff.
+	s.deployments = nil
+	s.selected = nil
+
+	updated, cmd := s.buildConfirm()
+	ps := updated.(*pinScreen)
+
+	if ps.step != pinDone {
+		t.Fatalf("step = %d, want pinDone (%d)", ps.step, pinDone)
+	}
+	if cmd != nil {
+		t.Fatalf("no-change path should not emit a BackMsg cmd, got non-nil cmd")
+	}
+	v := ps.View()
+	if !strings.Contains(v.Content, "No changes") {
+		t.Fatalf("view should contain 'No changes'; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "Press enter to return.") {
+		t.Fatalf("view should contain the return hint; got:\n%s", v.Content)
+	}
+}

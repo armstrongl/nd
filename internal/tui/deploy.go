@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 
+	"github.com/armstrongl/nd/internal/agent"
 	"github.com/armstrongl/nd/internal/asset"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
@@ -19,12 +20,22 @@ import (
 type deployStep int
 
 const (
-	deployPickType deployStep = iota
+	deployPickScope deployStep = iota
+	deployPickType
+	deployPickAgents
 	deploySelectAssets
 	deployRunning
 	deployConflictConfirm
 	deployResult
 )
+
+// agentDeploy pairs a target agent (by name) and its engine with the deploy
+// requests to run against that agent.
+type agentDeploy struct {
+	name   string
+	engine *deploy.Engine
+	reqs   []deploy.DeployRequest
+}
 
 // typeEntry pairs a display label with an optional asset type filter.
 type typeEntry struct {
@@ -54,16 +65,25 @@ type deployScreen struct {
 	isDark bool
 	step   deployStep
 
+	// pickScope step
+	scopeForm   *huh.Form
+	scopeChoice string
+
 	// pickType step
 	typeForm   *huh.Form
 	typeChoice string
 	scanning   bool // H1: guards against double-fire after type form completion
 
+	// pickAgents step
+	agentForm      *huh.Form
+	selectedAgents []string // resolved target agent names (picker, config, or single detected)
+
 	// selectAssets step
-	assetForm *huh.Form
-	selected  []string       // "sourceID:type/name" keys
-	assets    []*asset.Asset // available (undeployed) assets
-	deploying bool           // H1: guards against double-fire after asset form completion
+	assetForm   *huh.Form
+	selected    []string       // "sourceID:type/name" keys
+	assets      []*asset.Asset // available (undeployed) assets
+	recencyDays int            // recency_days from config (0 = 7-day default)
+	deploying   bool           // H1: guards against double-fire after asset form completion
 
 	// running step
 	progress progressBar
@@ -75,12 +95,13 @@ type deployScreen struct {
 	dryReqs   []deploy.DeployRequest // populated for dry-run display
 
 	// conflict resolution (deployConflictConfirm step)
-	reqs             []deploy.DeployRequest // all original requests from startDeploy
-	firstSucceeded   []deploy.DeployResult  // succeeded before conflict resolution
-	firstFailed      []deploy.DeployError   // non-conflict failures before resolution
-	conflictFails    []deploy.DeployError   // failures with ConflictError
-	conflictReqs     []deploy.DeployRequest // same requests re-built with ForceReplace=true
-	conflictForm     *huh.Form
+	reqs              []deploy.DeployRequest // all original requests from startDeploy
+	firstSucceeded    []deploy.DeployResult  // succeeded before conflict resolution
+	firstFailed       []deploy.DeployError   // non-conflict failures before resolution
+	conflictFails     []deploy.DeployError   // failures with ConflictError
+	conflictReqs      []deploy.DeployRequest // same requests re-built with ForceReplace=true
+	conflictAgents    []string               // target agent name per conflictReqs entry (parallel)
+	conflictForm      *huh.Form
 	conflictConfirmed bool // captured by huh.Confirm
 	conflictAnswered  bool // guards against double-fire
 
@@ -101,8 +122,9 @@ type deployDoneMsg struct {
 
 // scanDoneMsg signals that the background scan+filter completed.
 type scanDoneMsg struct {
-	assets []*asset.Asset
-	err    error
+	assets      []*asset.Asset
+	recencyDays int // resolved recency_days from config (0 = 7-day default)
+	err         error
 }
 
 func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
@@ -110,8 +132,22 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 		svc:    svc,
 		styles: styles,
 		isDark: isDark,
-		step:   deployPickType,
+		step:   deployPickScope,
 	}
+
+	// Scope picker (first step): default to the current session scope.
+	ds.scopeChoice = string(svc.GetScope())
+	ds.scopeForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Deploy scope").
+				Options(
+					huh.NewOption("Global", "global"),
+					huh.NewOption("Project", "project"),
+				).
+				Value(&ds.scopeChoice),
+		),
+	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
 
 	entries := typeDisplayNames()
 	opts := make([]huh.Option[string], len(entries))
@@ -135,18 +171,35 @@ func newDeployScreen(svc Services, styles Styles, isDark bool) *deployScreen {
 func (ds *deployScreen) Title() string { return "Deploy" }
 
 func (ds *deployScreen) InputActive() bool {
-	return ds.step == deployPickType || ds.step == deploySelectAssets || ds.step == deployConflictConfirm
+	return ds.step == deployPickScope || ds.step == deployPickType ||
+		ds.step == deployPickAgents || ds.step == deploySelectAssets ||
+		ds.step == deployConflictConfirm
 }
 
 // FullHelpItems returns step-specific help items for the deploy screen.
 // MultiSelect steps show "x/space toggle" instead of the default "enter select".
 func (ds *deployScreen) FullHelpItems() []HelpItem {
 	switch ds.step {
+	case deployPickScope:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
 	case deployPickType:
 		return []HelpItem{
 			{"esc", "back"},
 			{"j/k", "navigate"},
 			{"enter", "select"},
+			{"q", "quit"},
+		}
+	case deployPickAgents:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"x/space", "toggle"},
+			{"enter", "confirm"},
 			{"q", "quit"},
 		}
 	case deploySelectAssets:
@@ -172,9 +225,65 @@ func (ds *deployScreen) FullHelpItems() []HelpItem {
 	}
 }
 
-// Init initializes the type picker form.
+// HelpSections groups the deploy keybindings under headings for the '?' overlay,
+// including step-specific tips (e.g. the multiselect toggle).
+func (ds *deployScreen) HelpSections() []HelpSection {
+	switch ds.step {
+	case deploySelectAssets:
+		return []HelpSection{
+			{Title: "Navigation", Items: []HelpItem{
+				{"j/k", "navigate"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+			{Title: "Selection", Items: []HelpItem{
+				{"x/space", "toggle asset"},
+				{"enter", "confirm"},
+			}},
+			{Title: "Tips", Items: []HelpItem{
+				{GlyphDot, "Toggle assets with x or space, then press enter to deploy."},
+			}},
+		}
+	case deployConflictConfirm:
+		return []HelpSection{
+			{Title: "Confirm", Items: []HelpItem{
+				{"h/l", "yes/no"},
+				{"enter", "confirm"},
+				{"q", "quit"},
+			}},
+		}
+	case deployPickScope:
+		return []HelpSection{
+			{Title: "Navigation", Items: []HelpItem{
+				{"j/k", "navigate"},
+				{"enter", "select"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+		}
+	case deployPickType:
+		return []HelpSection{
+			{Title: "Navigation", Items: []HelpItem{
+				{"j/k", "navigate"},
+				{"enter", "select"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+		}
+	default:
+		return []HelpSection{
+			{Title: "Result", Items: []HelpItem{
+				{"enter", "return"},
+				{"esc", "back"},
+				{"q", "quit"},
+			}},
+		}
+	}
+}
+
+// Init initializes the scope picker form (the first step).
 func (ds *deployScreen) Init() tea.Cmd {
-	return ds.typeForm.Init()
+	return ds.scopeForm.Init()
 }
 
 // Update handles messages for each step of the deploy flow.
@@ -211,7 +320,7 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ds.firstSucceeded = msg.succeeded
 			ds.firstFailed = otherFails
 			ds.conflictFails = conflictFails
-			ds.conflictReqs = ds.buildForceRequests(conflictFails)
+			ds.conflictReqs, ds.conflictAgents = ds.buildForceRequests(conflictFails)
 			ds.step = deployConflictConfirm
 			return ds, ds.buildConflictForm()
 		}
@@ -240,14 +349,19 @@ func (ds *deployScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return ds, nil
 		}
 		ds.assets = msg.assets
+		ds.recencyDays = msg.recencyDays
 		ds.step = deploySelectAssets
 		ds.buildAssetForm()
 		return ds, ds.assetForm.Init()
 	}
 
 	switch ds.step {
+	case deployPickScope:
+		return ds.updatePickScope(msg)
 	case deployPickType:
 		return ds.updatePickType(msg)
+	case deployPickAgents:
+		return ds.updatePickAgents(msg)
 	case deploySelectAssets:
 		return ds.updateSelectAssets(msg)
 	case deployConflictConfirm:
@@ -274,8 +388,17 @@ func (ds *deployScreen) View() tea.View {
 	}
 
 	switch ds.step {
+	case deployPickScope:
+		return tea.NewView(ds.scopeForm.View())
+
 	case deployPickType:
 		return tea.NewView(ds.typeForm.View())
+
+	case deployPickAgents:
+		if ds.agentForm != nil {
+			return tea.NewView(ds.agentForm.View())
+		}
+		return tea.NewView("  Loading agents...")
 
 	case deploySelectAssets:
 		if ds.assetForm != nil {
@@ -298,6 +421,40 @@ func (ds *deployScreen) View() tea.View {
 	return tea.NewView("")
 }
 
+// updatePickScope delegates to the scope picker form and, on completion,
+// applies the chosen scope (resetting scope-dependent services) before
+// advancing to the type picker. Selecting project scope with no detectable
+// project root shows an error instead of deploying.
+func (ds *deployScreen) updatePickScope(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	model, cmd := ds.scopeForm.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		ds.scopeForm = f
+	}
+
+	if ds.scopeForm.State == huh.StateCompleted {
+		newScope := nd.Scope(ds.scopeChoice)
+		// Project scope requires a project root (mirrors internal/tui/scope.go).
+		if newScope == nd.ScopeProject && ds.svc.GetProjectRoot() == "" {
+			ds.err = fmt.Errorf("cannot deploy to project scope: no project root detected")
+			ds.step = deployResult // non-input step so esc/enter exit cleanly
+			return ds, nil
+		}
+		ds.svc.ResetForScope(newScope, ds.svc.GetProjectRoot())
+		ds.step = deployPickType
+		return ds, ds.typeForm.Init()
+	}
+
+	if ds.scopeForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	return ds, cmd
+}
+
 // updatePickType delegates to the type picker form and transitions on completion.
 func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
@@ -314,11 +471,112 @@ func (ds *deployScreen) updatePickType(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if ds.typeForm.State == huh.StateCompleted {
+		return ds.afterPickType()
+	}
+
+	if ds.typeForm.State == huh.StateAborted {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+
+	return ds, cmd
+}
+
+// afterPickType resolves the target agents once the type form completes.
+// Resolution order: config default_deploy_agents > single detected agent >
+// interactive multi-select picker (when 2+ agents are detected).
+func (ds *deployScreen) afterPickType() (tea.Model, tea.Cmd) {
+	if configured := ds.configuredAgents(); len(configured) > 0 {
+		ds.selectedAgents = configured
 		ds.scanning = true
 		return ds, ds.startScan()
 	}
 
-	if ds.typeForm.State == huh.StateAborted {
+	detected := ds.detectedAgents()
+	if len(detected) >= 2 {
+		ds.buildAgentForm(detected)
+		ds.step = deployPickAgents
+		return ds, ds.agentForm.Init()
+	}
+	if len(detected) == 1 {
+		ds.selectedAgents = []string{detected[0].Name}
+	}
+	// Zero detected: leave selectedAgents empty; startDeploy falls back to the
+	// active agent (preserving the existing single-agent behavior).
+	ds.scanning = true
+	return ds, ds.startScan()
+}
+
+// configuredAgents returns the config's default_deploy_agents, or nil.
+func (ds *deployScreen) configuredAgents() []string {
+	sm, err := ds.svc.SourceManager()
+	if err != nil || sm == nil {
+		return nil
+	}
+	return sm.Config().DefaultDeployAgents
+}
+
+// detectedAgents returns the agents currently detected on this system.
+func (ds *deployScreen) detectedAgents() []agent.Agent {
+	reg, err := ds.svc.AgentRegistry()
+	if err != nil || reg == nil {
+		return nil
+	}
+	reg.Detect()
+	var out []agent.Agent
+	for _, a := range reg.All() {
+		if a.Detected {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// buildAgentForm creates the multi-select form from the detected agents.
+func (ds *deployScreen) buildAgentForm(detected []agent.Agent) {
+	opts := make([]huh.Option[string], len(detected))
+	for i, a := range detected {
+		opts[i] = huh.NewOption(a.Name, a.Name)
+	}
+	ds.agentForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Select target agents").
+				Options(opts...).
+				Value(&ds.selectedAgents),
+		),
+	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
+}
+
+// updatePickAgents delegates to the agent multi-select form and, on completion,
+// advances to the scan step with the chosen agents.
+func (ds *deployScreen) updatePickAgents(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// H1: guard against double-fire after the picker completes and a scan starts.
+	if ds.scanning {
+		return ds, nil
+	}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "esc" {
+		return ds, func() tea.Msg { return BackMsg{} }
+	}
+	if ds.agentForm == nil {
+		return ds, nil
+	}
+
+	model, cmd := ds.agentForm.Update(msg)
+	if f, ok := model.(*huh.Form); ok {
+		ds.agentForm = f
+	}
+
+	if ds.agentForm.State == huh.StateCompleted {
+		if len(ds.selectedAgents) == 0 {
+			// Reject an empty selection: rebuild the form so the user can retry.
+			ds.buildAgentForm(ds.detectedAgents())
+			return ds, ds.agentForm.Init()
+		}
+		ds.scanning = true
+		return ds, ds.startScan()
+	}
+
+	if ds.agentForm.State == huh.StateAborted {
 		return ds, func() tea.Msg { return BackMsg{} }
 	}
 
@@ -369,20 +627,42 @@ func (ds *deployScreen) startScan() tea.Cmd {
 			}
 		}
 
+		// Resolve the recency window from config so the picker can flag newly
+		// modified assets (mirrors browseScreen.Init). 0 = 7-day default.
+		recencyDays := 0
+		if sm, err := svc.SourceManager(); err == nil && sm != nil {
+			if cfg := sm.Config(); cfg != nil {
+				recencyDays = cfg.RecencyDays
+			}
+		}
+
 		undeployed := filterUndeployed(deployable, deployed)
-		return scanDoneMsg{assets: undeployed}
+		return scanDoneMsg{assets: undeployed, recencyDays: recencyDays}
 	}
+}
+
+// assetOptionLabel builds a deploy-picker label for an asset: "name  source",
+// with the description appended when present and a styled "new" badge when the
+// asset's source file was modified within window. Deployed-badge logic is
+// available via the shared helper, but ds.assets here is the undeployed set so
+// it is a no-op in this picker today.
+func assetOptionLabel(styles Styles, a *asset.Asset, window time.Duration) string {
+	label := fmt.Sprintf("%s  %s", a.Name, a.SourceID)
+	if a.Meta != nil && a.Meta.Description != "" {
+		label = fmt.Sprintf("%s  %s  %s", a.Name, a.SourceID, a.Meta.Description)
+	}
+	if isNew(a, window) {
+		label += "  " + styles.NewBadge()
+	}
+	return label
 }
 
 // buildAssetForm creates the multi-select form from the available (undeployed) assets.
 func (ds *deployScreen) buildAssetForm() {
+	window := recencyWindow(ds.recencyDays)
 	opts := make([]huh.Option[string], len(ds.assets))
 	for i, a := range ds.assets {
-		label := fmt.Sprintf("%s  %s", a.Name, a.SourceID)
-		if a.Meta != nil && a.Meta.Description != "" {
-			label = fmt.Sprintf("%s  %s  %s", a.Name, a.SourceID, a.Meta.Description)
-		}
-		opts[i] = huh.NewOption(label, assetKey(a))
+		opts[i] = huh.NewOption(assetOptionLabel(ds.styles, a, window), assetKey(a))
 	}
 
 	ds.assetForm = huh.NewForm(
@@ -429,11 +709,50 @@ func (ds *deployScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 // startDeploy transitions to the running step and kicks off the deploy goroutine.
 func (ds *deployScreen) startDeploy() tea.Cmd {
 	if len(ds.selected) == 0 {
-		// Nothing selected — go back
-		return func() tea.Msg { return BackMsg{} }
+		// Nothing selected — land on the result step with an informational
+		// message instead of silently bouncing back (mirrors the "all deployed"
+		// info path in the scanDoneMsg handler).
+		ds.info = "No assets selected."
+		ds.step = deployResult
+		return nil
 	}
 
-	// Build a set of selected keys for lookup
+	reqs := ds.buildBaseRequests()
+	ds.reqs = reqs
+
+	// H2: Dry-run mode — show preview without executing
+	if ds.svc.IsDryRun() {
+		ds.step = deployResult
+		ds.dryRun = true
+		ds.dryReqs = reqs
+		ds.resultLines = nil
+		return func() tea.Msg { return RefreshHeaderMsg{} }
+	}
+
+	// Build one engine per selected agent and run the same requests through each.
+	// engineFor already returns user-facing, descriptive errors (e.g.
+	// "deploy engine not available", registry/agent errors), so surface them
+	// directly rather than re-prefixing (which doubled "deploy engine: deploy
+	// engine not available").
+	batches, err := ds.firstPassBatches(reqs)
+	if err != nil {
+		ds.err = err
+		return nil
+	}
+	if len(batches) == 0 {
+		ds.err = fmt.Errorf("deploy engine not available")
+		return nil
+	}
+
+	ds.step = deployRunning
+	ds.progress = newProgressBar(40)
+
+	// M3: Use bulk API for single lock cycle + auto-snapshot (per agent).
+	return ds.runBatchesCmd(batches)
+}
+
+// buildBaseRequests builds the per-asset deploy requests (one set, agent-agnostic).
+func (ds *deployScreen) buildBaseRequests() []deploy.DeployRequest {
 	selectedSet := make(map[string]bool, len(ds.selected))
 	for _, key := range ds.selected {
 		selectedSet[key] = true
@@ -442,13 +761,15 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 	// M4: Read symlink strategy from config (flag > config > default)
 	strategy := nd.SymlinkAbsolute
 	if sm, err := ds.svc.SourceManager(); err == nil && sm != nil {
-		cfg := sm.Config()
-		if cfg.SymlinkStrategy != "" {
+		if cfg := sm.Config(); cfg.SymlinkStrategy != "" {
 			strategy = cfg.SymlinkStrategy
 		}
 	}
 
-	// Build deploy requests (C1: include ProjectRoot)
+	// Build deploy requests (C1: include ProjectRoot).
+	// GetProjectRoot resolves the project root on demand (cmd.App), so a
+	// project-scope deploy gets a non-empty root even when the TUI was launched
+	// in the default global scope from inside a project.
 	scope := ds.svc.GetScope()
 	projectRoot := ds.svc.GetProjectRoot()
 	var reqs []deploy.DeployRequest
@@ -464,53 +785,112 @@ func (ds *deployScreen) startDeploy() tea.Cmd {
 			Strategy:    strategy,
 		})
 	}
-
-	ds.reqs = reqs
-
-	// H2: Dry-run mode — show preview without executing
-	if ds.svc.IsDryRun() {
-		ds.step = deployResult
-		ds.dryRun = true
-		ds.dryReqs = reqs
-		ds.resultLines = nil
-		return func() tea.Msg { return RefreshHeaderMsg{} }
-	}
-
-	ds.step = deployRunning
-	ds.progress = newProgressBar(40)
-
-	eng, err := ds.svc.DeployEngine()
-	if err != nil {
-		ds.err = fmt.Errorf("deploy engine: %w", err)
-		return nil
-	}
-	if eng == nil {
-		ds.err = fmt.Errorf("deploy engine not available")
-		return nil
-	}
-
-	// M3: Use bulk API for single lock cycle + auto-snapshot
-	return deployBulkCmd(eng.DeployBulk, reqs)
+	return reqs
 }
 
-// deployBulkCmd creates a tea.Cmd that deploys all requests via the bulk API.
-func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResult, error), reqs []deploy.DeployRequest) tea.Cmd {
-	return func() tea.Msg {
-		result, err := deployer(reqs)
+// firstPassBatches builds one deploy batch per selected agent, each running the
+// same base requests. When no agent was resolved (none detected), it falls back
+// to a single batch bound to the active agent.
+func (ds *deployScreen) firstPassBatches(base []deploy.DeployRequest) ([]agentDeploy, error) {
+	names := ds.selectedAgents
+	if len(names) == 0 {
+		names = []string{""} // "" => active-agent fallback
+	}
+	batches := make([]agentDeploy, 0, len(names))
+	for _, name := range names {
+		eng, err := ds.engineFor(name)
 		if err != nil {
-			// Total failure — report all as failed
-			var failed []deploy.DeployError
-			for _, req := range reqs {
-				failed = append(failed, deploy.DeployError{
-					AssetName:  req.Asset.Name,
-					AssetType:  req.Asset.Type,
-					SourcePath: req.Asset.SourcePath,
-					Err:        err,
-				})
-			}
-			return deployDoneMsg{failed: failed}
+			return nil, err
 		}
-		return deployDoneMsg{succeeded: result.Succeeded, failed: result.Failed}
+		batches = append(batches, agentDeploy{name: name, engine: eng, reqs: base})
+	}
+	return batches, nil
+}
+
+// engineFor resolves a deploy engine for the named agent. An empty name resolves
+// the active-agent engine (single-agent fallback).
+func (ds *deployScreen) engineFor(name string) (*deploy.Engine, error) {
+	if name == "" {
+		eng, err := ds.svc.DeployEngine()
+		if err != nil {
+			return nil, err
+		}
+		if eng == nil {
+			return nil, fmt.Errorf("deploy engine not available")
+		}
+		return eng, nil
+	}
+	reg, err := ds.svc.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+	if reg == nil {
+		return nil, fmt.Errorf("agent registry not available")
+	}
+	ag, err := reg.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	eng, err := ds.svc.DeployEngineFor(ag)
+	if err != nil {
+		return nil, err
+	}
+	if eng == nil {
+		return nil, fmt.Errorf("deploy engine not available")
+	}
+	return eng, nil
+}
+
+// runBatchesCmd returns the command that runs the batches, using the single-agent
+// path when there is exactly one batch.
+func (ds *deployScreen) runBatchesCmd(batches []agentDeploy) tea.Cmd {
+	if len(batches) == 1 {
+		b := batches[0]
+		return deployBulkCmd(b.engine.DeployBulk, b.reqs, b.name)
+	}
+	return deployBatchesCmd(batches)
+}
+
+// runBulk executes one agent's bulk deploy. On a total failure it tags every
+// request's error with the agent name so results can be labeled per agent.
+func runBulk(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResult, error), reqs []deploy.DeployRequest, agentName string) ([]deploy.DeployResult, []deploy.DeployError) {
+	result, err := deployer(reqs)
+	if err != nil {
+		var failed []deploy.DeployError
+		for _, req := range reqs {
+			failed = append(failed, deploy.DeployError{
+				AssetName:  req.Asset.Name,
+				AssetType:  req.Asset.Type,
+				SourcePath: req.Asset.SourcePath,
+				Agent:      agentName,
+				Err:        err,
+			})
+		}
+		return nil, failed
+	}
+	return result.Succeeded, result.Failed
+}
+
+// deployBulkCmd creates a tea.Cmd that deploys all requests to a single agent
+// via the bulk API. agentName labels any total-failure errors.
+func deployBulkCmd(deployer func([]deploy.DeployRequest) (*deploy.BulkDeployResult, error), reqs []deploy.DeployRequest, agentName string) tea.Cmd {
+	return func() tea.Msg {
+		succeeded, failed := runBulk(deployer, reqs, agentName)
+		return deployDoneMsg{succeeded: succeeded, failed: failed}
+	}
+}
+
+// deployBatchesCmd runs each agent's batch and merges the results into a single
+// deployDoneMsg. Successes and failures carry their target agent name.
+func deployBatchesCmd(batches []agentDeploy) tea.Cmd {
+	return func() tea.Msg {
+		var msg deployDoneMsg
+		for _, b := range batches {
+			succeeded, failed := runBulk(b.engine.DeployBulk, b.reqs, b.name)
+			msg.succeeded = append(msg.succeeded, succeeded...)
+			msg.failed = append(msg.failed, failed...)
+		}
+		return msg
 	}
 }
 
@@ -544,11 +924,23 @@ func (ds *deployScreen) buildResultContent() string {
 
 	// H2: Dry-run preview
 	if ds.dryRun {
+		agents := ds.selectedAgents
+		labeled := len(agents) > 0
+		if !labeled {
+			agents = []string{""}
+		}
 		fmt.Fprintf(&b, "  %s Would deploy %d asset(s):\n\n",
-			ds.styles.Warning.Render("[DRY RUN]"), len(ds.dryReqs))
-		for _, req := range ds.dryReqs {
-			fmt.Fprintf(&b, "    %s %s/%s from %s\n",
-				GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID)
+			ds.styles.Warning.Render(GlyphDryRun), len(ds.dryReqs)*len(agents))
+		for _, name := range agents {
+			for _, req := range ds.dryReqs {
+				if name != "" {
+					fmt.Fprintf(&b, "    %s %s/%s from %s %s %s\n",
+						GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID, GlyphArrow, name)
+				} else {
+					fmt.Fprintf(&b, "    %s %s/%s from %s\n",
+						GlyphArrow, req.Asset.Type, req.Asset.Name, req.Asset.SourceID)
+				}
+			}
 		}
 		fmt.Fprintf(&b, "\n  %s", ds.styles.Subtle.Render("Press enter to return."))
 		return b.String()
@@ -562,8 +954,9 @@ func (ds *deployScreen) buildResultContent() string {
 		fmt.Fprintf(&b, "  %s\n", ds.styles.Success.Render(
 			fmt.Sprintf("%d succeeded", len(ds.succeeded))))
 		for _, r := range ds.succeeded {
-			fmt.Fprintf(&b, "    %s %s/%s\n",
-				GlyphOK, r.Deployment.AssetType, r.Deployment.AssetName)
+			fmt.Fprintf(&b, "    %s %s%s\n",
+				GlyphOK, fmt.Sprintf("%s/%s", r.Deployment.AssetType, r.Deployment.AssetName),
+				agentSuffix(r.Deployment.Agent))
 		}
 		b.WriteString("\n")
 	}
@@ -572,8 +965,9 @@ func (ds *deployScreen) buildResultContent() string {
 		fmt.Fprintf(&b, "  %s\n", ds.styles.Danger.Render(
 			fmt.Sprintf("%d failed", len(ds.failed))))
 		for _, f := range ds.failed {
-			fmt.Fprintf(&b, "    %s %s/%s: %v\n",
-				GlyphBroken, f.AssetType, f.AssetName, f.Err)
+			fmt.Fprintf(&b, "    %s %s%s: %v\n",
+				GlyphBroken, fmt.Sprintf("%s/%s", f.AssetType, f.AssetName),
+				agentSuffix(f.Agent), f.Err)
 		}
 		b.WriteString("\n")
 	}
@@ -597,21 +991,51 @@ func (ds *deployScreen) viewResult() tea.View {
 
 // --- Conflict resolution ---
 
-// buildForceRequests rebuilds the requests for failed assets with ForceReplace=true.
-func (ds *deployScreen) buildForceRequests(conflictFails []deploy.DeployError) []deploy.DeployRequest {
+// buildForceRequests rebuilds the requests for failed assets with
+// ForceReplace=true, returning a parallel slice of the target agent name for
+// each request so the re-run can be routed to the correct engine.
+func (ds *deployScreen) buildForceRequests(conflictFails []deploy.DeployError) ([]deploy.DeployRequest, []string) {
 	lookup := make(map[string]deploy.DeployRequest, len(ds.reqs))
 	for _, req := range ds.reqs {
 		lookup[fmt.Sprintf("%s/%s", req.Asset.Type, req.Asset.Name)] = req
 	}
 	reqs := make([]deploy.DeployRequest, 0, len(conflictFails))
+	agents := make([]string, 0, len(conflictFails))
 	for _, f := range conflictFails {
 		key := fmt.Sprintf("%s/%s", f.AssetType, f.AssetName)
 		if req, ok := lookup[key]; ok {
 			req.ForceReplace = true
 			reqs = append(reqs, req)
+			agents = append(agents, f.Agent)
 		}
 	}
-	return reqs
+	return reqs, agents
+}
+
+// conflictBatches groups the force-replace requests by their target agent and
+// builds a deploy engine for each group.
+func (ds *deployScreen) conflictBatches() ([]agentDeploy, error) {
+	order := make([]string, 0)
+	grouped := make(map[string][]deploy.DeployRequest)
+	for i, req := range ds.conflictReqs {
+		name := ""
+		if i < len(ds.conflictAgents) {
+			name = ds.conflictAgents[i]
+		}
+		if _, ok := grouped[name]; !ok {
+			order = append(order, name)
+		}
+		grouped[name] = append(grouped[name], req)
+	}
+	batches := make([]agentDeploy, 0, len(order))
+	for _, name := range order {
+		eng, err := ds.engineFor(name)
+		if err != nil {
+			return nil, err
+		}
+		batches = append(batches, agentDeploy{name: name, engine: eng, reqs: grouped[name]})
+	}
+	return batches, nil
 }
 
 // buildConflictForm initialises the yes/no confirmation form for force-replace.
@@ -648,14 +1072,14 @@ func (ds *deployScreen) updateConflictConfirm(msg tea.Msg) (tea.Model, tea.Cmd) 
 		if !ds.conflictConfirmed {
 			return ds.cancelConflictResolution()
 		}
-		// User said replace: re-run with ForceReplace=true.
+		// User said replace: re-run with ForceReplace=true, per target agent.
 		ds.step = deployRunning
-		eng, err := ds.svc.DeployEngine()
-		if err != nil || eng == nil {
+		batches, err := ds.conflictBatches()
+		if err != nil || len(batches) == 0 {
 			ds.err = fmt.Errorf("deploy engine not available")
 			return ds, nil
 		}
-		return ds, deployBulkCmd(eng.DeployBulk, ds.conflictReqs)
+		return ds, ds.runBatchesCmd(batches)
 	}
 
 	if ds.conflictForm.State == huh.StateAborted {
@@ -710,6 +1134,14 @@ func (ds *deployScreen) viewConflictConfirm() tea.View {
 }
 
 // --- helpers ---
+
+// agentSuffix renders " -> <agent>" when an agent name is set, else "".
+func agentSuffix(name string) string {
+	if name == "" {
+		return ""
+	}
+	return fmt.Sprintf(" %s %s", GlyphArrow, name)
+}
 
 // assetKey returns a unique key for an asset: "sourceID:type/name".
 func assetKey(a *asset.Asset) string {

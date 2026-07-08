@@ -317,6 +317,54 @@ func TestRemoveAsset(t *testing.T) {
 	}
 }
 
+// TestRemoveOnlyTargetsRequestedAgent verifies that a populated
+// RemoveRequest.Agent scopes removal to that agent's deployment and never
+// deletes a same-identity deployment recorded under a different agent.
+func TestRemoveOnlyTargetsRequestedAgent(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/s/skills/review", LinkPath: "/home/user/.claude/skills/review",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual, Agent: "claude-code",
+		},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			SourcePath: "/s/skills/review", LinkPath: "/home/user/.copilot/skills/review",
+			Scope: nd.ScopeGlobal, Origin: nd.OriginManual, Agent: "copilot",
+		},
+	}
+
+	// Engine is bound to claude-code, but the request targets copilot; removeOne
+	// filters on RemoveRequest.Agent, not the engine's bound agent.
+	var removedPaths []string
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(name string) error { removedPaths = append(removedPaths, name); return nil })
+
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+		Agent:    "copilot",
+	})
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	if len(removedPaths) != 1 || removedPaths[0] != "/home/user/.copilot/skills/review" {
+		t.Fatalf("expected only the copilot symlink removed, got: %v", removedPaths)
+	}
+
+	if store.saved == nil {
+		t.Fatal("expected state to be saved")
+	}
+	if len(store.saved.Deployments) != 1 {
+		t.Fatalf("expected 1 surviving deployment, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].Agent != "claude-code" {
+		t.Errorf("expected the claude-code deployment to survive, got agent %q", store.saved.Deployments[0].Agent)
+	}
+}
+
 func TestRemoveAlreadyGone(t *testing.T) {
 	store := newMockStore()
 	store.state.Deployments = []state.Deployment{
@@ -428,6 +476,88 @@ func TestDeployContextWithExistingPlainFile(t *testing.T) {
 	}
 }
 
+func TestDeployBulkSameBasenameBackupsAreDistinct(t *testing.T) {
+	// Two existing context files that share the basename CLAUDE.md but live at
+	// different link paths (global vs project) are backed up within a single
+	// DeployBulk call, with e.now() pinned to a constant second. The backup
+	// paths must be distinct so the second backup does not clobber the first,
+	// and both originals must survive on disk.
+	store := newMockStore()
+	backupDir := t.TempDir()
+	engine := deploy.New(store, testAgent(), backupDir)
+
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: 0o644}, nil // plain file exists at every target
+	})
+	engine.SetSymlink(func(o, n string) error { return nil })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	// Materialize each backup on disk so a clobber would be observable as a
+	// missing file. Record the tag of the source that was backed up.
+	engine.SetRename(func(old, new string) error {
+		return os.WriteFile(new, []byte("backup of "+old), 0o644)
+	})
+	engine.SetNow(func() time.Time {
+		return time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC) // same second for both
+	})
+
+	reqs := []deploy.DeployRequest{
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+				SourcePath:  "/sources/context/rules/CLAUDE.md",
+				ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+			},
+			Scope:  nd.ScopeGlobal,
+			Origin: nd.OriginManual,
+		},
+		{
+			Asset: asset.Asset{
+				Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "guide"},
+				SourcePath:  "/sources/context/guide/CLAUDE.md",
+				ContextFile: &asset.ContextInfo{FolderName: "guide", FileName: "CLAUDE.md"},
+			},
+			Scope:       nd.ScopeProject,
+			ProjectRoot: "/proj",
+			Origin:      nd.OriginManual,
+		},
+	}
+
+	result, err := engine.DeployBulk(reqs)
+	if err != nil {
+		t.Fatalf("DeployBulk: %v", err)
+	}
+	if len(result.Failed) != 0 {
+		t.Fatalf("expected no failures, got %v", result.Failed)
+	}
+	if len(result.Succeeded) != 2 {
+		t.Fatalf("expected 2 successes, got %d", len(result.Succeeded))
+	}
+
+	// Both deployments must report a non-empty, distinct backup path.
+	b0, b1 := result.Succeeded[0].BackedUp, result.Succeeded[1].BackedUp
+	if b0 == "" || b1 == "" {
+		t.Fatalf("expected both backups recorded, got %q and %q", b0, b1)
+	}
+	if b0 == b1 {
+		t.Fatalf("backup paths collided: both are %q", b0)
+	}
+
+	// Both backup files must survive on disk (the bug leaves only one).
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "CLAUDE.md.") && strings.HasSuffix(e.Name(), ".bak") {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 distinct CLAUDE.md backups on disk, got %d (entries: %v)", count, entries)
+	}
+}
+
 func TestDeployForeignSymlinkContextBacksUp(t *testing.T) {
 	store := newMockStore()
 	backupDir := t.TempDir()
@@ -464,6 +594,53 @@ func TestDeployForeignSymlinkContextBacksUp(t *testing.T) {
 		t.Error("expected backup path to be set for foreign symlink on context")
 	}
 	// Should not return a ConflictError for context assets
+}
+
+func TestDeployForeignSymlinkContextWarningIncludesTarget(t *testing.T) {
+	store := newMockStore()
+	backupDir := t.TempDir()
+	engine := deploy.New(store, testAgent(), backupDir)
+
+	const oldTarget = "/some/other/target"
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) {
+		return oldTarget, nil
+	})
+	engine.SetSymlink(func(o, n string) error { return nil })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	engine.SetRename(func(old, new string) error { return nil })
+	engine.SetNow(func() time.Time {
+		return time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)
+	})
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:    asset.Identity{SourceID: "src", Type: nd.AssetContext, Name: "rules"},
+			SourcePath:  "/sources/context/rules/CLAUDE.md",
+			ContextFile: &asset.ContextInfo{FolderName: "rules", FileName: "CLAUDE.md"},
+		},
+		Scope:  nd.ScopeGlobal,
+		Origin: nd.OriginManual,
+	}
+
+	result, err := engine.Deploy(req)
+	if err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	if len(result.Warnings) == 0 {
+		t.Fatal("expected at least one backup warning for foreign symlink on context")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, oldTarget) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a backup warning to include the old symlink target %q, got %v", oldTarget, result.Warnings)
+	}
 }
 
 func TestDeployForeignSymlinkNonContext(t *testing.T) {
@@ -1431,5 +1608,332 @@ func TestDeployBulkContextCollision(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "context collision") {
 		t.Errorf("expected context collision error, got: %v", err)
+	}
+}
+
+// --- Save-error propagation for every store.Save call site ---
+// deploy.go:186 (Deploy), :501 (DeployBulk), :521 (Remove), :548 (RemoveBulk).
+// Each public method must surface the Save error and persist nothing.
+
+func TestDeploySaveError(t *testing.T) {
+	store := newMockStore()
+	saveErr := errors.New("disk full")
+	store.saveErr = saveErr
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetSymlink(func(_, _ string) error { return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+		},
+		Scope:  nd.ScopeGlobal,
+		Origin: nd.OriginManual,
+	}
+
+	_, err := engine.Deploy(req)
+	if !errors.Is(err, saveErr) {
+		t.Fatalf("expected Deploy to wrap save error, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("state must not be persisted when Save fails")
+	}
+}
+
+func TestDeployBulkSaveError(t *testing.T) {
+	store := newMockStore()
+	saveErr := errors.New("disk full")
+	store.saveErr = saveErr
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetSymlink(func(_, _ string) error { return nil })
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+
+	reqs := []deploy.DeployRequest{
+		{Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "a"},
+			SourcePath: "/s/a",
+		}, Scope: nd.ScopeGlobal, Origin: nd.OriginManual},
+	}
+
+	_, err := engine.DeployBulk(reqs)
+	if !errors.Is(err, saveErr) {
+		t.Fatalf("expected DeployBulk to wrap save error, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("state must not be persisted when Save fails")
+	}
+}
+
+func TestRemoveSaveError(t *testing.T) {
+	store := newMockStore()
+	saveErr := errors.New("disk full")
+	store.saveErr = saveErr
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/home/user/.claude/skills/review", Scope: nd.ScopeGlobal,
+		},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(string) error { return nil })
+
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+	})
+	if !errors.Is(err, saveErr) {
+		t.Fatalf("expected Remove to wrap save error, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("state must not be persisted when Save fails")
+	}
+}
+
+func TestRemoveBulkSaveError(t *testing.T) {
+	store := newMockStore()
+	saveErr := errors.New("disk full")
+	store.saveErr = saveErr
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/home/user/.claude/skills/review", Scope: nd.ScopeGlobal,
+		},
+	}
+
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(string) error { return nil })
+
+	_, err := engine.RemoveBulk([]deploy.RemoveRequest{
+		{Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"}, Scope: nd.ScopeGlobal},
+	})
+	if !errors.Is(err, saveErr) {
+		t.Fatalf("expected RemoveBulk to wrap save error, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("state must not be persisted when Save fails")
+	}
+}
+
+// --- SetOrigin (deploy.go:556-580), previously 0% covered ---
+
+func TestSetOrigin_UpdatesAndSaves(t *testing.T) {
+	store := newMockStore()
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/home/user/.claude/skills/review",
+			Scope:    nd.ScopeGlobal, Origin: nd.OriginManual,
+		},
+	}
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	err := engine.SetOrigin(
+		asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		nd.ScopeGlobal, "", nd.OriginPinned,
+	)
+	if err != nil {
+		t.Fatalf("SetOrigin: %v", err)
+	}
+	if store.saved == nil {
+		t.Fatal("expected state to be persisted")
+	}
+	if store.saved.Deployments[0].Origin != nd.OriginPinned {
+		t.Errorf("origin: got %q, want %q", store.saved.Deployments[0].Origin, nd.OriginPinned)
+	}
+}
+
+func TestSetOrigin_NotFound(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	err := engine.SetOrigin(
+		asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "missing"},
+		nd.ScopeGlobal, "", nd.OriginPinned,
+	)
+	if err == nil {
+		t.Fatal("expected error for missing deployment")
+	}
+	if !strings.Contains(err.Error(), "deployment not found") {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("nothing should be persisted when no deployment matches")
+	}
+}
+
+func TestSetOrigin_ProjectScopeMismatch(t *testing.T) {
+	store := newMockStore()
+	// Same identity, but deployed under a different project root.
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/proj/other/.claude/skills/review",
+			Scope:    nd.ScopeProject, ProjectPath: "/proj/other", Origin: nd.OriginManual,
+		},
+	}
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	err := engine.SetOrigin(
+		asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		nd.ScopeProject, "/proj/wanted", nd.OriginPinned,
+	)
+	if err == nil || !strings.Contains(err.Error(), "deployment not found") {
+		t.Fatalf("expected not-found after project-scope mismatch, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("project-scope mismatch must not persist a change")
+	}
+}
+
+func TestSetOrigin_LoadError(t *testing.T) {
+	store := newMockStore()
+	store.loadErr = errors.New("corrupt state")
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	err := engine.SetOrigin(
+		asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		nd.ScopeGlobal, "", nd.OriginPinned,
+	)
+	if err == nil || !strings.Contains(err.Error(), "load state") {
+		t.Fatalf("expected wrapped load error, got: %v", err)
+	}
+}
+
+// --- removeOne agent filtering (deploy.go:596-604) ---
+
+func TestRemoveAgentFiltering(t *testing.T) {
+	store := newMockStore()
+	// Two deployments with identical identity/scope, differing only by Agent.
+	// One belongs to copilot; the other has an empty Agent (v1 migration) that
+	// must be treated as "claude-code".
+	store.state.Deployments = []state.Deployment{
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/link/copilot", Scope: nd.ScopeGlobal, Agent: "copilot",
+		},
+		{
+			SourceID: "s", AssetType: nd.AssetSkill, AssetName: "review",
+			LinkPath: "/link/legacy", Scope: nd.ScopeGlobal, Agent: "",
+		},
+	}
+
+	removed := ""
+	engine := deploy.New(store, testAgent(), t.TempDir())
+	engine.SetRemove(func(name string) error { removed = name; return nil })
+
+	// Request the claude-code agent: the copilot entry must be skipped and the
+	// empty-Agent entry (compat "claude-code") must be the one removed.
+	err := engine.Remove(deploy.RemoveRequest{
+		Identity: asset.Identity{SourceID: "s", Type: nd.AssetSkill, Name: "review"},
+		Scope:    nd.ScopeGlobal,
+		Agent:    "claude-code",
+	})
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if removed != "/link/legacy" {
+		t.Errorf("expected the empty-Agent (claude-code compat) deployment removed, got %q", removed)
+	}
+	if store.saved == nil || len(store.saved.Deployments) != 1 {
+		t.Fatalf("expected 1 remaining deployment, got %d", len(store.saved.Deployments))
+	}
+	if store.saved.Deployments[0].Agent != "copilot" {
+		t.Errorf("expected the copilot deployment to remain, got Agent %q", store.saved.Deployments[0].Agent)
+	}
+}
+
+// --- deployOne relative-symlink Rel error (deploy.go:254-258) ---
+
+func TestDeployRelativeSymlinkRelError(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetLstat(func(string) (os.FileInfo, error) { return nil, os.ErrNotExist })
+	engine.SetMkdirAll(func(string, os.FileMode) error { return nil })
+	engine.SetSymlink(func(_, _ string) error { return nil })
+
+	// linkPath is absolute (agent deploy path); a relative SourcePath makes
+	// filepath.Rel(absDir, relPath) fail.
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "relative/skills/review",
+		},
+		Scope:    nd.ScopeGlobal,
+		Origin:   nd.OriginManual,
+		Strategy: nd.SymlinkRelative,
+	}
+
+	_, err := engine.Deploy(req)
+	if err == nil || !strings.Contains(err.Error(), "compute relative path") {
+		t.Fatalf("expected relative-path error, got: %v", err)
+	}
+	if store.saved != nil {
+		t.Error("nothing should be persisted when relative-path computation fails")
+	}
+}
+
+// --- ForceReplace remove failures (deploy.go:371-374, :389-392) ---
+
+func TestDeployForceReplaceForeignSymlinkRemoveError(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: os.ModeSymlink}, nil
+	})
+	engine.SetReadlink(func(string) (string, error) { return "/some/other/target", nil })
+	engine.SetRemove(func(string) error { return fmt.Errorf("permission denied") })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+		},
+		Scope:        nd.ScopeGlobal,
+		Origin:       nd.OriginManual,
+		ForceReplace: true,
+	}
+
+	_, err := engine.Deploy(req)
+	if err == nil || !strings.Contains(err.Error(), "remove conflicting symlink") {
+		t.Fatalf("expected remove-conflicting-symlink error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("expected wrapped remove error, got: %v", err)
+	}
+}
+
+func TestDeployForceReplacePlainFileRemoveError(t *testing.T) {
+	store := newMockStore()
+	engine := deploy.New(store, testAgent(), t.TempDir())
+
+	engine.SetLstat(func(string) (os.FileInfo, error) {
+		return fakeFileInfo{mode: 0o644}, nil // plain file
+	})
+	engine.SetRemove(func(string) error { return fmt.Errorf("permission denied") })
+
+	req := deploy.DeployRequest{
+		Asset: asset.Asset{
+			Identity:   asset.Identity{SourceID: "src", Type: nd.AssetSkill, Name: "review"},
+			SourcePath: "/sources/skills/review",
+		},
+		Scope:        nd.ScopeGlobal,
+		Origin:       nd.OriginManual,
+		ForceReplace: true,
+	}
+
+	_, err := engine.Deploy(req)
+	if err == nil || !strings.Contains(err.Error(), "remove conflicting file") {
+		t.Fatalf("expected remove-conflicting-file error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("expected wrapped remove error, got: %v", err)
 	}
 }

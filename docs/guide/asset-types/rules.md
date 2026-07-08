@@ -46,7 +46,7 @@ nd symlinks the individual file into the target location (see [How nd works](../
 | Scope | Target path |
 |-------|-------------|
 | Global | `~/.claude/rules/<name>.md` |
-| Project | `.claude/rules/<name>.md` |
+| Project | `.agents/rules/<name>.md` |
 
 To undeploy a rule, run [`nd remove`](../../reference/nd_remove.md) `rules/no-emojis`.
 

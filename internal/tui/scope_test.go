@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -145,9 +146,41 @@ func TestScope_HandleSelectionCallsResetForScope(t *testing.T) {
 	}
 }
 
+// Launched in global scope from inside a project (cached root empty), the
+// scope switch resolves the root on demand and switches with the discovered root.
+func TestScope_SwitchToProject_ResolvesRootWhenLaunchedInGlobal(t *testing.T) {
+	svc := newMockServices()
+	svc.getProjectRootFn = func() string { return "" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
+	s := NewStyles(true)
+	m := newScopeScreen(svc, s, true)
+
+	m.choice = "project"
+	cmd := m.handleScopeSelection()
+	if cmd == nil {
+		t.Fatal("handleScopeSelection() returned nil after resolving project root")
+	}
+	if m.step == scopeShowError {
+		t.Fatalf("step = scopeShowError, want a successful switch; errorMsg = %q", m.errorMsg)
+	}
+
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != nd.ScopeProject {
+		t.Errorf("expected scope %q, got %q", nd.ScopeProject, svc.resetCalls[0].Scope)
+	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
+}
+
 func TestScope_NoProjectRootShowsError(t *testing.T) {
 	svc := newMockServices()
-	// GetProjectRoot defaults to "" in mock — no project root available
+	// Simulate a directory with no .git/ or .claude/ marker: resolution fails.
+	svc.resolveProjectRootFn = func() (string, error) {
+		return "", errors.New("no project root found (looked for .git/ or .claude/ from /tmp/not-a-project)")
+	}
 	s := NewStyles(true)
 	m := newScopeScreen(svc, s, true)
 
@@ -161,9 +194,9 @@ func TestScope_NoProjectRootShowsError(t *testing.T) {
 	if m.step != scopeShowError {
 		t.Fatalf("step = %d, want scopeShowError (%d)", m.step, scopeShowError)
 	}
-	wantMsg := "Cannot switch to project scope: no project root detected."
-	if m.errorMsg != wantMsg {
-		t.Fatalf("errorMsg = %q, want %q", m.errorMsg, wantMsg)
+	// The error surfaces the resolver failure, which references the markers.
+	if !strings.Contains(m.errorMsg, ".git") || !strings.Contains(m.errorMsg, ".claude") {
+		t.Fatalf("errorMsg = %q, want it to reference .git/ and .claude/ markers", m.errorMsg)
 	}
 
 	// Should NOT call ResetForScope.
@@ -174,6 +207,9 @@ func TestScope_NoProjectRootShowsError(t *testing.T) {
 
 func TestScope_NoProjectRootViewShowsErrorMessage(t *testing.T) {
 	svc := newMockServices()
+	svc.resolveProjectRootFn = func() (string, error) {
+		return "", errors.New("no project root found (looked for .git/ or .claude/ from /tmp/not-a-project)")
+	}
 	s := NewStyles(true)
 	m := newScopeScreen(svc, s, true)
 
@@ -181,7 +217,7 @@ func TestScope_NoProjectRootViewShowsErrorMessage(t *testing.T) {
 	m.handleScopeSelection()
 
 	v := m.View()
-	if !strings.Contains(v.Content, "Cannot switch to project scope: no project root detected.") {
+	if !strings.Contains(v.Content, "Cannot switch to project scope:") {
 		t.Fatalf("View() should contain error message, got:\n%s", v.Content)
 	}
 	if !strings.Contains(v.Content, "Press enter to return.") {

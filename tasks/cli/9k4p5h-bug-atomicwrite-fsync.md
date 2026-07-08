@@ -76,32 +76,32 @@ Affected write paths (all route through `nd.AtomicWrite`):
 ### Tasks
 
 - [ ] In `internal/nd/atomic.go`, after the successful `os.Rename` block
-      (currently `internal/nd/atomic.go:45-48`) and before `return nil`
-      (currently line 50): open the parent directory
-      (`dir := filepath.Dir(path)`, already computed at
-      `internal/nd/atomic.go:12`) with `os.Open(dir)`, call `Sync()` on the
-      directory handle, then `Close()` it. Wrap errors with `fmt.Errorf("fsync
-      parent directory: %w", err)` to match the existing error-wrapping style
-      in this file (e.g. lines 16, 27, 32, 37, 42, 47).
+  (currently `internal/nd/atomic.go:45-48`) and before `return nil`
+  (currently line 50): open the parent directory
+  (`dir := filepath.Dir(path)`, already computed at
+  `internal/nd/atomic.go:12`) with `os.Open(dir)`, call `Sync()` on the
+  directory handle, then `Close()` it. Wrap errors with `fmt.Errorf("fsync
+  parent directory: %w", err)` to match the existing error-wrapping style
+  in this file (e.g. lines 16, 27, 32, 37, 42, 47).
 - [ ] Tolerate platforms where directory fsync is unsupported: treat a `Sync()`
-      error of `syscall.EINVAL` or `syscall.ENOTSUP` (use `errors.Is`) as a
-      no-op success rather than failing the write; surface any other error.
-      Do not let a directory `Open`/`Sync` failure leave a leaked fd or undo
-      the completed rename (the file is already in place — only report the
-      durability error).
+  error of `syscall.EINVAL` or `syscall.ENOTSUP` (use `errors.Is`) as a
+  no-op success rather than failing the write; surface any other error.
+  Do not let a directory `Open`/`Sync` failure leave a leaked fd or undo
+  the completed rename (the file is already in place — only report the
+  durability error).
 - [ ] Add a test to `internal/nd/atomic_test.go` (package `nd_test`,
-      mirror existing style: `t.TempDir()`, focused `TestAtomicWrite*`
-      function, table-free) that calls `nd.AtomicWrite` into a temp dir and
-      asserts it succeeds, the file content is correct, and no `.nd-*.tmp`
-      files remain (same assertions as `TestAtomicWriteNoTempFilesAfterSuccess`
-      at `internal/nd/atomic_test.go:80-99`). This exercises the new
-      directory-fsync code path without crash injection. Name it e.g.
-      `TestAtomicWriteFsyncsParentDir`.
+  mirror existing style: `t.TempDir()`, focused `TestAtomicWrite*`
+  function, table-free) that calls `nd.AtomicWrite` into a temp dir and
+  asserts it succeeds, the file content is correct, and no `.nd-*.tmp`
+  files remain (same assertions as `TestAtomicWriteNoTempFilesAfterSuccess`
+  at `internal/nd/atomic_test.go:80-99`). This exercises the new
+  directory-fsync code path without crash injection. Name it e.g.
+  `TestAtomicWriteFsyncsParentDir`.
 - [ ] Confirm no measurable regression on the hot write path
-      (`internal/state/store.go:87` `Store.Save`): one extra directory
-      open+fsync+close per write is expected and acceptable; just verify
-      `go test -race ./...` and the integration tests still pass and runtime
-      is unchanged in practice.
+  (`internal/state/store.go:87` `Store.Save`): one extra directory
+  open+fsync+close per write is expected and acceptable; just verify
+  `go test -race ./...` and the integration tests still pass and runtime
+  is unchanged in practice.
 
 ### Acceptance criteria
 

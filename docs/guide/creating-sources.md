@@ -138,7 +138,7 @@ nd source remove <source-id>
 
 If assets from the source are currently deployed, nd asks whether to remove them, keep them as orphans, or cancel. nd prevents removal of the `builtin` source.
 
-> **Warning:** `nd source remove <id> --yes` skips the interactive prompt and **removes all deployed assets** from that source without confirmation. This is a destructive operation — use it only in scripts or when you are certain you want a clean removal.
+> **Warning:** `nd source remove <id> --yes` skips the interactive prompt and removes the source **and deletes all of its deployed assets** without confirmation. This is a destructive default — use it only in scripts or when you are certain you want a clean removal. To keep the deployed assets, omit `--yes` and choose "Remove source only" at the prompt.
 
 ## Next steps
 

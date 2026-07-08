@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/profile"
 )
@@ -125,6 +127,42 @@ func TestSnapshotScreen_RestoreDone_Success(t *testing.T) {
 	}
 }
 
+func TestSnapshotScreen_SaveReloadsList(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+
+	// A successful save should emit a reload command.
+	_, cmd := s.Update(snapshotSavedMsg{name: "my-snap", err: nil})
+	if cmd == nil {
+		t.Fatal("save success should emit a reload cmd")
+	}
+	msg := cmd()
+	switch msg.(type) {
+	case snapshotLoadedMsg:
+		// OK: save triggers a fresh load of the snapshot list.
+	default:
+		t.Fatalf("reload cmd should yield snapshotLoadedMsg, got %T", msg)
+	}
+	if s.step != snapshotDone {
+		t.Fatalf("step = %v after save, want snapshotDone", s.step)
+	}
+
+	// The reload result arriving while the confirmation is shown should refresh
+	// the cached slice without bouncing the user back to the menu.
+	snapshots := []profile.SnapshotSummary{{Name: "my-snap", DeploymentCount: 2}}
+	s.Update(snapshotLoadedMsg{snapshots: snapshots, err: nil})
+
+	if len(s.snapshots) != 1 || s.snapshots[0].Name != "my-snap" {
+		t.Fatalf("snapshots not reloaded on done screen: %+v", s.snapshots)
+	}
+	if s.step != snapshotDone {
+		t.Fatalf("step = %v after reload, want snapshotDone preserved", s.step)
+	}
+	v := s.View()
+	if !strings.Contains(v.Content, "saved.") {
+		t.Errorf("done view should still show success text, got: %q", v.Content)
+	}
+}
+
 func TestSnapshotScreen_RestoreDone_Error(t *testing.T) {
 	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
 	s.Update(snapshotRestoredMsg{result: nil, err: fmt.Errorf("snapshot not found")})
@@ -149,5 +187,17 @@ func TestSnapshotScreen_RefreshHeaderAfterRestore(t *testing.T) {
 		// OK
 	default:
 		t.Errorf("restore should emit RefreshHeaderMsg, got %T", msg)
+	}
+}
+
+// double-fire guard — saving flag prevents repeated runSave calls
+func TestSnapshotScreen_DoubleFireGuard_Save(t *testing.T) {
+	s := newSnapshotScreen(newMockServices(), NewStyles(true), true)
+	s.step = snapshotSaveName
+	s.saving = true
+
+	_, cmd := s.updateSaveForm(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateSaveForm should return nil cmd when saving guard is set")
 	}
 }

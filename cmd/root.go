@@ -18,10 +18,14 @@ import (
 // NewRootCmd creates the root command with all global flags and subcommands.
 func NewRootCmd(app *App) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:           "nd",
-		Version:       version.String(),
-		Short:         "Napoleon Dynamite - coding agent asset manager",
-		Long:          "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
+		Use:     "nd",
+		Version: version.String(),
+		// Branding decision (task ahfhih): KEEP "Napoleon Dynamite". "nd" plays on
+		// the film's initials, it is the established product identity (whitelisted in
+		// .rumdl.toml), and the Long line below states the real purpose. This Short
+		// string is the single source gendocs propagates into docs/reference/.
+		Short: "Napoleon Dynamite - coding agent asset manager",
+		Long:  "nd manages coding agent assets (skills, commands, rules, etc.) via symlink deployment.",
 		Example: `  # Deploy an asset
   nd deploy skills/greeting
 
@@ -65,7 +69,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	rootCmd.MarkFlagsMutuallyExclusive("verbose", "quiet")
 
 	rootCmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"global\tDeploy to ~/.claude/", "project\tDeploy to .claude/ in project"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"global\tDeploy to ~/.claude/", "project\tDeploy to .agents/ in project"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
 	// Disable Cobra's default completion command; we provide our own with --install support.
@@ -134,7 +138,6 @@ func persistentPostRun(cmd *cobra.Command, app *App) error {
 	updater.RefreshAsync(cacheDir)
 	return nil
 }
-
 
 func persistentPreRun(cmd *cobra.Command, app *App) error {
 	// Expand ~ in config path
@@ -213,6 +216,12 @@ func offerInit(cmd *cobra.Command, app *App) error {
 		return nil
 	}
 
+	// Under --json, never auto-init or print human prose. Return an actionable
+	// error; errors go to stderr via Execute(), leaving --json stdout clean.
+	if app.JSON {
+		return fmt.Errorf("nd is not initialized; run 'nd init' first")
+	}
+
 	w := cmd.ErrOrStderr()
 	printHuman(w, "nd is not initialized.\n")
 
@@ -248,7 +257,6 @@ func defaultConfigPath() string {
 	}
 	return "~/.config/nd/config.yaml"
 }
-
 
 // exitError wraps an error with an exit code.
 type exitError struct {

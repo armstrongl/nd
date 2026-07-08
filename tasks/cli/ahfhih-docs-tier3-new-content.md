@@ -122,9 +122,9 @@ Scope correction (verified 2026-05-17 against the repo — do not re-investigate
   Add a section to `docs/guide/troubleshooting.md`.
 - [ ] **T3-14 (verify-only — already satisfied).** Confirm
   `agents[].source_alias` is present in the config key table at
-  `docs/guide/configuration.md:109` (`| `agents[].source_alias` | string |`).
+  `docs/guide/configuration.md:109` (`|`agents[].source_alias`| string |`).
   Backing field: `internal/config/config.go:33`
-  (`SourceAlias string `yaml:"source_alias"``). If the row is still present
+  (`SourceAlias string`yaml:"source_alias"``). If the row is still present
   and accurate, mark this item done with no edit. Only add/correct the
   description if it is wrong.
 - [ ] **T3-15: Document ghost-deployment pruning.** Explain the silent

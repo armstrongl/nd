@@ -60,25 +60,25 @@ Many such PRs exist; most are superseded and closed.
 ### Tasks
 
 - [ ] Re-confirm state has not changed:
-      `gh pr view 101 --json state,baseRefName,mergedAt,files,additions,deletions`
-      — expect `state=OPEN`, `baseRefName=improve-docs`, single `.pyc` file,
-      0/0 lines. If reality differs (e.g. content is now substantive), STOP and
-      re-evaluate against the diff (`gh pr diff 101`).
+  `gh pr view 101 --json state,baseRefName,mergedAt,files,additions,deletions`
+  — expect `state=OPEN`, `baseRefName=improve-docs`, single `.pyc` file,
+  0/0 lines. If reality differs (e.g. content is now substantive), STOP and
+  re-evaluate against the diff (`gh pr diff 101`).
 - [ ] Confirm the intended sync is already on `main`:
-      `git log --oneline | grep cfa89e5` shows PR #102's merge commit, and
-      `git ls-files | grep -c '\.pyc$'` returns `0`.
+  `git log --oneline | grep cfa89e5` shows PR #102's merge commit, and
+  `git ls-files | grep -c '\.pyc$'` returns `0`.
 - [ ] Close PR #101 with an explanatory comment, do NOT merge:
-      `gh pr close 101 --comment "Superseded by #102 (merged to main as cfa89e5). Sole diff is the scripts/agents/__pycache__/frontmatter.cpython-311.pyc artifact that #99 already deleted and gitignored; base branch improve-docs is also gone."`
+  `gh pr close 101 --comment "Superseded by #102 (merged to main as cfa89e5). Sole diff is the scripts/agents/__pycache__/frontmatter.cpython-311.pyc artifact that #99 already deleted and gitignored; base branch improve-docs is also gone."`
 - [ ] Delete the stale remote branch if it still exists:
-      `git push origin --delete agents/sync-fc302ec5c1c17be885adb6c2d3d010d24836a5bc`
-      (skip if already gone).
+  `git push origin --delete agents/sync-fc302ec5c1c17be885adb6c2d3d010d24836a5bc`
+  (skip if already gone).
 - [ ] Sanity-check the build is unaffected (no source changes expected from
-      this task): `go build -o nd .` succeeds.
+  this task): `go build -o nd .` succeeds.
 - [ ] (Optional, prevents recurrence) Verify
-      `.github/workflows/docs-sync.yml:84` still sets `base: ${{ github.ref_name }}`;
-      note that running the sync workflow off non-`main` branches is what
-      produced this orphaned PR. Filing a follow-up to pin `base: main` is out
-      of scope here — only note it if not already tracked.
+  `.github/workflows/docs-sync.yml:84` still sets `base: ${{ github.ref_name }}`;
+  note that running the sync workflow off non-`main` branches is what
+  produced this orphaned PR. Filing a follow-up to pin `base: main` is out
+  of scope here — only note it if not already tracked.
 
 ### Acceptance criteria
 

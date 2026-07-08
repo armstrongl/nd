@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/armstrongl/nd/internal/source"
 )
 
@@ -147,20 +149,153 @@ func TestSourceScreen_SyncDone_PartialError(t *testing.T) {
 	}
 }
 
+func TestSourceScreen_SyncDone_AllErrors(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(sourceSyncedMsg{synced: 0, errors: []error{fmt.Errorf("clone failed")}})
+
+	// A total sync failure must be routed through the same s.err branch used
+	// by load failures, not the generic done view.
+	if s.err == nil {
+		t.Fatal("sync failure should set s.err so it uses the shared error branch")
+	}
+
+	v := s.View()
+	if !strings.Contains(v.Content, "clone failed") {
+		t.Errorf("sync error view should show the error, got: %q", v.Content)
+	}
+	// The shared error branch ends with the "esc" hint; the generic done view
+	// ends with the "enter" hint. Assert we render via the former, matching
+	// TestSourceScreen_LoadError's presentation.
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("sync error should render via the consistent error branch (esc hint), got: %q", v.Content)
+	}
+	if strings.Contains(v.Content, "Press enter to return.") {
+		t.Errorf("sync error should not render via the generic done view (enter hint), got: %q", v.Content)
+	}
+}
+
+func TestSourceScreen_SyncDone_PartialError_ShowsCountAndBranch(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.Update(sourceSyncedMsg{synced: 2, errors: []error{fmt.Errorf("git pull failed")}})
+
+	if s.err == nil {
+		t.Fatal("partial sync failure should set s.err for the shared error branch")
+	}
+
+	v := s.View()
+	// Partial success must keep BOTH the synced count and the error text.
+	if !strings.Contains(v.Content, "synced 2") {
+		t.Errorf("partial sync error should still show the synced count, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "git pull failed") {
+		t.Errorf("partial sync error should show the error, got: %q", v.Content)
+	}
+	if !strings.Contains(v.Content, "Press esc to go back.") {
+		t.Errorf("partial sync error should render via the consistent error branch, got: %q", v.Content)
+	}
+}
+
 func TestSourceScreen_RefreshHeaderAfterSync(t *testing.T) {
 	s := newSourceScreen(newMockServices(), NewStyles(true), true)
 	_, cmd := s.Update(sourceSyncedMsg{synced: 1, errors: nil})
 
+	// Sync now batches a reload alongside the header refresh; the header
+	// refresh must still be emitted.
+	_, hasRefresh := batchContains(t, cmd)
+	if !hasRefresh {
+		t.Error("sync done should emit RefreshHeaderMsg")
+	}
+}
+
+func TestSourceScreen_AddReloadsList(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	src := &source.Source{ID: "my-local", Path: "/home/user/nd-assets"}
+	_, cmd := s.Update(sourceAddedMsg{src: src, err: nil})
+
+	hasLoaded, hasRefresh := batchContains(t, cmd)
+	if !hasLoaded {
+		t.Error("add success batch should contain a reload (sourceLoadedMsg)")
+	}
+	if !hasRefresh {
+		t.Error("add success batch should contain RefreshHeaderMsg")
+	}
+}
+
+func TestSourceScreen_RemoveReloadsList(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	_, cmd := s.Update(sourceRemovedMsg{id: "old-src", err: nil})
+
+	hasLoaded, hasRefresh := batchContains(t, cmd)
+	if !hasLoaded {
+		t.Error("remove success batch should contain a reload (sourceLoadedMsg)")
+	}
+	if !hasRefresh {
+		t.Error("remove success batch should contain RefreshHeaderMsg")
+	}
+}
+
+func TestSourceScreen_SyncReloadsList(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	_, cmd := s.Update(sourceSyncedMsg{synced: 1, errors: nil})
+
+	hasLoaded, hasRefresh := batchContains(t, cmd)
+	if !hasLoaded {
+		t.Error("sync batch should contain a reload (sourceLoadedMsg)")
+	}
+	if !hasRefresh {
+		t.Error("sync batch should contain RefreshHeaderMsg")
+	}
+}
+
+func TestSourceScreen_ReloadPreservesDoneView(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	src := &source.Source{ID: "my-local", Path: "/home/user/nd-assets"}
+	s.Update(sourceAddedMsg{src: src, err: nil})
+	if s.step != sourceDone {
+		t.Fatalf("step = %v after add, want sourceDone", s.step)
+	}
+
+	// The reload result arriving while the confirmation is shown should refresh
+	// the cached slice without bouncing the user back to the menu.
+	sources := []source.Source{{ID: "my-local", Path: "/home/user/nd-assets"}}
+	s.Update(sourceLoadedMsg{sources: sources, err: nil})
+
+	if len(s.sources) != 1 || s.sources[0].ID != "my-local" {
+		t.Fatalf("sources not reloaded on done screen: %+v", s.sources)
+	}
+	if s.step != sourceDone {
+		t.Fatalf("step = %v after reload, want sourceDone preserved", s.step)
+	}
+	v := s.View()
+	if !strings.Contains(v.Content, "added.") {
+		t.Errorf("done view should still show success text, got: %q", v.Content)
+	}
+}
+
+// batchContains invokes a tea.Batch command and reports whether its child
+// commands yield a sourceLoadedMsg (the reload) and a RefreshHeaderMsg.
+func batchContains(t *testing.T, cmd tea.Cmd) (hasLoaded, hasRefresh bool) {
+	t.Helper()
 	if cmd == nil {
-		t.Fatal("sync done should emit a cmd")
+		t.Fatal("expected a non-nil batch cmd")
 	}
 	msg := cmd()
-	switch msg.(type) {
-	case RefreshHeaderMsg:
-		// OK
-	default:
-		t.Errorf("sync done should emit RefreshHeaderMsg, got %T", msg)
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg, got %T", msg)
 	}
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		switch c().(type) {
+		case sourceLoadedMsg:
+			hasLoaded = true
+		case RefreshHeaderMsg:
+			hasRefresh = true
+		}
+	}
+	return hasLoaded, hasRefresh
 }
 
 func TestSourceScreen_MenuView_AfterLoad(t *testing.T) {
@@ -172,5 +307,17 @@ func TestSourceScreen_MenuView_AfterLoad(t *testing.T) {
 	v := s.View()
 	if v.Content == "" {
 		t.Fatal("menu view should not be empty after load")
+	}
+}
+
+// double-fire guard — adding flag prevents repeated runAdd calls
+func TestSourceScreen_DoubleFireGuard_Add(t *testing.T) {
+	s := newSourceScreen(newMockServices(), NewStyles(true), true)
+	s.step = sourceAddGitInput
+	s.adding = true
+
+	_, cmd := s.updateAddForm(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("updateAddForm should return nil cmd when adding guard is set")
 	}
 }
