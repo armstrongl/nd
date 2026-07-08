@@ -79,46 +79,46 @@ second call returns a nil command.
 ### Tasks
 
 - [ ] `internal/tui/profile.go`: add field `creating bool` to the `// create`
-      group of the `profileScreen` struct (struct ends at `profile.go:75`;
-      `// create` group is `profile.go:64-66`). Reset it to `false` in
-      `buildCreateForm` (`profile.go:324-342`, alongside `s.createName = ""` at
-      `profile.go:326`). In `updateCreateForm` (`profile.go:344-356`) add
-      `if s.creating { return s, nil }` as the first statement, and set
-      `s.creating = true` immediately before `return s, s.runCreate()` at
-      `profile.go:350`. Mirror `updateSwitchForm` (`profile.go:275-291`)
-      exactly.
+  group of the `profileScreen` struct (struct ends at `profile.go:75`;
+  `// create` group is `profile.go:64-66`). Reset it to `false` in
+  `buildCreateForm` (`profile.go:324-342`, alongside `s.createName = ""` at
+  `profile.go:326`). In `updateCreateForm` (`profile.go:344-356`) add
+  `if s.creating { return s, nil }` as the first statement, and set
+  `s.creating = true` immediately before `return s, s.runCreate()` at
+  `profile.go:350`. Mirror `updateSwitchForm` (`profile.go:275-291`)
+  exactly.
 - [ ] `internal/tui/snapshot.go`: add field `saving bool` to the `// save`
-      group of `snapshotScreen` (`snapshot.go:57-59`; struct ends at
-      `snapshot.go:75`). Reset it to `false` in `buildSaveForm`
-      (`snapshot.go:243-261`, alongside `s.saveName = ""` at `snapshot.go:245`).
-      In `updateSaveForm` (`snapshot.go:263-275`) add
-      `if s.saving { return s, nil }` as the first statement and set
-      `s.saving = true` immediately before `return s, s.runSave()` at
-      `snapshot.go:269`.
+  group of `snapshotScreen` (`snapshot.go:57-59`; struct ends at
+  `snapshot.go:75`). Reset it to `false` in `buildSaveForm`
+  (`snapshot.go:243-261`, alongside `s.saveName = ""` at `snapshot.go:245`).
+  In `updateSaveForm` (`snapshot.go:263-275`) add
+  `if s.saving { return s, nil }` as the first statement and set
+  `s.saving = true` immediately before `return s, s.runSave()` at
+  `snapshot.go:269`.
 - [ ] `internal/tui/source.go`: add field `adding bool` to the `// add forms`
-      group of `sourceScreen` (`source.go:66-68`; struct ends at
-      `source.go:84`). Reset it to `false` in `buildAddForm`
-      (`source.go:259-285`, alongside `s.addInput = ""` at `source.go:260`).
-      In `updateAddForm` (`source.go:287-303`) add
-      `if s.adding { return s, nil }` as the first statement and set
-      `s.adding = true` immediately before `return s, s.runAdd(kind, s.addInput)`
-      at `source.go:297`.
+  group of `sourceScreen` (`source.go:66-68`; struct ends at
+  `source.go:84`). Reset it to `false` in `buildAddForm`
+  (`source.go:259-285`, alongside `s.addInput = ""` at `source.go:260`).
+  In `updateAddForm` (`source.go:287-303`) add
+  `if s.adding { return s, nil }` as the first statement and set
+  `s.adding = true` immediately before `return s, s.runAdd(kind, s.addInput)`
+  at `source.go:297`.
 - [ ] Add a regression test to `internal/tui/profile_test.go` named
-      `TestProfileScreen_DoubleFireGuard_Create`: build the screen with
-      `newProfileScreen(newMockServices(), NewStyles(true), true)` (constructor
-      at `profile.go:77`; `newMockServices` at
-      `internal/tui/testutil_test.go:41`), set `s.step = profileCreateName`,
-      set `s.creating = true`, call
-      `s.updateCreateForm(tea.KeyPressMsg{Code: tea.KeyEnter})`, and assert the
-      returned `cmd` is `nil`. Mirror `TestDeploy_DoubleFireGuard_SelectAssets`
-      at `internal/tui/deploy_test.go:530-539`.
+  `TestProfileScreen_DoubleFireGuard_Create`: build the screen with
+  `newProfileScreen(newMockServices(), NewStyles(true), true)` (constructor
+  at `profile.go:77`; `newMockServices` at
+  `internal/tui/testutil_test.go:41`), set `s.step = profileCreateName`,
+  set `s.creating = true`, call
+  `s.updateCreateForm(tea.KeyPressMsg{Code: tea.KeyEnter})`, and assert the
+  returned `cmd` is `nil`. Mirror `TestDeploy_DoubleFireGuard_SelectAssets`
+  at `internal/tui/deploy_test.go:530-539`.
 - [ ] Add `TestSnapshotScreen_DoubleFireGuard_Save` to
-      `internal/tui/snapshot_test.go` and
-      `TestSourceScreen_DoubleFireGuard_Add` to
-      `internal/tui/source_test.go`, following the same template (set the
-      guard flag, call the update handler with a key message, assert nil cmd).
+  `internal/tui/snapshot_test.go` and
+  `TestSourceScreen_DoubleFireGuard_Add` to
+  `internal/tui/source_test.go`, following the same template (set the
+  guard flag, call the update handler with a key message, assert nil cmd).
 - [ ] Run the `verify` commands; confirm `go test -race ./internal/tui/...`
-      passes with no new failures.
+  passes with no new failures.
 
 ### Acceptance criteria
 

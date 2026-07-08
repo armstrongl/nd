@@ -81,61 +81,61 @@ Do not change `internal/agent/agent.go:26-33` (`SupportsType`) — reuse it.
 ### Tasks
 
 - [ ] `internal/deploy/sync.go` — this file currently only declares
-      `SyncPlan` (lines 6-10: `Repairs`, `Removes`, `Healthy`) and `SyncAction`
-      (lines 13-17); there is no agent-sync consumer yet. Add a `Skipped`
-      category for `(asset, agent)` pairs whose type the target agent does not
-      support. Add a `[]SyncSkip` field to `SyncPlan` (or a new `AgentSyncPlan`
-      type), where `SyncSkip` records the asset identity, target agent name,
-      asset type, and a reason string. Keep the existing `SyncPlan` fields
-      unchanged so health-sync (`cmd/sync.go`) is unaffected.
+  `SyncPlan` (lines 6-10: `Repairs`, `Removes`, `Healthy`) and `SyncAction`
+  (lines 13-17); there is no agent-sync consumer yet. Add a `Skipped`
+  category for `(asset, agent)` pairs whose type the target agent does not
+  support. Add a `[]SyncSkip` field to `SyncPlan` (or a new `AgentSyncPlan`
+  type), where `SyncSkip` records the asset identity, target agent name,
+  asset type, and a reason string. Keep the existing `SyncPlan` fields
+  unchanged so health-sync (`cmd/sync.go`) is unaffected.
 - [ ] `internal/deploy/deploy.go:466-507` (`DeployBulk`) — add a per-request
-      target-agent `SupportsType` pre-filter before the `deployOne` loop at
-      `deploy.go:482-499`, mirroring the existing pre-scan pattern
-      `checkContextCollisions` (`deploy.go:307-328`, called at
-      `deploy.go:478-480`). Requests whose type is unsupported by the target
-      agent must be diverted into a skipped-with-reason result, NOT passed to
-      `deployOne` (which would produce a failure). Add a `Skipped []DeployError`
-      (or a dedicated `Skipped []DeploySkip`) field to `BulkDeployResult`
-      (`deploy.go:140-144`) and route unsupported pairs there with a reason
-      like `<type> not supported by <agent>`. Resolve the target agent per
-      request via the agent reference `wui1vo` adds to `DeployRequest`
-      (`deploy.go:101-108`) — if `wui1vo` instead uses one-engine-per-agent,
-      filter using `e.agent.SupportsType`.
+  target-agent `SupportsType` pre-filter before the `deployOne` loop at
+  `deploy.go:482-499`, mirroring the existing pre-scan pattern
+  `checkContextCollisions` (`deploy.go:307-328`, called at
+  `deploy.go:478-480`). Requests whose type is unsupported by the target
+  agent must be diverted into a skipped-with-reason result, NOT passed to
+  `deployOne` (which would produce a failure). Add a `Skipped []DeployError`
+  (or a dedicated `Skipped []DeploySkip`) field to `BulkDeployResult`
+  (`deploy.go:140-144`) and route unsupported pairs there with a reason
+  like `<type> not supported by <agent>`. Resolve the target agent per
+  request via the agent reference `wui1vo` adds to `DeployRequest`
+  (`deploy.go:101-108`) — if `wui1vo` instead uses one-engine-per-agent,
+  filter using `e.agent.SupportsType`.
 - [ ] `cmd/deploy.go:165-174` — this block builds `[]deploy.DeployRequest`
-      from resolved assets; today it is single-agent (no fan-out exists here
-      yet — that arrives via `wui1vo`). After `wui1vo`'s per-agent fan-out is
-      in place, skip building requests for `(asset, agent)` pairs where
-      `agent.SupportsType(asset.Type)` is false, and surface them through the
-      skipped path. Update the human output at `cmd/deploy.go:224-239` (which
-      currently prints `Skipped N asset(s) (unsupported by agent X)` and counts
-      `f.UnsupportedType` failures): unsupported pairs must be reported as
-      intentional skips and must NOT trigger `nd.ExitPartialFailure` at
-      `cmd/deploy.go:252-260` when they are the only non-success.
+  from resolved assets; today it is single-agent (no fan-out exists here
+  yet — that arrives via `wui1vo`). After `wui1vo`'s per-agent fan-out is
+  in place, skip building requests for `(asset, agent)` pairs where
+  `agent.SupportsType(asset.Type)` is false, and surface them through the
+  skipped path. Update the human output at `cmd/deploy.go:224-239` (which
+  currently prints `Skipped N asset(s) (unsupported by agent X)` and counts
+  `f.UnsupportedType` failures): unsupported pairs must be reported as
+  intentional skips and must NOT trigger `nd.ExitPartialFailure` at
+  `cmd/deploy.go:252-260` when they are the only non-success.
 - [ ] `internal/profile/manager.go:219-224` (`Switch`),
-      `internal/profile/manager.go:262-267` (`DeployProfile`),
-      `internal/profile/manager.go:336-341` (`Restore`) — each of these is a
-      `deployReqs = append(deployReqs, deploy.DeployRequest{...})` block that
-      builds requests from profile/snapshot assets. Before appending, skip
-      assets whose type the target agent does not support and record them on
-      the result (`SwitchResult`/`RestoreResult`, `manager.go:26-44`) in a new
-      `SkippedUnsupported []ProfileAsset` field, analogous to the existing
-      `MissingAssets`/`SkippedPinned` fields. Profile deploy/restore across
-      type-incompatible agents must not produce hard failures.
+  `internal/profile/manager.go:262-267` (`DeployProfile`),
+  `internal/profile/manager.go:336-341` (`Restore`) — each of these is a
+  `deployReqs = append(deployReqs, deploy.DeployRequest{...})` block that
+  builds requests from profile/snapshot assets. Before appending, skip
+  assets whose type the target agent does not support and record them on
+  the result (`SwitchResult`/`RestoreResult`, `manager.go:26-44`) in a new
+  `SkippedUnsupported []ProfileAsset` field, analogous to the existing
+  `MissingAssets`/`SkippedPinned` fields. Profile deploy/restore across
+  type-incompatible agents must not produce hard failures.
 - [ ] `internal/tui/deploy.go:354-360` — the asset picker filters
-      `allAssets` to deployable types via `a.Type.IsDeployable()`. Add an
-      `agent.SupportsType(a.Type)` check alongside it, using the active agent
-      resolved at `internal/tui/deploy.go:342-345` (`svc.ActiveAgent()`), so
-      types the active agent does not support never appear in the picker.
+  `allAssets` to deployable types via `a.Type.IsDeployable()`. Add an
+  `agent.SupportsType(a.Type)` check alongside it, using the active agent
+  resolved at `internal/tui/deploy.go:342-345` (`svc.ActiveAgent()`), so
+  types the active agent does not support never appear in the picker.
 - [ ] `cmd/list.go:71-75` and `internal/tui/deploy.go:342-352` — both call
-      `index.FilterByAgent(agentAlias)` / `index.ByTypeFiltered(...)`
-      (`internal/asset/index.go:98-124`), which filter only by source
-      `GroupDir`/alias, not by supported types. Add a supported-types filter
-      after `FilterByAgent`/`ByTypeFiltered` so unsupported types are not
-      listed for the active agent (e.g. `hooks`, `commands`, `rules`,
-      `output-styles` are hidden when the active agent is `copilot`). Prefer
-      filtering in the caller using the resolved `*agent.Agent` (the index has
-      no agent dependency); do not add an agent dependency to
-      `internal/asset/index.go`.
+  `index.FilterByAgent(agentAlias)` / `index.ByTypeFiltered(...)`
+  (`internal/asset/index.go:98-124`), which filter only by source
+  `GroupDir`/alias, not by supported types. Add a supported-types filter
+  after `FilterByAgent`/`ByTypeFiltered` so unsupported types are not
+  listed for the active agent (e.g. `hooks`, `commands`, `rules`,
+  `output-styles` are hidden when the active agent is `copilot`). Prefer
+  filtering in the caller using the resolved `*agent.Agent` (the index has
+  no agent dependency); do not add an agent dependency to
+  `internal/asset/index.go`.
 
 ### Acceptance criteria
 

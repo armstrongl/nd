@@ -109,84 +109,84 @@ already exist as the foundation — this task completes the loop.
 ### Tasks
 
 - [ ] Add a `HelpSection` type to `internal/tui/helpbar.go` (next to `HelpItem`,
-      after line 9): `type HelpSection struct { Title string; Items []HelpItem }`.
-      Add an optional interface
-      `type SectionedHelpProvider interface { HelpSections() []HelpSection }` so a
-      screen can group its overlay help under headings (e.g. "Navigation",
-      "Actions", "Filters"). Keep `HelpProvider`/`FullHelpProvider` untouched — the
-      one-line bar still uses them.
+  after line 9): `type HelpSection struct { Title string; Items []HelpItem }`.
+  Add an optional interface
+  `type SectionedHelpProvider interface { HelpSections() []HelpSection }` so a
+  screen can group its overlay help under headings (e.g. "Navigation",
+  "Actions", "Filters"). Keep `HelpProvider`/`FullHelpProvider` untouched — the
+  one-line bar still uses them.
 - [ ] Create `internal/tui/helpoverlay.go` with a `HelpOverlay` component. API:
-      `func (HelpOverlay) View(s Styles, screen Screen, width, height int) string`.
-      It must derive content from the screen: if the screen implements
-      `SectionedHelpProvider`, render `HelpSections()` with styled headings
-      (use `s.Bold` / `s.Subtle`, mirroring `statusScreen.buildContent`
-      `internal/tui/status.go:177-212`); otherwise fall back to the flat list from
-      `defaultHelp(screen)` (`helpbar.go:36`). Respect `width` — truncate or wrap
-      `Key + "  " + Desc` lines so nothing exceeds `width`; this satisfies the
-      narrow-terminal requirement. Title the overlay with `screen.Title()`.
+  `func (HelpOverlay) View(s Styles, screen Screen, width, height int) string`.
+  It must derive content from the screen: if the screen implements
+  `SectionedHelpProvider`, render `HelpSections()` with styled headings
+  (use `s.Bold` / `s.Subtle`, mirroring `statusScreen.buildContent`
+  `internal/tui/status.go:177-212`); otherwise fall back to the flat list from
+  `defaultHelp(screen)` (`helpbar.go:36`). Respect `width` — truncate or wrap
+  `Key + "  " + Desc` lines so nothing exceeds `width`; this satisfies the
+  narrow-terminal requirement. Title the overlay with `screen.Title()`.
 - [ ] Wire the `?` key in the root model. In `Model` add a `bool` field
-      `helpOpen` (`internal/tui/tui.go:12-21`) and a `helpOverlay HelpOverlay`
-      field next to `helpbar HelpBar`. In `Model.Update`'s `tea.KeyPressMsg` block
-      (`tui.go:110-142`): when `helpOpen` is true, `?`/`esc` close it (set
-      `helpOpen=false`, return early, do **not** delegate to the screen so esc does
-      not also pop the nav stack); when the overlay is closed and the current
-      screen's `InputActive()` is false, `?` opens it (`helpOpen=true`). Do not let
-      `?` reach the screen delegate path (`tui.go:144-153`) while text input is
-      active — match the existing `current.InputActive()` guard at `tui.go:117`.
+  `helpOpen` (`internal/tui/tui.go:12-21`) and a `helpOverlay HelpOverlay`
+  field next to `helpbar HelpBar`. In `Model.Update`'s `tea.KeyPressMsg` block
+  (`tui.go:110-142`): when `helpOpen` is true, `?`/`esc` close it (set
+  `helpOpen=false`, return early, do **not** delegate to the screen so esc does
+  not also pop the nav stack); when the overlay is closed and the current
+  screen's `InputActive()` is false, `?` opens it (`helpOpen=true`). Do not let
+  `?` reach the screen delegate path (`tui.go:144-153`) while text input is
+  active — match the existing `current.InputActive()` guard at `tui.go:117`.
 - [ ] Render the overlay in `Model.View` (`tui.go:194-206`): when
-      `m.helpOpen`, replace the `content` segment passed to
-      `lipgloss.JoinVertical` with `m.helpOverlay.View(m.styles, currentScreen,
-      m.width, m.height)` (keep the header and help bar so the layout/`AltScreen`
-      behavior is unchanged). The active screen is
-      `m.screens[len(m.screens)-1]`.
+  `m.helpOpen`, replace the `content` segment passed to
+  `lipgloss.JoinVertical` with `m.helpOverlay.View(m.styles, currentScreen,
+  m.width, m.height)` (keep the header and help bar so the layout/`AltScreen`
+  behavior is unchanged). The active screen is
+  `m.screens[len(m.screens)-1]`.
 - [ ] Implement help on every screen currently missing it (see "Current state"
-      list). For each — `snapshot.go`, `profile.go`, `pin.go`, `doctor.go`,
-      `source.go`, `main_menu.go`, `settings.go`, `scope.go` — add a `HelpItems()`
-      method (mirror `status.go:52-67`) or, if the screen is multi-step / uses a
-      huh form, a `FullHelpItems()` method (mirror `deploy.go:141-170`). List the
-      keys each screen's `Update` actually handles (read each file's
-      `tea.KeyPressMsg` switch — do not invent keys). Where a heading grouping adds
-      value (e.g. deploy/status with filters), also implement `HelpSections()`.
+  list). For each — `snapshot.go`, `profile.go`, `pin.go`, `doctor.go`,
+  `source.go`, `main_menu.go`, `settings.go`, `scope.go` — add a `HelpItems()`
+  method (mirror `status.go:52-67`) or, if the screen is multi-step / uses a
+  huh form, a `FullHelpItems()` method (mirror `deploy.go:141-170`). List the
+  keys each screen's `Update` actually handles (read each file's
+  `tea.KeyPressMsg` switch — do not invent keys). Where a heading grouping adds
+  value (e.g. deploy/status with filters), also implement `HelpSections()`.
 - [ ] Add screen-specific contextual hints to the overlay text where the screen
-      already exposes the behavior, e.g. status screen note "Press / to filter by
-      name" (it handles `/` at `internal/tui/status.go:134-136`) and deploy note
-      about its multiselect toggle. Put these as a "Tips" section via
-      `HelpSections()` — do not add fake keybindings.
+  already exposes the behavior, e.g. status screen note "Press / to filter by
+  name" (it handles `/` at `internal/tui/status.go:134-136`) and deploy note
+  about its multiselect toggle. Put these as a "Tips" section via
+  `HelpSections()` — do not add fake keybindings.
 - [ ] Create `internal/tui/helpseen.go` with two helpers:
-      `helpSeenPath(svc Services) string` returning
-      `filepath.Join(filepath.Dir(svc.GetConfigPath()), "state", "help_seen")`;
-      `helpSeen(svc Services) bool` (file exists check); `markHelpSeen(svc
-      Services) error` (MkdirAll the state dir then write the flag file — reuse the
-      atomic write helper in `internal/nd/atomic.go` if convenient, else a plain
-      `os.WriteFile` with `0o644`).
+  `helpSeenPath(svc Services) string` returning
+  `filepath.Join(filepath.Dir(svc.GetConfigPath()), "state", "help_seen")`;
+  `helpSeen(svc Services) bool` (file exists check); `markHelpSeen(svc
+  Services) error` (MkdirAll the state dir then write the flag file — reuse the
+  atomic write helper in `internal/nd/atomic.go` if convenient, else a plain
+  `os.WriteFile` with `0o644`).
 - [ ] Add the first-run tip. In `Model` add a `bool firstRunTip` field; in
-      `tui.Run` (`tui.go:25-47`) set it to `!helpSeen(svc)`. In `Model.View`
-      (`tui.go:194-206`), when `firstRunTip` is true and `helpOpen` is false,
-      render a single dismissible line (e.g. styled with `m.styles.Subtle`)
-      "Press ? for help at any time" above or below the content. In
-      `Model.Update`'s `tea.KeyPressMsg` block: on the first key press while
-      `firstRunTip` is true, set `firstRunTip=false` and call `markHelpSeen(m.svc)`
-      (ignore the error best-effort, matching `App.LogOp` in `cmd/app.go:181-183`)
-      so the tip never reappears.
+  `tui.Run` (`tui.go:25-47`) set it to `!helpSeen(svc)`. In `Model.View`
+  (`tui.go:194-206`), when `firstRunTip` is true and `helpOpen` is false,
+  render a single dismissible line (e.g. styled with `m.styles.Subtle`)
+  "Press ? for help at any time" above or below the content. In
+  `Model.Update`'s `tea.KeyPressMsg` block: on the first key press while
+  `firstRunTip` is true, set `firstRunTip=false` and call `markHelpSeen(m.svc)`
+  (ignore the error best-effort, matching `App.LogOp` in `cmd/app.go:181-183`)
+  so the tip never reappears.
 - [ ] Tests in `internal/tui/helpoverlay_test.go` (package `tui`; mirror the style
-      of `internal/tui/helpbar_test.go` including its `helpTestScreen` /
-      `helpTestScreenWithItems` mocks): overlay renders flat items for a basic
-      screen; renders section headings when the screen implements
-      `SectionedHelpProvider`; truncates/wraps for a narrow width (e.g. width 20);
-      `?` opens and `?`/`esc` close it via the root `Model.Update`.
+  of `internal/tui/helpbar_test.go` including its `helpTestScreen` /
+  `helpTestScreenWithItems` mocks): overlay renders flat items for a basic
+  screen; renders section headings when the screen implements
+  `SectionedHelpProvider`; truncates/wraps for a narrow width (e.g. width 20);
+  `?` opens and `?`/`esc` close it via the root `Model.Update`.
 - [ ] Test in `internal/tui/screens_test.go` (or a new `help_coverage_test.go`):
-      table-drive every screen constructor (`newMainMenuScreen`,
-      `newDeployScreen`, `newBrowseScreen`, `newPinScreen`, `newRemoveScreen`,
-      `newProfileScreen`, `newSettingsScreen`, `newSnapshotScreen`,
-      `newScopeScreen`, `newStatusScreen`, `newDoctorScreen`, `newSourceScreen`,
-      `newFirstRunScreen` — all take `(svc Services, styles Styles, isDark bool)`,
-      verified at the constructor lines listed above) and assert each result
-      satisfies `HelpProvider` or `FullHelpProvider`.
+  table-drive every screen constructor (`newMainMenuScreen`,
+  `newDeployScreen`, `newBrowseScreen`, `newPinScreen`, `newRemoveScreen`,
+  `newProfileScreen`, `newSettingsScreen`, `newSnapshotScreen`,
+  `newScopeScreen`, `newStatusScreen`, `newDoctorScreen`, `newSourceScreen`,
+  `newFirstRunScreen` — all take `(svc Services, styles Styles, isDark bool)`,
+  verified at the constructor lines listed above) and assert each result
+  satisfies `HelpProvider` or `FullHelpProvider`.
 - [ ] Tests in `internal/tui/helpseen_test.go`: with a `mockServices` whose
-      `getConfigPathFn` points at a `t.TempDir()`, assert `helpSeen` is false
-      initially, `markHelpSeen` creates the flag, `helpSeen` is then true; and that
-      the first key press in `Model.Update` flips `firstRunTip` and persists the
-      flag.
+  `getConfigPathFn` points at a `t.TempDir()`, assert `helpSeen` is false
+  initially, `markHelpSeen` creates the flag, `helpSeen` is then true; and that
+  the first key press in `Model.Update` flips `firstRunTip` and persists the
+  flag.
 
 ### Acceptance criteria
 

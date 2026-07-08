@@ -114,9 +114,9 @@ TempDir (`os.RemoveAll(dir)`) after populating sources makes the next
 ### Tasks
 
 - [ ] In `internal/sourcemanager/register.go`, function `Remove` (lines
-      100-126): replace the in-place compaction + reconstruction rollback
-      (lines 116-122) with a snapshot-then-restore approach mirroring
-      `AddLocal` (lines 80-87):
+  100-126): replace the in-place compaction + reconstruction rollback
+  (lines 116-122) with a snapshot-then-restore approach mirroring
+  `AddLocal` (lines 80-87):
   - Snapshot the original slice before any mutation:
     `oldSources := sm.cfg.Sources`.
   - Build the new slice **without aliasing the original backing array**,
@@ -127,8 +127,8 @@ TempDir (`os.RemoveAll(dir)`) after populating sources makes the next
     and return the existing `fmt.Errorf("save config: %w", err)`.
   - Remove the now-unneeded `removed` variable / reconstruction expression.
 - [ ] Add a regression test in
-      `internal/sourcemanager/register_test.go` (external test package
-      `sourcemanager_test`, alongside `TestRemove` at lines 169-191). It must:
+  `internal/sourcemanager/register_test.go` (external test package
+  `sourcemanager_test`, alongside `TestRemove` at lines 169-191). It must:
   - Use a manually-built manager so the temp dir is known: replicate
     `newTestManager` inline (`dir := t.TempDir()`,
     `configPath := filepath.Join(dir, "config.yaml")`,
@@ -142,8 +142,8 @@ TempDir (`os.RemoveAll(dir)`) after populating sources makes the next
   - Assert `reflect.DeepEqual(sm.Config().Sources, before)` is true (use
     `reflect`; add the import).
 - [ ] Confirm existing tests still pass, especially `TestRemove`,
-      `TestRemoveNotFound`, `TestRemovePersists`,
-      `TestRemoveBuiltinReturnsError` (register_test.go:169-231).
+  `TestRemoveNotFound`, `TestRemovePersists`,
+  `TestRemoveBuiltinReturnsError` (register_test.go:169-231).
 
 ### Acceptance criteria
 

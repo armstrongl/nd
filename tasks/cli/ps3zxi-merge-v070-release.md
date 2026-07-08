@@ -80,39 +80,39 @@ fixes) that is currently unreleased and unavailable to `brew`/binary users.
 ### Tasks
 
 - [ ] Read the PR #93 body / changelog:
-      `gh pr view 93 --json title,body -q .body`. Confirm the `[0.7.0]`
-      section accounts for and correctly categorizes the conventional commits
-      merged since `v0.6.0` (Features: #92 Copilot CLI, #105 taskmd, #103
-      AFDocs CI; Bug Fixes: #99 doc-script hygiene). Cross-check against
-      `git log --oneline v0.6.0..origin/main` for missed feat/fix commits.
+  `gh pr view 93 --json title,body -q .body`. Confirm the `[0.7.0]`
+  section accounts for and correctly categorizes the conventional commits
+  merged since `v0.6.0` (Features: #92 Copilot CLI, #105 taskmd, #103
+  AFDocs CI; Bug Fixes: #99 doc-script hygiene). Cross-check against
+  `git log --oneline v0.6.0..origin/main` for missed feat/fix commits.
 - [ ] Verify the version bump: PR diff must set
-      `.release-please-manifest.json` to `{ ".": "0.7.0" }`. No other version
-      edits are expected (no `version.go`/`go.mod` change — see Current state).
-      `gh pr diff 93`.
+  `.release-please-manifest.json` to `{ ".": "0.7.0" }`. No other version
+  edits are expected (no `version.go`/`go.mod` change — see Current state).
+  `gh pr diff 93`.
 - [ ] Verify CI: `gh pr checks 93`. All present checks must be green. If the
-      `ci.yml` jobs (Lint Markdown, Lint, Test, Build) are not listed for the
-      release-please branch, validate locally on `main`:
-      `go build -o /dev/null .`, `go test ./... -race`,
-      `goreleaser check`, `rumdl check .`.
+  `ci.yml` jobs (Lint Markdown, Lint, Test, Build) are not listed for the
+  release-please branch, validate locally on `main`:
+  `go build -o /dev/null .`, `go test ./... -race`,
+  `goreleaser check`, `rumdl check .`.
 - [ ] Check for release-please misconfig: base must be `main`, head
-      `release-please--branches--main`, single `[0.7.0]` section, no stale or
-      duplicated entries, version `0.7.0` (minor bump from `0.6.0`, correct
-      under `bump-minor-pre-major`).
+  `release-please--branches--main`, single `[0.7.0]` section, no stale or
+  duplicated entries, version `0.7.0` (minor bump from `0.6.0`, correct
+  under `bump-minor-pre-major`).
 - [ ] If the changelog needs edits, push a fixup commit to
-      `release-please--branches--main` (do not rebase/squash the
-      release-please commit) before merging.
+  `release-please--branches--main` (do not rebase/squash the
+  release-please commit) before merging.
 - [ ] Merge PR #93 into `main`:
-      `gh pr merge 93 --merge` (use a merge commit, not squash — release-please
-      tracks the release commit).
+  `gh pr merge 93 --merge` (use a merge commit, not squash — release-please
+  tracks the release commit).
 - [ ] Wait for the `Release Please` workflow run on `main` to finish:
-      `gh run list --workflow=release-please.yml --branch main --limit 1` then
-      `gh run watch <run-id>`. It must create the tag and run goreleaser.
+  `gh run list --workflow=release-please.yml --branch main --limit 1` then
+  `gh run watch <run-id>`. It must create the tag and run goreleaser.
 - [ ] Confirm the GitHub Release `v0.7.0` exists and is published (not draft)
-      with release notes: `gh release view v0.7.0`.
+  with release notes: `gh release view v0.7.0`.
 - [ ] Confirm the `v0.7.0` tag exists and points to the PR #93 merge commit:
-      `git fetch --tags origin && git rev-list -n1 v0.7.0` vs the merge SHA.
+  `git fetch --tags origin && git rev-list -n1 v0.7.0` vs the merge SHA.
 - [ ] Confirm `.release-please-manifest.json` on `main` now reads
-      `{ ".": "0.7.0" }`: `git show origin/main:.release-please-manifest.json`.
+  `{ ".": "0.7.0" }`: `git show origin/main:.release-please-manifest.json`.
 
 ### Acceptance criteria
 

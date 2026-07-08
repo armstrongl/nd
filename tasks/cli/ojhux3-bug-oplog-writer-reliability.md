@@ -90,48 +90,49 @@ see Tasks).
 ### Tasks
 
 - [ ] `internal/oplog/writer.go:45` — change the signature to a named return:
-      `func (w *Writer) Log(entry LogEntry) (err error)`.
+  `func (w *Writer) Log(entry LogEntry) (err error)`.
 - [ ] `internal/oplog/writer.go:58` — replace `defer f.Close()` with a deferred
-      closure that closes `f` and, only if the function is not already
-      returning an error, assigns the close error to the named return, e.g.:
-      ```go
-      defer func() {
-      if cerr := f.Close(); cerr != nil && err == nil {
-      err = cerr
-      }
-      }()```
-      so a `Close` failure after a successful `f.Write` is surfaced. Keep the
-      `os.OpenFile` error path (line 55-57) returning early as-is (no `f` to
-      close there).
+  closure that closes `f` and, only if the function is not already
+  returning an error, assigns the close error to the named return, e.g.:
+
+  ```go
+  defer func() {
+  if cerr := f.Close(); cerr != nil && err == nil {
+  err = cerr
+  }
+  }()```
+  so a `Close` failure after a successful `f.Write` is surfaced. Keep the
+  `os.OpenFile` error path (line 55-57) returning early as-is (no `f` to
+  close there).
 - [ ] `internal/oplog/writer.go:72-75` — in `rotateIfNeeded`, distinguish the
-      `os.Stat` error: `if errors.Is(err, fs.ErrNotExist) { return nil }` then
-      `return err` for any other error (do not swallow). Keep the
-      `info.Size() < w.maxSize` short-circuit (line 77-79) and the
-      `os.Rename` rotation (line 81-82) unchanged.
+  `os.Stat` error: `if errors.Is(err, fs.ErrNotExist) { return nil }` then
+  `return err` for any other error (do not swallow). Keep the
+  `info.Size() < w.maxSize` short-circuit (line 77-79) and the
+  `os.Rename` rotation (line 81-82) unchanged.
 - [ ] `internal/oplog/writer.go:3-7` — add `"errors"` and `"io/fs"` to the
-      import block; keep the block goimports-ordered (stdlib group, no blank
-      lines between stdlib imports — match existing style).
+  import block; keep the block goimports-ordered (stdlib group, no blank
+  lines between stdlib imports — match existing style).
 - [ ] Add regression tests to `internal/oplog/writer_test.go` (package
-      `oplog_test`, mirror the existing `TestWriter*` table/temp-dir style at
-      `writer_test.go:17-260`, using `t.TempDir()` and `oplog.NewWriter`):
+  `oplog_test`, mirror the existing `TestWriter*` table/temp-dir style at
+  `writer_test.go:17-260`, using `t.TempDir()` and `oplog.NewWriter`):
   - [ ] A stat error that is **not** `fs.ErrNotExist` is surfaced and rotation
-        is not silently skipped. Reproduce via the directory-permission trick
-        from "Steps to reproduce": create the temp log dir, write one entry,
-        then `os.Chmod(logDir, 0o000)`; assert `w.Log(entry)` now returns a
-        non-nil error (use `t.Cleanup` to `os.Chmod(logDir, 0o755)` so
-        `t.TempDir` cleanup succeeds; `t.Skip` if running as root since root
-        bypasses the permission check).
+    is not silently skipped. Reproduce via the directory-permission trick
+    from "Steps to reproduce": create the temp log dir, write one entry,
+    then `os.Chmod(logDir, 0o000)`; assert `w.Log(entry)` now returns a
+    non-nil error (use `t.Cleanup` to `os.Chmod(logDir, 0o755)` so
+    `t.TempDir` cleanup succeeds; `t.Skip` if running as root since root
+    bypasses the permission check).
   - [ ] `Log` returns a non-nil error when `Close` fails after a successful
-        `Write`. Since `Close` cannot be forced through the public API, assert
-        the contract directly: after a normal successful `Log`, the error is
-        `nil` and the entry is on disk (guards against the named-return change
-        regressing the happy path). If feasible, add a same-package
-        (`package oplog`) white-box test file
-        (`internal/oplog/writer_internal_test.go`) that exercises the deferred
-        close path, or document why the public-API assertion is sufficient.
+    `Write`. Since `Close` cannot be forced through the public API, assert
+    the contract directly: after a normal successful `Log`, the error is
+    `nil` and the entry is on disk (guards against the named-return change
+    regressing the happy path). If feasible, add a same-package
+    (`package oplog`) white-box test file
+    (`internal/oplog/writer_internal_test.go`) that exercises the deferred
+    close path, or document why the public-API assertion is sufficient.
 - [ ] Run the `verify:` commands; ensure all existing `TestWriter*` tests in
-      `internal/oplog/writer_test.go` still pass (rotation, append, JSONL,
-      backup-overwrite, all operation types, partial-failure).
+  `internal/oplog/writer_test.go` still pass (rotation, append, JSONL,
+  backup-overwrite, all operation types, partial-failure).
 
 ### Existing patterns to follow
 

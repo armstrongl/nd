@@ -114,97 +114,97 @@ are multi-step / form-driven, so full-replace is correct) keyed off the screen's
 constants and `InputActive()` lines as the source of truth for which steps exist.
 
 - [ ] `internal/tui/main_menu.go` — `mainMenuScreen` has no `step` (single huh
-      Select; `InputActive()` always `false` at line 64). Add a flat
-      `FullHelpItems()` returning `{"j/k","navigate"},{"enter","select"},
-      {"?","help"},{"q","quit"}` (no `esc back` — main menu is the root).
+  Select; `InputActive()` always `false` at line 64). Add a flat
+  `FullHelpItems()` returning `{"j/k","navigate"},{"enter","select"},
+  {"?","help"},{"q","quit"}` (no `esc back` — main menu is the root).
 - [ ] `internal/tui/firstrun.go` — `firstRunScreen`, single huh Select (Add a
-      source / Quit), `InputActive()` at line 59. Flat `FullHelpItems()`:
-      `{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
+  source / Quit), `InputActive()` at line 59. Flat `FullHelpItems()`:
+  `{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
 - [ ] `internal/tui/scope.go` — `scopeScreen`. Steps: `scopeFormStep`,
-      `scopeShowError` (`scope.go:13-16`). `Update` (`scope.go:61-88`): form step
-      = huh Select; `scopeShowError` only handles `enter` (`scope.go:63-68`).
-      `switch s.step`: `scopeShowError` → `{"enter","return"},{"q","quit"}`;
-      default → `{"esc","back"},{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
+  `scopeShowError` (`scope.go:13-16`). `Update` (`scope.go:61-88`): form step
+  = huh Select; `scopeShowError` only handles `enter` (`scope.go:63-68`).
+  `switch s.step`: `scopeShowError` → `{"enter","return"},{"q","quit"}`;
+  default → `{"esc","back"},{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
 - [ ] `internal/tui/settings.go` — `settingsScreen`. Steps: `settingsMenu`,
-      `settingsShowResult`, `settingsSwitchScope` (`settings.go:16-20`).
-      `settingsMenu`/`settingsSwitchScope` are huh Selects; `settingsShowResult`
-      handles only `enter` (`settings.go:228-238`). `switch s.step`:
-      `settingsShowResult` → `{"enter","return"},{"q","quit"}`; default (menu /
-      scope) → `{"esc","back"},{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
+  `settingsShowResult`, `settingsSwitchScope` (`settings.go:16-20`).
+  `settingsMenu`/`settingsSwitchScope` are huh Selects; `settingsShowResult`
+  handles only `enter` (`settings.go:228-238`). `switch s.step`:
+  `settingsShowResult` → `{"enter","return"},{"q","quit"}`; default (menu /
+  scope) → `{"esc","back"},{"j/k","navigate"},{"enter","select"},{"q","quit"}`.
 - [ ] `internal/tui/profile.go` — `profileScreen`. Steps: `profileLoading`,
-      `profileMenu`, `profileList`, `profileSwitch`, `profileCreateName`,
-      `profileDone` (`profile.go:15-22`). Per `Update`/handlers:
-      `profileMenu`/`profileSwitch` huh Select; `profileCreateName` huh Input
-      (`profile.go:324-356`); `profileList` j/k scroll + esc back
-      (`profile.go:385-395`); `profileDone` enter to return (`profile.go:374-379`).
-      `switch s.step`: list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
-      create → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
-      done/loading → `{"enter","return"},{"q","quit"}`;
-      default (menu/switch) → `{"esc","back"},{"j/k","navigate"},
-      {"enter","select"},{"q","quit"}`.
+  `profileMenu`, `profileList`, `profileSwitch`, `profileCreateName`,
+  `profileDone` (`profile.go:15-22`). Per `Update`/handlers:
+  `profileMenu`/`profileSwitch` huh Select; `profileCreateName` huh Input
+  (`profile.go:324-356`); `profileList` j/k scroll + esc back
+  (`profile.go:385-395`); `profileDone` enter to return (`profile.go:374-379`).
+  `switch s.step`: list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
+  create → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
+  done/loading → `{"enter","return"},{"q","quit"}`;
+  default (menu/switch) → `{"esc","back"},{"j/k","navigate"},
+  {"enter","select"},{"q","quit"}`.
 - [ ] `internal/tui/snapshot.go` — `snapshotScreen`. Steps: `snapshotLoading`,
-      `snapshotMenu`, `snapshotSaveName`, `snapshotRestoreSelect`,
-      `snapshotList`, `snapshotDone` (`snapshot.go:15-22`). Note
-      `snapshotRestoreSelect` has two phases: huh Select then huh Confirm
-      (`snapshot.go:321-360`) — distinguish via `s.confirmForm != nil`.
-      `switch s.step`: list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
-      saveName → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
-      restoreSelect with `s.confirmForm != nil` → `{"h/l","yes/no"},
-      {"enter","confirm"},{"q","quit"}` else `{"esc","back"},{"j/k","navigate"},
-      {"enter","select"},{"q","quit"}`; done/loading → `{"enter","return"},
-      {"q","quit"}`; default (menu) → navigate/select set as above.
+  `snapshotMenu`, `snapshotSaveName`, `snapshotRestoreSelect`,
+  `snapshotList`, `snapshotDone` (`snapshot.go:15-22`). Note
+  `snapshotRestoreSelect` has two phases: huh Select then huh Confirm
+  (`snapshot.go:321-360`) — distinguish via `s.confirmForm != nil`.
+  `switch s.step`: list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
+  saveName → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
+  restoreSelect with `s.confirmForm != nil` → `{"h/l","yes/no"},
+  {"enter","confirm"},{"q","quit"}` else `{"esc","back"},{"j/k","navigate"},
+  {"enter","select"},{"q","quit"}`; done/loading → `{"enter","return"},
+  {"q","quit"}`; default (menu) → navigate/select set as above.
 - [ ] `internal/tui/pin.go` — `pinScreen`. Steps: `pinLoading`, `pinSelect`,
-      `pinConfirm`, `pinRunning`, `pinDone` (`pin.go:16-22`). `pinSelect` is a
-      huh **MultiSelect** (`pin.go:164-173`); `pinConfirm` huh Confirm
-      (`pin.go:193-213`); `pinDone` handles `enter` (`pin.go:278-286`).
-      `switch s.step`: pinSelect → `{"esc","back"},{"j/k","navigate"},
-      {"x/space","toggle"},{"enter","confirm"},{"q","quit"}`;
-      pinConfirm → `{"h/l","yes/no"},{"enter","confirm"},{"q","quit"}`;
-      default (loading/running/done) → `{"enter","return"},{"q","quit"}`.
+  `pinConfirm`, `pinRunning`, `pinDone` (`pin.go:16-22`). `pinSelect` is a
+  huh **MultiSelect** (`pin.go:164-173`); `pinConfirm` huh Confirm
+  (`pin.go:193-213`); `pinDone` handles `enter` (`pin.go:278-286`).
+  `switch s.step`: pinSelect → `{"esc","back"},{"j/k","navigate"},
+  {"x/space","toggle"},{"enter","confirm"},{"q","quit"}`;
+  pinConfirm → `{"h/l","yes/no"},{"enter","confirm"},{"q","quit"}`;
+  default (loading/running/done) → `{"enter","return"},{"q","quit"}`.
 - [ ] `internal/tui/source.go` — `sourceScreen`. Steps: `sourceLoading`,
-      `sourceMenu`, `sourceList`, `sourceAddLocalInput`, `sourceAddGitInput`,
-      `sourceRemoveSelect`, `sourceRemoveConfirm`, `sourceSyncing`,
-      `sourceDone` (`source.go:15-25`). Add/inputs are huh Input
-      (`source.go:259-303`); remove-select huh Select, remove-confirm huh
-      Confirm (`source.go:356-410`); list j/k scroll (`source.go:464-474`);
-      done enter (`source.go:452-457`). `switch s.step`:
-      list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
-      addLocal/addGit → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
-      removeSelect → `{"esc","back"},{"j/k","navigate"},{"enter","select"},
-      {"q","quit"}`; removeConfirm → `{"h/l","yes/no"},{"enter","confirm"},
-      {"q","quit"}`; done/loading/syncing → `{"enter","return"},{"q","quit"}`;
-      default (menu) → `{"esc","back"},{"j/k","navigate"},{"enter","select"},
-      {"q","quit"}`.
+  `sourceMenu`, `sourceList`, `sourceAddLocalInput`, `sourceAddGitInput`,
+  `sourceRemoveSelect`, `sourceRemoveConfirm`, `sourceSyncing`,
+  `sourceDone` (`source.go:15-25`). Add/inputs are huh Input
+  (`source.go:259-303`); remove-select huh Select, remove-confirm huh
+  Confirm (`source.go:356-410`); list j/k scroll (`source.go:464-474`);
+  done enter (`source.go:452-457`). `switch s.step`:
+  list → `{"esc","back"},{"j/k","scroll"},{"q","quit"}`;
+  addLocal/addGit → `{"esc","cancel"},{"enter","submit"},{"q","quit"}`;
+  removeSelect → `{"esc","back"},{"j/k","navigate"},{"enter","select"},
+  {"q","quit"}`; removeConfirm → `{"h/l","yes/no"},{"enter","confirm"},
+  {"q","quit"}`; done/loading/syncing → `{"enter","return"},{"q","quit"}`;
+  default (menu) → `{"esc","back"},{"j/k","navigate"},{"enter","select"},
+  {"q","quit"}`.
 - [ ] `internal/tui/doctor.go` — `doctorScreen`. Steps: `doctorLoading`,
-      `doctorConfirm`, `doctorFixing`, `doctorDone` (`doctor.go:16-21`).
-      `doctorConfirm` intercepts `j/k`/`up`/`down` for issue-list scroll then
-      delegates to a huh Confirm using `h/l` (`doctor.go:205-247`, comment at
-      `:216-217`); `doctorDone` handles `enter` (`doctor.go:249-259`).
-      `switch d.step`: doctorConfirm → `{"j/k","scroll"},{"h/l","yes/no"},
-      {"enter","confirm"},{"q","quit"}`; default (loading/fixing/done) →
-      `{"enter","return"},{"q","quit"}`.
+  `doctorConfirm`, `doctorFixing`, `doctorDone` (`doctor.go:16-21`).
+  `doctorConfirm` intercepts `j/k`/`up`/`down` for issue-list scroll then
+  delegates to a huh Confirm using `h/l` (`doctor.go:205-247`, comment at
+  `:216-217`); `doctorDone` handles `enter` (`doctor.go:249-259`).
+  `switch d.step`: doctorConfirm → `{"j/k","scroll"},{"h/l","yes/no"},
+  {"enter","confirm"},{"q","quit"}`; default (loading/fixing/done) →
+  `{"enter","return"},{"q","quit"}`.
 - [ ] Add a coverage test in a new file `internal/tui/help_coverage_test.go`
-      (package `tui`). Build each of the 13 screens with
-      `svc := newMockServices()` (`internal/tui/testutil_test.go:41`) and
-      `styles := NewStyles(true)`, then assert each result satisfies
-      `HelpProvider` or `FullHelpProvider`. Table-drive over every constructor:
-      `newBrowseScreen`, `newDeployScreen`, `newDoctorScreen`,
-      `newFirstRunScreen`, `newMainMenuScreen`, `newProfileScreen`,
-      `newPinScreen`, `newRemoveScreen`, `newScopeScreen`, `newSettingsScreen`,
-      `newSnapshotScreen`, `newSourceScreen`, `newStatusScreen` — all have
-      signature `(svc Services, styles Styles, isDark bool)`. For each: fail
-      unless `_, okA := s.(HelpProvider); _, okB := s.(FullHelpProvider)` and
-      `okA || okB`. Mirror the assertion style in
-      `internal/tui/helpbar_test.go` and the table-driven style in
-      `internal/tui/screens_test.go`.
+  (package `tui`). Build each of the 13 screens with
+  `svc := newMockServices()` (`internal/tui/testutil_test.go:41`) and
+  `styles := NewStyles(true)`, then assert each result satisfies
+  `HelpProvider` or `FullHelpProvider`. Table-drive over every constructor:
+  `newBrowseScreen`, `newDeployScreen`, `newDoctorScreen`,
+  `newFirstRunScreen`, `newMainMenuScreen`, `newProfileScreen`,
+  `newPinScreen`, `newRemoveScreen`, `newScopeScreen`, `newSettingsScreen`,
+  `newSnapshotScreen`, `newSourceScreen`, `newStatusScreen` — all have
+  signature `(svc Services, styles Styles, isDark bool)`. For each: fail
+  unless `_, okA := s.(HelpProvider); _, okB := s.(FullHelpProvider)` and
+  `okA || okB`. Mirror the assertion style in
+  `internal/tui/helpbar_test.go` and the table-driven style in
+  `internal/tui/screens_test.go`.
 - [ ] Optionally add per-screen tests mirroring
-      `internal/tui/deploy_test.go:597-646` (`TestDeploy_FullHelpItems_*`):
-      construct the screen, set its `step` field, call `FullHelpItems()`, and
-      assert the expected `HelpItem` is present (e.g. MultiSelect step contains
-      `{"x/space","toggle"}`, Confirm step contains `{"h/l","yes/no"}`).
+  `internal/tui/deploy_test.go:597-646` (`TestDeploy_FullHelpItems_*`):
+  construct the screen, set its `step` field, call `FullHelpItems()`, and
+  assert the expected `HelpItem` is present (e.g. MultiSelect step contains
+  `{"x/space","toggle"}`, Confirm step contains `{"h/l","yes/no"}`).
 - [ ] Run `go build -o nd .` then
-      `go test ./internal/tui/... && go test -race ./internal/tui/... &&
-      go test ./internal/tui/... -run TestHelp`.
+  `go test ./internal/tui/... && go test -race ./internal/tui/... &&
+  go test ./internal/tui/... -run TestHelp`.
 
 ### Acceptance criteria
 
