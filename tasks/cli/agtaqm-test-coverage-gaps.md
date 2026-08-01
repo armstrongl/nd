@@ -1,7 +1,7 @@
 ---
 title: "Address test coverage gaps from TUI audit"
 id: "agtaqm"
-status: pending
+status: completed
 priority: low
 type: chore
 tags: ["testing"]
@@ -35,6 +35,7 @@ context:
   - internal/tui/integration_test.go
   - internal/oplog/oplog.go
   - internal/oplog/writer.go
+completed_at: 2026-08-01
 ---
 
 ## Address test coverage gaps from TUI audit

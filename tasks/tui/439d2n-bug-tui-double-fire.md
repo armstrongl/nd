@@ -1,7 +1,7 @@
 ---
 title: "Add double-fire guard to TUI create/save/add forms"
 id: "439d2n"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["tui"]
@@ -26,6 +26,7 @@ verify:
     run: "golangci-lint run ./internal/tui/..."
   - type: assert
     check: "runCreate/runSave/runAdd fire exactly once per form completion even when Update is called again after huh.StateCompleted"
+completed_at: 2026-08-01
 ---
 
 ## Add double-fire guard to TUI create/save/add forms

@@ -1,7 +1,7 @@
 ---
 title: "Fsync parent directory in AtomicWrite for crash safety"
 id: "9k4p5h"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["core", "durability"]
@@ -25,6 +25,7 @@ verify:
     check: "AtomicWrite opens the parent directory after os.Rename and calls Sync() on it (errors other than unsupported-platform are surfaced); existing temp-file fsync, chmod, and rename behavior is unchanged"
   - type: assert
     check: "A test in internal/nd/atomic_test.go exercises the post-rename directory-fsync path and still passes (no temp files left, content correct)"
+completed_at: 2026-08-01
 ---
 
 ## Fsync parent directory in AtomicWrite for crash safety

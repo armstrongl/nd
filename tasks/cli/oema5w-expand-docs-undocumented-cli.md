@@ -1,7 +1,7 @@
 ---
 title: "Document undocumented CLI flags and correct stale doc tasks"
 id: "oema5w"
-status: pending
+status: completed
 priority: medium
 type: chore
 tags: ["docs"]
@@ -36,6 +36,7 @@ verify:
     check: "--absolute is documented with a runnable example in at least one docs/guide/*.md file"
   - type: assert
     check: "cmd/gendocs/main.go guideTitles has no unused keys, OR every remaining key is justified in this task's worklog"
+completed_at: 2026-08-01
 ---
 
 ## Document undocumented CLI flags and correct stale doc tasks

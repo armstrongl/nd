@@ -1,7 +1,7 @@
 ---
 title: "Fix stale builtin cache and long-lived SourceManager config"
 id: "r8j6i9"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["cli", "deploy"]
@@ -35,6 +35,7 @@ context:
   - "internal/tui/source.go"
   - "internal/version/version.go"
   - "tasks/cli/7s19kh-fix-deploy-stale-cache.md"
+completed_at: 2026-08-01
 ---
 
 ## Fix stale builtin cache and long-lived SourceManager config

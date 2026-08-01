@@ -1,7 +1,7 @@
 ---
 title: "Show deployment indicators in asset lists"
 id: "cc0u6u"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["tui", "deploy"]
@@ -30,6 +30,7 @@ context:
   - internal/asset/identity.go
   - internal/config/config.go
   - cmd/app.go
+completed_at: 2026-08-01
 ---
 
 ## Show deployment indicators in asset lists

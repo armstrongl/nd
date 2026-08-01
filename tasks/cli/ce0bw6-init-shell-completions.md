@@ -1,7 +1,7 @@
 ---
 title: "Offer shell completion install during init"
 id: "ce0bw6"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["cli", "completions", "onboarding"]
@@ -28,6 +28,7 @@ verify:
     check: "Interactive `nd init` with SHELL=/bin/zsh prints an 'Install shell completions for zsh? [y/N]' prompt after the 'Detected agents:' line and before the built-in deploy prompt; answering y writes ~/.zfunc/_nd and prints the install path; answering n/Enter skips with no error"
   - type: assert
     check: "`nd init --yes`, `nd init --json`, and `nd init --quiet` never prompt for or install completions; an unset or unsupported $SHELL silently skips the step; a filesystem write error during install prints a warning to stderr but `nd init` still exits 0"
+completed_at: 2026-08-01
 ---
 
 ## Offer shell completion install during init

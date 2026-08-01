@@ -1,7 +1,7 @@
 ---
 title: "Fix SourceManager Remove rollback slice corruption"
 id: "6irbna"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["source"]
@@ -23,6 +23,7 @@ context:
   - internal/sourcemanager/config.go
   - internal/sourcemanager/sourcemanager.go
   - internal/nd/atomic.go
+completed_at: 2026-08-01
 ---
 
 ## Fix SourceManager.Remove rollback slice corruption

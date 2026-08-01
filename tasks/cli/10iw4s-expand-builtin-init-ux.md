@@ -1,7 +1,7 @@
 ---
 title: "Bring builtin source nd init UX into spec"
 id: "10iw4s"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["core", "onboarding"]
@@ -27,6 +27,7 @@ context:
   - "internal/state/state.go"
   - "tasks/cli/unaa3u-builtin-source.md"
   - "docs/plans/2026-04-02-002-feat-builtin-source-plan.md"
+completed_at: 2026-08-01
 ---
 
 ## Bring builtin source nd init UX into spec

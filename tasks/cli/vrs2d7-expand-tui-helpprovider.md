@@ -1,7 +1,7 @@
 ---
 title: "Implement HelpProvider on TUI screens missing it"
 id: "vrs2d7"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["tui", "ux"]
@@ -38,6 +38,7 @@ verify:
     check: "All 13 screen constructors (newBrowseScreen, newDeployScreen, newDoctorScreen, newFirstRunScreen, newMainMenuScreen, newProfileScreen, newPinScreen, newRemoveScreen, newScopeScreen, newSettingsScreen, newSnapshotScreen, newSourceScreen, newStatusScreen) return a value satisfying HelpProvider or FullHelpProvider"
   - type: assert
     check: "On a huh MultiSelect step the help bar shows 'x/space toggle' (not 'enter select'); on a huh Confirm step it shows 'h/l yes/no'; on a text-input step it does not show 'enter select'"
+completed_at: 2026-08-01
 ---
 
 ## Implement HelpProvider on TUI screens missing it
