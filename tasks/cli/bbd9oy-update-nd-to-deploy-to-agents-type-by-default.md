@@ -1,7 +1,7 @@
 ---
 title: "Update nd to deploy to .agents/<type> by default"
 id: "bbd9oy"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["deploy", "breaking-change"]
@@ -38,6 +38,7 @@ verify:
     check: "FindProjectRoot detects a directory containing only .agents/ (no .git, no .claude); the not-found error message lists the correct marker(s)"
   - type: assert
     check: "Global scope (~/.claude/...) deploy paths are byte-for-byte unchanged; no global-scope test fixture was modified"
+completed_at: 2026-08-01
 ---
 
 ## Update nd to deploy to .agents/<type> by default

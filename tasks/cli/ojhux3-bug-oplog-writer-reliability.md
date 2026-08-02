@@ -1,7 +1,7 @@
 ---
 title: "Fix oplog writer ignored Close and swallowed rotation error"
 id: "ojhux3"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["state"]
@@ -23,6 +23,7 @@ verify:
     check: "oplog.Writer.Log returns a non-nil error if f.Close() fails after a successful Write"
   - type: assert
     check: "rotateIfNeeded only treats fs.ErrNotExist as 'no file yet'; any other os.Stat error is returned, not swallowed"
+completed_at: 2026-08-01
 ---
 
 ## Fix oplog writer ignored close and swallowed rotation error

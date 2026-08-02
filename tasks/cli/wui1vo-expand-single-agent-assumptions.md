@@ -1,7 +1,7 @@
 ---
 title: "Catalog and refactor single-agent assumption sites"
 id: "wui1vo"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["deploy", "multi-agent"]
@@ -47,6 +47,7 @@ context:
   - "internal/tui/deploy.go"
   - "internal/profile/manager.go"
   - "tasks/cli/ba5xah-select-deploy-agents.md"
+completed_at: 2026-08-01
 ---
 
 ## Catalog and refactor single-agent assumption sites

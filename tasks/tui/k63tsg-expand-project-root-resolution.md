@@ -1,7 +1,7 @@
 ---
 title: "Resolve project root on demand in TUI deploy/profile and sourcemanager"
 id: "k63tsg"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["tui", "scope"]
@@ -39,6 +39,7 @@ verify:
     check: "SourceManager merges .nd/config.yaml project config when cwd is inside a project, regardless of launch scope"
   - type: assert
     check: "A cwd that is not inside any project still produces the FindProjectRoot error ('looked for .git/ or .claude/ from ...')"
+completed_at: 2026-08-01
 ---
 
 ## Resolve project root on demand in TUI deploy/profile and sourcemanager

@@ -1,7 +1,7 @@
 ---
 title: "Offer global or project scope on deploy"
 id: "nxvr4w"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["deploy", "ux"]
@@ -34,6 +34,7 @@ verify:
     check: "After the first prompt answer, subsequent deploys in the same process do not re-prompt (session preference is reused)."
   - type: assert
     check: "`--json` or non-TTY stdin with no explicit `--scope` does not block on a prompt; it proceeds with the resolved default scope (no hang, no error introduced for existing scripted callers)."
+completed_at: 2026-08-01
 ---
 
 ## Offer global or project scope on deploy

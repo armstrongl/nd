@@ -1,7 +1,7 @@
 ---
 title: "Normalize yes/json/quiet/non-TTY handling across commands"
 id: "wdisqq"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["cli", "ux"]
@@ -46,6 +46,7 @@ verify:
     check: "Under --json, no command writes human (non-JSON) text to stdout (cancellation/aborted lines go to stderr or are suppressed); under --quiet, cancellation messages are uniformly suppressed."
   - type: assert
     check: "`nd settings edit --json` / `--quiet` / non-TTY does not exec $EDITOR (does not hang a scripted run); it returns an actionable error instead."
+completed_at: 2026-08-01
 ---
 
 ## Normalize --yes/--json/--quiet/non-TTY handling across commands

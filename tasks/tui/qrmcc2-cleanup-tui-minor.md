@@ -1,7 +1,7 @@
 ---
 title: "TUI minor cleanups for dead code and unsurfaced sync error"
 id: "qrmcc2"
-status: pending
+status: completed
 priority: low
 type: chore
 tags: ["tui"]
@@ -24,6 +24,7 @@ verify:
     check: "header.go View() no longer declares a misleadingly-named `leftStyled` variable that holds an unstyled string; the left segment is emitted via `left` directly (or genuinely styled)."
   - type: assert
     check: "A source sync failure renders through the same error-display code path/styling as a source load failure (the `s.err != nil && s.step == sourceDone` branch in View()), not a separate doneMsg-only path."
+completed_at: 2026-08-01
 ---
 
 ## TUI minor cleanups

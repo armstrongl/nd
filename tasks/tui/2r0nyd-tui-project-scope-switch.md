@@ -1,7 +1,7 @@
 ---
 title: "TUI scope switch to project fails with 'no project root detected' when launched in global scope"
 id: "2r0nyd"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["tui", "scope", "bug"]
@@ -31,6 +31,7 @@ verify:
     check: "Switching to project scope from a directory with no .git/ or .claude/ marker still shows a clear error mentioning .git/ or .claude/."
   - type: assert
     check: "All three entry points (scope.go form, settings.go scope submenu, tui.go ctrl+s toggle) resolve the root on demand and behave consistently."
+completed_at: 2026-08-01
 ---
 
 ## TUI scope switch to project fails with 'no project root detected' when launched in global scope
@@ -100,7 +101,7 @@ Settings -> "Switch scope", `internal/tui/settings.go:68`).
 ### Steps to reproduce
 
 1. `cd` into a valid project directory (one containing `.git/` or `.claude/`),
-   e.g. this repo root `/Users/larah/Repos/Personal/nd`.
+   e.g. this repo root.
 2. Run `nd` with no flags (defaults to global scope; launches the TUI).
 3. From the main menu choose "Switch scope" (or Settings -> "Switch scope", or
    press `ctrl+s`).

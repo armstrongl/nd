@@ -1,7 +1,7 @@
 ---
 title: "Additional test coverage gaps beyond TUI audit"
 id: "wughc0"
-status: pending
+status: completed
 priority: low
 type: chore
 tags: ["testing"]
@@ -34,6 +34,7 @@ context:
   - cmd/deploy_test.go
   - cmd/oplog_integration_test.go
   - tasks/cli/agtaqm-test-coverage-gaps.md
+completed_at: 2026-08-01
 ---
 
 ## Additional test coverage gaps beyond TUI audit

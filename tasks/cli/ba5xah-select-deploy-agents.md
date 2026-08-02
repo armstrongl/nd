@@ -1,7 +1,7 @@
 ---
 title: "Let user select target agents for deploy"
 id: "ba5xah"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["deploy", "multi-agent"]
@@ -39,6 +39,7 @@ context:
   - "internal/tui/deploy.go"
   - "internal/tui/services.go"
   - "internal/tui/testutil_test.go"
+completed_at: 2026-08-01
 ---
 
 ## Let user select target agents for deploy

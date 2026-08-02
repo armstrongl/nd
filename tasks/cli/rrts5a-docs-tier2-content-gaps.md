@@ -1,7 +1,7 @@
 ---
 title: "Docs Tier 2: fill content gaps"
 id: "rrts5a"
-status: pending
+status: completed
 priority: medium
 type: chore
 tags: ["docs"]
@@ -16,15 +16,16 @@ context:
   - "scripts/lint-docs.sh"
 verify:
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go build -o /tmp/nd-rrts5a ./cmd/gendocs/ && rm -f /tmp/nd-rrts5a"
+    run: "go build -o /tmp/nd-rrts5a ./cmd/gendocs/ && rm -f /tmp/nd-rrts5a"
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go run ./cmd/gendocs/ && git diff --quiet docs/reference/ || (echo 'reference docs out of sync; commit regenerated output' && exit 1)"
+    run: "go run ./cmd/gendocs/ && git diff --quiet docs/reference/ || (echo 'reference docs out of sync; commit regenerated output' && exit 1)"
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && scripts/lint-docs.sh docs/guide/getting-started.md docs/guide/troubleshooting.md docs/guide/asset-types/plugins.md"
+    run: "scripts/lint-docs.sh docs/guide/getting-started.md docs/guide/troubleshooting.md docs/guide/asset-types/plugins.md"
   - type: assert
     check: "docs/reference/nd_source_remove.md documents that --yes silently removes all deployed assets from the source (the destructive default)."
   - type: assert
     check: "cmd/gendocs/main.go guideTitles map has no entry that is absent from every docs.guides annotation in cmd/*.go (the only candidate was 'glossary')."
+completed_at: 2026-08-01
 ---
 
 ## Docs tier 2: fill content gaps

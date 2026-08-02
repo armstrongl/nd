@@ -1,7 +1,7 @@
 ---
 title: "Fix profile/snapshot create TOCTOU silent overwrite"
 id: "2zlf37"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["profile", "concurrency"]
@@ -25,6 +25,7 @@ context:
   - "internal/state/lock.go"
   - "internal/state/store.go"
   - "internal/profile/store_test.go"
+completed_at: 2026-08-01
 ---
 
 ## Fix profile/snapshot create TOCTOU silent overwrite

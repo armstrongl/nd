@@ -1,7 +1,7 @@
 ---
 title: "Establish version source of truth and release drift check"
 id: "8t7acq"
-status: pending
+status: completed
 priority: high
 type: chore
 tags: ["release"]
@@ -23,15 +23,16 @@ context:
   - "tasks/cli/ps3zxi-merge-v070-release.md"
 verify:
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go build -o /tmp/nd-8t7acq . && /tmp/nd-8t7acq version"
+    run: "go build -o /tmp/nd-8t7acq . && /tmp/nd-8t7acq version"
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go test ./... && go build -o /dev/null ."
+    run: "go test ./... && go build -o /dev/null ."
   - type: assert
     check: "A docs/ or top-level doc names internal/version/version.go:9 as the single product-version source of truth and explains the release-please -> git tag -> goreleaser ldflags -> internal/version flow"
   - type: assert
     check: ".release-please-manifest.json version, the latest git tag (stripped of leading 'v'), and `nd version` output (stripped of leading 'v') all agree, enforced by an automated CI/release check that fails on mismatch"
   - type: assert
     check: "go.mod, .GitHub/workflows/ci.yml, and .GitHub/copilot-instructions.md reference a consistent Go toolchain version (no contradictory pins)"
+completed_at: 2026-08-01
 ---
 
 ## Establish version source of truth and release drift check

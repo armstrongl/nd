@@ -1,7 +1,7 @@
 ---
 title: "Add embedded help instructions to TUI"
 id: "6bije3"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["tui", "ux"]
@@ -31,6 +31,7 @@ verify:
     check: "On first TUI launch a dismissible 'Press ? for help' tip appears and never reappears after the help_seen flag is written"
   - type: assert
     check: "Every screen registered in the navigation stack implements HelpProvider or FullHelpProvider"
+completed_at: 2026-08-01
 ---
 
 ## Add embedded help instructions to TUI

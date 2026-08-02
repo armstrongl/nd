@@ -1,7 +1,7 @@
 ---
 title: "Fix handleSelection missing export case"
 id: "47kdob"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["tui"]
@@ -24,6 +24,7 @@ verify:
     run: "go test ./... -count=1"
   - type: assert
     check: "Selecting \"Export plugin\" in the TUI main menu shows a visible notice telling the user to run `nd export` on the command line, then returns to the main menu on Enter (no silent reset)"
+completed_at: 2026-08-01
 ---
 
 ## Fix handleSelection missing export case
