@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 
-ISSUE_URL_RE = re.compile(r"https://github\.com/([^/\s]+)/([^/\s]+)/issues/(\d+)", re.IGNORECASE)
-ISSUE_BULLET_RE = re.compile(r"^- (?:GitHub issue|Issue): https://github\.com/[^/\s]+/[^/\s]+/issues/\d+\s*$", re.IGNORECASE)
+ISSUE_URL_RE = re.compile(r"https://github\.com/([^/\s]+)/([^/\s]+)/issues/(\d+)(?:[/?#][^\s]*)?", re.IGNORECASE)
+ISSUE_BULLET_RE = re.compile(r"^- (?:GitHub issue|Issue): https://github\.com/[^/\s]+/[^/\s]+/issues/\d+(?:[/?#][^\s]*)?\s*$", re.IGNORECASE)
 CLOSE_BULLET_RE = re.compile(r"^- Close this issue when the task is completed\.?\s*$", re.IGNORECASE)
 
 
@@ -30,7 +30,8 @@ def main() -> int:
             return run_add(args)
         return run_set(args)
     except subprocess.CalledProcessError as exc:
-        return exc.returncode
+        print(f"error: {command_error_message(exc)}", file=sys.stderr)
+        return exc.returncode or 1
     except RuntimeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -42,7 +43,7 @@ def run_add(args: list[str]) -> int:
     repo_root = get_repo_root()
 
     result = run_json(["taskmd", "add", *taskmd_args], cwd=repo_root)
-    task_path = Path(result["file_path"]).resolve()
+    task_path = resolve_task_path(repo_root, require_string(result, "file_path"))
     task_text = task_path.read_text()
 
     issue_url = find_issue_url(task_text)
@@ -114,16 +115,15 @@ def run_set(args: list[str]) -> int:
         return 0
 
     ensure_gh_auth(repo_root)
-    repo = get_repo_name(repo_root)
-    issue_number = parse_issue_number(issue_url)
-    issue = run_json(["gh", "issue", "view", str(issue_number), "--repo", repo, "--json", "state,url"], cwd=repo_root)
+    issue_repo, issue_number = parse_issue_reference(issue_url)
+    issue = run_json(["gh", "issue", "view", str(issue_number), "--repo", issue_repo, "--json", "state,url"], cwd=repo_root)
     if issue.get("state") == "CLOSED":
         print(f"Issue already closed: {issue.get('url', issue_url)}")
         return 0
 
     comment = f"Closed automatically after taskmd task `{task_id}` was marked completed."
     subprocess.run(
-        ["gh", "issue", "close", str(issue_number), "--repo", repo, "--comment", comment],
+        ["gh", "issue", "close", str(issue_number), "--repo", issue_repo, "--comment", comment],
         cwd=repo_root,
         text=True,
         capture_output=True,
@@ -188,12 +188,9 @@ def create_issue(repo: str, title: str, task_id: str, relative_path: str, object
         body_path = handle.name
 
     try:
-        completed = subprocess.run(
+        completed = run_checked(
             ["gh", "issue", "create", "--repo", repo, "--title", title, "--body-file", body_path],
             cwd=cwd,
-            text=True,
-            capture_output=True,
-            check=True,
         )
     finally:
         Path(body_path).unlink(missing_ok=True)
@@ -230,19 +227,21 @@ def find_issue_url(task_text: str) -> str | None:
 
 
 def parse_issue_number(issue_url: str) -> int:
+    _, issue_number = parse_issue_reference(issue_url)
+    return issue_number
+
+
+def parse_issue_reference(issue_url: str) -> tuple[str, int]:
     match = ISSUE_URL_RE.search(issue_url)
     if not match:
         raise RuntimeError(f"invalid GitHub issue URL: {issue_url}")
-    return int(match.group(3))
+    owner = match.group(1)
+    repo = match.group(2)
+    return f"{owner}/{repo}", int(match.group(3))
 
 
 def get_repo_root() -> Path:
-    completed = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
+    completed = run_checked(["git", "rev-parse", "--show-toplevel"], cwd=Path.cwd())
     return Path(completed.stdout.strip())
 
 
@@ -359,13 +358,7 @@ def require_string(data: dict[str, Any], key: str) -> str:
 
 
 def run_json(command: list[str], cwd: Path) -> dict[str, Any]:
-    completed = subprocess.run(
-        command,
-        cwd=cwd,
-        text=True,
-        capture_output=True,
-        check=True,
-    )
+    completed = run_checked(command, cwd=cwd)
     try:
         data = json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
@@ -373,6 +366,40 @@ def run_json(command: list[str], cwd: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError(f"unexpected JSON output from {' '.join(command)}")
     return data
+
+
+def resolve_task_path(repo_root: Path, task_path: str) -> Path:
+    path = Path(task_path)
+    if not path.is_absolute():
+        path = repo_root / path
+    return path.resolve()
+
+
+def run_checked(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(command_error_message(exc)) from exc
+
+
+def command_error_message(exc: subprocess.CalledProcessError) -> str:
+    command = format_command(exc.cmd)
+    error_output = (exc.stderr or exc.stdout or "").strip()
+    if error_output:
+        return f"command failed ({exc.returncode}): {command}\n{error_output}"
+    return f"command failed ({exc.returncode}): {command}"
+
+
+def format_command(command: Any) -> str:
+    if isinstance(command, (list, tuple)):
+        return " ".join(str(part) for part in command)
+    return str(command)
 
 
 if __name__ == "__main__":
