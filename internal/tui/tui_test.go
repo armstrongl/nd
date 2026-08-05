@@ -358,9 +358,10 @@ func TestView_ContainsHeaderAndHelpBar(t *testing.T) {
 		t.Error("expected 'global' from header in view output")
 	}
 
-	// Help bar should contain default items.
-	if !strings.Contains(content, "esc") {
-		t.Error("expected 'esc' from help bar in view output")
+	// Help bar should contain default items. The main menu is the root screen,
+	// so its help bar shows navigation/quit hints (no "esc back").
+	if !strings.Contains(content, "navigate") {
+		t.Error("expected 'navigate' from help bar in view output")
 	}
 	if !strings.Contains(content, "quit") {
 		t.Error("expected 'quit' from help bar in view output")
@@ -396,7 +397,7 @@ func TestInit_ReturnsCmd(t *testing.T) {
 
 func TestGlobalKey_CtrlS_TogglesScopeWhenProjectRootExists(t *testing.T) {
 	svc := newMockServices()
-	svc.getProjectRootFn = func() string { return "/some/project" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
 	styles := NewStyles(true)
 	m := Model{
 		svc:     svc,
@@ -412,18 +413,24 @@ func TestGlobalKey_CtrlS_TogglesScopeWhenProjectRootExists(t *testing.T) {
 		t.Fatal("expected non-nil cmd from ctrl+s scope toggle")
 	}
 
-	// Verify ResetForScope was called.
+	// Verify ResetForScope was called with the resolved root.
 	if len(svc.resetCalls) != 1 {
 		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
 	}
 	if svc.resetCalls[0].Scope != "project" {
 		t.Errorf("expected scope 'project', got %q", svc.resetCalls[0].Scope)
 	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
 }
 
-func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
+// Launched in global scope from inside a project: the cached root is empty but
+// ctrl+s resolves it on demand and toggles to project scope with the found root.
+func TestGlobalKey_CtrlS_ResolvesRootWhenLaunchedInGlobal(t *testing.T) {
 	svc := newMockServices()
-	// GetProjectRoot defaults to "" — no project root
+	svc.getProjectRootFn = func() string { return "" }
+	svc.resolveProjectRootFn = func() (string, error) { return "/some/project", nil }
 	styles := NewStyles(true)
 	m := Model{
 		svc:     svc,
@@ -435,12 +442,59 @@ func TestGlobalKey_CtrlS_NoOpWhenNoProjectRoot(t *testing.T) {
 	}
 
 	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
-	if cmd != nil {
-		t.Fatal("expected nil cmd from ctrl+s when no project root")
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s when root resolves on demand")
+	}
+	if len(svc.resetCalls) != 1 {
+		t.Fatalf("expected 1 ResetForScope call, got %d", len(svc.resetCalls))
+	}
+	if svc.resetCalls[0].Scope != nd.ScopeProject {
+		t.Errorf("expected scope %q, got %q", nd.ScopeProject, svc.resetCalls[0].Scope)
+	}
+	if svc.resetCalls[0].ProjectRoot != "/some/project" {
+		t.Errorf("expected resolved root %q, got %q", "/some/project", svc.resetCalls[0].ProjectRoot)
+	}
+}
+
+func TestGlobalKey_CtrlS_ShowsErrorWhenNoProjectRoot(t *testing.T) {
+	svc := newMockServices()
+	// No .git/ or .claude/ marker: on-demand resolution fails (default mock), so
+	// the toggle surfaces a visible error screen instead of silently no-op'ing.
+	styles := NewStyles(true)
+	m := Model{
+		svc:     svc,
+		styles:  styles,
+		isDark:  true,
+		screens: []Screen{newMainMenuScreen(svc, styles, true)},
+		width:   80,
+		height:  24,
 	}
 
+	_, cmd := m.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from ctrl+s when no project root (should show error screen)")
+	}
+
+	// Scope must NOT switch when resolution fails.
 	if len(svc.resetCalls) != 0 {
 		t.Fatalf("expected 0 ResetForScope calls, got %d", len(svc.resetCalls))
+	}
+
+	// The cmd should navigate to a screen whose view surfaces the failure,
+	// referencing the missing project markers.
+	nav, ok := cmd().(NavigateMsg)
+	if !ok {
+		t.Fatalf("expected NavigateMsg from ctrl+s failure, got %T", cmd())
+	}
+	v := nav.Screen.View()
+	if !strings.Contains(v.Content, "Cannot switch to project scope") {
+		t.Fatalf("error view should explain the failure, got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, ".git") || !strings.Contains(v.Content, ".claude") {
+		t.Fatalf("error view should reference the .git/ and .claude/ markers, got:\n%s", v.Content)
+	}
+	if nav.Screen.InputActive() {
+		t.Fatal("scope error screen should not be input-active (global keys must work)")
 	}
 }
 

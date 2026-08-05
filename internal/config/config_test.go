@@ -41,6 +41,69 @@ func TestConfigYAMLRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConfigDefaultDeployAgentsRoundTrip(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		Sources:             []config.SourceEntry{},
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !contains(string(data), "default_deploy_agents") {
+		t.Errorf("expected default_deploy_agents in YAML, got:\n%s", data)
+	}
+
+	var got config.Config
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(got.DefaultDeployAgents) != 2 ||
+		got.DefaultDeployAgents[0] != "claude-code" ||
+		got.DefaultDeployAgents[1] != "copilot" {
+		t.Errorf("default_deploy_agents round-trip: got %v", got.DefaultDeployAgents)
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsValid(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		DefaultDeployAgents: []string{"claude-code", "copilot"},
+	}
+	errs := c.Validate()
+	if len(errs) != 0 {
+		t.Errorf("expected no errors for valid default_deploy_agents, got %v", errs)
+	}
+}
+
+func TestConfigValidateDefaultDeployAgentsUnknown(t *testing.T) {
+	c := config.Config{
+		Version:             1,
+		DefaultScope:        nd.ScopeGlobal,
+		DefaultAgent:        "claude-code",
+		SymlinkStrategy:     nd.SymlinkAbsolute,
+		DefaultDeployAgents: []string{"claude-code", "bogus"},
+	}
+	errs := c.Validate()
+	found := false
+	for _, e := range errs {
+		if e.Field == "default_deploy_agents" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a ValidationError with Field 'default_deploy_agents', got %v", errs)
+	}
+}
+
 func TestProjectConfigPointerSemantics(t *testing.T) {
 	// Unset fields should not appear in YAML
 	pc := config.ProjectConfig{Version: 1}
@@ -173,6 +236,45 @@ func TestValidationErrorImplementsError(t *testing.T) {
 	}
 }
 
+func TestConfigValidateEmptySourceID(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources: []config.SourceEntry{
+			{ID: "", Type: nd.SourceLocal, Path: "/a"},
+		},
+	}
+	errs := c.Validate()
+	var found bool
+	for _, e := range errs {
+		if e.Field == "sources[0].id" && e.Message == "must not be empty" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a sources[0].id must-not-be-empty error, got %v", errs)
+	}
+}
+
+func TestValidationErrorNoFile(t *testing.T) {
+	ve := config.ValidationError{Field: "version", Message: "must be >= 1"}
+	if got := ve.Error(); got != "field version: must be >= 1" {
+		t.Errorf("no-file Error(): got %q", got)
+	}
+}
+
+func TestValidationErrorWithFile(t *testing.T) {
+	ve := config.ValidationError{
+		File: "config.yaml", Line: 5, Field: "sources[0].path", Message: "path does not exist",
+	}
+	want := "config.yaml:5: field sources[0].path: path does not exist"
+	if got := ve.Error(); got != want {
+		t.Errorf("with-file Error(): got %q, want %q", got, want)
+	}
+}
+
 func TestConfigValidateInvalidSourceType(t *testing.T) {
 	c := config.Config{
 		Version:         1,
@@ -186,6 +288,56 @@ func TestConfigValidateInvalidSourceType(t *testing.T) {
 	errs := c.Validate()
 	if len(errs) == 0 {
 		t.Error("expected error for invalid source type")
+	}
+}
+
+func TestConfigRecencyDaysYAML(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		RecencyDays:     14,
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !contains(string(data), "recency_days") {
+		t.Errorf("set recency_days should appear in YAML, got:\n%s", data)
+	}
+
+	var got config.Config
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.RecencyDays != 14 {
+		t.Errorf("recency_days round-trip: got %d, want 14", got.RecencyDays)
+	}
+
+	// A newly added field must not trip validation.
+	for _, e := range got.Validate() {
+		if e.Field == "recency_days" {
+			t.Errorf("recency_days should not be validated, got error: %v", e)
+		}
+	}
+}
+
+func TestConfigRecencyDaysOmitEmpty(t *testing.T) {
+	// Unset (zero) recency_days should be omitted from YAML.
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+	}
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if contains(string(data), "recency_days") {
+		t.Error("unset recency_days should be omitted from YAML")
 	}
 }
 

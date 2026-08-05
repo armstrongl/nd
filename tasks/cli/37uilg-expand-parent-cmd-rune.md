@@ -1,7 +1,7 @@
 ---
 title: "Add useful default RunE to parent commands"
 id: "37uilg"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["cli"]
@@ -33,6 +33,7 @@ verify:
     check: "Bare nd source / nd profile / nd snapshot print their list output (not Cobra usage); nd settings opens $EDITOR on the config (or prints the resolved config path)"
   - type: assert
     check: "All nd completion bash|zsh|fish, nd source/profile/snapshot/settings subcommands behave unchanged"
+completed_at: 2026-08-01
 ---
 
 ## Add useful default RunE to parent commands

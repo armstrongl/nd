@@ -2,6 +2,8 @@ package oplog
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -42,7 +44,7 @@ func NewWriter(logDir string, opts ...Option) *Writer {
 // Log appends a single entry to the operation log.
 // Creates the log directory and file if they don't exist.
 // Rotates the file if it exceeds the max size before writing.
-func (w *Writer) Log(entry LogEntry) error {
+func (w *Writer) Log(entry LogEntry) (err error) {
 	if err := os.MkdirAll(filepath.Dir(w.path), 0o755); err != nil {
 		return err
 	}
@@ -55,7 +57,11 @@ func (w *Writer) Log(entry LogEntry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	data, err := json.Marshal(entry)
 	if err != nil {
@@ -71,7 +77,10 @@ func (w *Writer) Log(entry LogEntry) error {
 func (w *Writer) rotateIfNeeded() error {
 	info, err := os.Stat(w.path)
 	if err != nil {
-		return nil // file doesn't exist yet — nothing to rotate
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // file doesn't exist yet — nothing to rotate
+		}
+		return err
 	}
 
 	if info.Size() < w.maxSize {

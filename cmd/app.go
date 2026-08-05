@@ -49,7 +49,11 @@ func (a *App) SourceManager() (*sourcemanager.SourceManager, error) {
 	if a.sm != nil {
 		return a.sm, nil
 	}
-	sm, err := sourcemanager.New(a.ConfigPath, a.ProjectRoot)
+	// Resolve the project root on demand so .nd/config.yaml is merged when cwd is
+	// inside a project even if the TUI was launched in the default global scope.
+	// GetProjectRoot returns "" when not in a project, which sourcemanager.New
+	// treats as the supported non-project path (it skips the project-config merge).
+	sm, err := sourcemanager.New(a.ConfigPath, a.GetProjectRoot())
 	if err != nil {
 		return nil, fmt.Errorf("init source manager: %w", err)
 	}
@@ -91,7 +95,99 @@ func (a *App) ActiveAgent() (*agent.Agent, error) {
 	return reg.Default()
 }
 
-// DeployEngine returns the deploy engine, creating it on first call.
+// DeployAgents resolves the set of target agents for status/list/sync and other
+// multi-agent commands. Precedence, mirroring ActiveAgent():
+//  1. --agent flag (single explicit target, must be known + detected);
+//  2. config default_deploy_agents (each must be known + detected);
+//  3. all detected agents.
+//
+// Returns an error if no agents are detected. With no --agent flag and no
+// default_deploy_agents, a single-agent system resolves to exactly the active
+// agent, so callers behave identically to the previous single-agent path.
+func (a *App) DeployAgents() ([]*agent.Agent, error) {
+	reg, err := a.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	// (1) --agent flag: single explicit target (same checks as ActiveAgent).
+	if a.AgentFlag != "" {
+		ag, err := reg.Get(a.AgentFlag)
+		if err != nil {
+			return nil, fmt.Errorf("unknown agent %q; available agents: use 'nd doctor' to list", a.AgentFlag)
+		}
+		reg.Detect()
+		if !ag.Detected {
+			return nil, fmt.Errorf("agent %q is not detected on this system; install it or check config", a.AgentFlag)
+		}
+		return []*agent.Agent{ag}, nil
+	}
+
+	reg.Detect()
+
+	// (2) config default_deploy_agents: explicit list, each must be detected.
+	if sm, smErr := a.SourceManager(); smErr == nil {
+		if names := sm.Config().DefaultDeployAgents; len(names) > 0 {
+			var agents []*agent.Agent
+			seen := make(map[string]bool)
+			for _, name := range names {
+				if seen[name] {
+					continue
+				}
+				seen[name] = true
+				ag, gErr := reg.Get(name)
+				if gErr != nil {
+					return nil, fmt.Errorf("unknown agent %q in default_deploy_agents; run 'nd doctor' to list", name)
+				}
+				if !ag.Detected {
+					return nil, fmt.Errorf("agent %q is not detected on this system; install it or check config", name)
+				}
+				agents = append(agents, ag)
+			}
+			if len(agents) > 0 {
+				return agents, nil
+			}
+		}
+	}
+
+	// (3) all detected agents (iteration model mirrors cmd/doctor.go).
+	var agents []*agent.Agent
+	for _, ag := range reg.All() {
+		if !ag.Detected {
+			continue
+		}
+		if got, gErr := reg.Get(ag.Name); gErr == nil {
+			agents = append(agents, got)
+		}
+	}
+	if len(agents) == 0 {
+		return nil, fmt.Errorf("no coding agents detected; install Claude Code or configure a custom agent path in config.yaml")
+	}
+	return agents, nil
+}
+
+// deployEngineForName builds a deploy engine bound to the agent with the given
+// name, resolving the name through the registry. An empty name is treated as
+// "claude-code" to match the v1→v2 state migration rule. Used by snapshot
+// restore to recreate each deployment on its recorded agent.
+func (a *App) deployEngineForName(name string) (*deploy.Engine, error) {
+	if name == "" {
+		name = "claude-code"
+	}
+	reg, err := a.AgentRegistry()
+	if err != nil {
+		return nil, err
+	}
+	reg.Detect()
+	ag, err := reg.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("unknown agent %q: %w", name, err)
+	}
+	return a.DeployEngineFor(ag)
+}
+
+// DeployEngine returns the deploy engine for the active agent, creating it on
+// first call and caching it.
 func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if a.eng != nil {
 		return a.eng, nil
@@ -100,17 +196,30 @@ func (a *App) DeployEngine() (*deploy.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	sstore := a.StateStore()
-	eng := deploy.New(sstore, ag, a.BackupDir)
+	eng, err := a.DeployEngineFor(ag)
+	if err != nil {
+		return nil, err
+	}
+	a.eng = eng
+	return a.eng, nil
+}
+
+// DeployEngineFor builds a deploy engine bound to the given agent. Unlike
+// DeployEngine, the result is not cached — callers deploying to multiple agents
+// build one fresh engine per selected agent and run each agent's requests
+// through it.
+func (a *App) DeployEngineFor(ag *agent.Agent) (*deploy.Engine, error) {
+	if ag == nil {
+		return nil, fmt.Errorf("deploy engine requires a target agent")
+	}
+	eng := deploy.New(a.StateStore(), ag, a.BackupDir)
 
 	// Wire auto-snapshot saver
-	pstore, err := a.ProfileStore()
-	if err == nil {
+	if pstore, err := a.ProfileStore(); err == nil {
 		eng.SetSnapshotSaver(pstore)
 	}
 
-	a.eng = eng
-	return a.eng, nil
+	return eng, nil
 }
 
 // ProfileManager returns the profile manager, creating it on first call.
@@ -194,9 +303,20 @@ func (a *App) IsDryRun() bool { return a.DryRun }
 // Named GetConfigPath (not ConfigPath) to avoid collision with the ConfigPath field.
 func (a *App) GetConfigPath() string { return a.ConfigPath }
 
-// GetProjectRoot returns the resolved project root path.
+// GetProjectRoot returns the resolved project root path, resolving it on demand
+// from the current working directory (via ResolveProjectRoot) when it was not
+// populated at launch — e.g. when the TUI is started in the default global scope
+// from inside a project. Returns "" when no project root can be resolved; callers
+// treat "" as "not in a project". ResolveProjectRoot caches into ProjectRoot, so
+// this stays cheap after the first call and is reset correctly by ResetForScope.
 // Named GetProjectRoot (not ProjectRoot) to avoid collision with the ProjectRoot field.
-func (a *App) GetProjectRoot() string { return a.ProjectRoot }
+func (a *App) GetProjectRoot() string {
+	root, err := a.ResolveProjectRoot()
+	if err != nil {
+		return ""
+	}
+	return root
+}
 
 // ResetForScope nils all cached services so they reinitialize for a new scope.
 // Used by the TUI when switching between global and project scope mid-session.

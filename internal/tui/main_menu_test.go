@@ -107,7 +107,7 @@ func TestMainMenu_HandleSelectionWiredScreens(t *testing.T) {
 	// These choices are wired to real screens and should return NavigateMsg.
 	wiredChoices := []string{
 		"deploy", "remove", "status", "browse", "doctor",
-		"profile", "snapshot", "pin", "source", "scope", "settings",
+		"profile", "snapshot", "pin", "source", "scope", "settings", "export",
 	}
 	for _, choice := range wiredChoices {
 		m.choice = choice
@@ -130,11 +130,18 @@ func TestMainMenu_HandleSelectionExport(t *testing.T) {
 
 	cmd := m.handleSelection()
 	if cmd == nil {
-		t.Fatal("handleSelection() for export returned nil, want BackMsg cmd")
+		t.Fatal("handleSelection() for export returned nil, want NavigateMsg cmd")
 	}
 	msg := cmd()
-	if _, ok := msg.(BackMsg); !ok {
-		t.Fatalf("export cmd produced %T, want BackMsg", msg)
+	nav, ok := msg.(NavigateMsg)
+	if !ok {
+		t.Fatalf("export cmd produced %T, want NavigateMsg", msg)
+	}
+	if _, ok := nav.Screen.(*exportScreen); !ok {
+		t.Fatalf("NavigateMsg.Screen is %T, want *exportScreen", nav.Screen)
+	}
+	if got := nav.Screen.Title(); got != "Export" {
+		t.Fatalf("NavigateMsg.Screen.Title() = %q, want %q", got, "Export")
 	}
 }
 
@@ -240,4 +247,3 @@ func TestMainMenu_FirstOptionIsDeployNotSeparator(t *testing.T) {
 		t.Fatalf("choice = %q after construction, want %q (first option must be a real item, not separator)", m.choice, "deploy")
 	}
 }
-

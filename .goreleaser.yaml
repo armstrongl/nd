@@ -33,12 +33,19 @@ changelog:
     - title: Other
       order: 999
 
-brews:
+# goreleaser deprecated `brews` (formulas) in favor of `homebrew_casks`.
+# GoReleaser auto-generates the binary stanza; the post-install hook strips
+# the macOS quarantine bit so the unsigned binary runs without a gatekeeper prompt.
+homebrew_casks:
   - repository:
       owner: armstrongl
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/armstrongl/nd
     description: Coding agent asset management CLI tool
-    install: |
-      bin.install "nd"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/nd"]
+          end

@@ -57,6 +57,7 @@ type snapshotScreen struct {
 	// save
 	saveForm *huh.Form
 	saveName string
+	saving   bool
 
 	// restore
 	restoreForm   *huh.Form
@@ -85,7 +86,58 @@ func (s *snapshotScreen) InputActive() bool {
 	return s.step == snapshotMenu || s.step == snapshotSaveName || s.step == snapshotRestoreSelect
 }
 
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *snapshotScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case snapshotList:
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "scroll"},
+			{"q", "quit"},
+		}
+	case snapshotSaveName:
+		return []HelpItem{
+			{"esc", "cancel"},
+			{"enter", "submit"},
+			{"q", "quit"},
+		}
+	case snapshotRestoreSelect:
+		if s.confirmForm != nil {
+			return []HelpItem{
+				{"h/l", "yes/no"},
+				{"enter", "confirm"},
+				{"q", "quit"},
+			}
+		}
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	case snapshotLoading, snapshotDone:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // menu
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	}
+}
+
 func (s *snapshotScreen) Init() tea.Cmd {
+	return s.reload()
+}
+
+// reload returns the command that (re)loads the snapshot list. It is used both
+// by Init() and after a successful save so the cached slice reflects the change
+// without leaving the screen.
+func (s *snapshotScreen) reload() tea.Cmd {
 	svc := s.svc
 	return func() tea.Msg {
 		mgr, err := svc.ProfileManager()
@@ -113,16 +165,23 @@ func (s *snapshotScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		}
 		s.snapshots = msg.snapshots
+		// A reload triggered after a save must not yank the user off the "done"
+		// confirmation; only refresh the cached data in that case.
+		if s.step == snapshotDone {
+			return s, nil
+		}
 		return s.buildMenu()
 
 	case snapshotSavedMsg:
 		if msg.err != nil {
 			s.doneMsg = fmt.Sprintf("%s Error: %s", s.styles.Danger.Render(GlyphBroken), msg.err.Error())
-		} else {
-			s.doneMsg = fmt.Sprintf("%s Snapshot %q saved.", s.styles.Success.Render(GlyphOK), msg.name)
+			s.step = snapshotDone
+			return s, nil
 		}
+		s.doneMsg = fmt.Sprintf("%s Snapshot %q saved.", s.styles.Success.Render(GlyphOK), msg.name)
 		s.step = snapshotDone
-		return s, nil
+		// Reload so the new snapshot appears in List/Restore without re-entering.
+		return s, s.reload()
 
 	case snapshotRestoredMsg:
 		if msg.err != nil {
@@ -243,6 +302,7 @@ func (s *snapshotScreen) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *snapshotScreen) buildSaveForm() (tea.Model, tea.Cmd) {
 	s.step = snapshotSaveName
 	s.saveName = ""
+	s.saving = false
 	s.saveForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -261,11 +321,15 @@ func (s *snapshotScreen) buildSaveForm() (tea.Model, tea.Cmd) {
 }
 
 func (s *snapshotScreen) updateSaveForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s.saving {
+		return s, nil
+	}
 	model, cmd := s.saveForm.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		s.saveForm = f
 	}
 	if s.saveForm.State == huh.StateCompleted {
+		s.saving = true
 		return s, s.runSave()
 	}
 	if s.saveForm.State == huh.StateAborted {
@@ -399,7 +463,24 @@ func (s *snapshotScreen) runRestore() tea.Cmd {
 		if summary == nil || summary.Index == nil {
 			return snapshotRestoredMsg{err: fmt.Errorf("no asset index available")}
 		}
-		result, err := mgr.Restore(snapName, eng, summary.Index)
+		// Route each snapshot entry through an engine bound to its recorded
+		// agent so restore recreates deployments on the correct agent.
+		engineFor := func(agentName string) (profile.DeployEngine, error) {
+			if agentName == "" {
+				agentName = "claude-code"
+			}
+			reg, regErr := svc.AgentRegistry()
+			if regErr != nil {
+				return nil, regErr
+			}
+			reg.Detect()
+			ag, getErr := reg.Get(agentName)
+			if getErr != nil {
+				return nil, getErr
+			}
+			return svc.DeployEngineFor(ag)
+		}
+		result, err := mgr.Restore(snapName, engineFor, summary.Index)
 		return snapshotRestoredMsg{result: result, err: err}
 	}
 }

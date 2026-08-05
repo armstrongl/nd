@@ -11,6 +11,7 @@ import (
 	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/deploy"
 	"github.com/armstrongl/nd/internal/nd"
+	"github.com/armstrongl/nd/internal/output"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 	"github.com/armstrongl/nd/internal/state"
 	"github.com/spf13/cobra"
@@ -18,9 +19,9 @@ import (
 
 func newInitCmd(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:  "init",
+		Use:   "init",
 		Short: "Initialize nd configuration",
-		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. Use --yes to skip the deploy confirmation prompt.",
+		Long:  "Interactive walkthrough to set up nd for the first time.\n\nCreates the config directory structure, writes a default config file, and\ndeploys built-in assets (skills, commands, agents) to your coding agent's\nconfig directory. On the interactive path it also offers to install shell\ncompletions for your detected shell. Use --yes to skip the deploy confirmation prompt.",
 		Example: `  # Interactive setup
   nd init
 
@@ -29,7 +30,7 @@ func newInitCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "getting-started,configuration",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -52,17 +53,31 @@ func newInitCmd(app *App) *cobra.Command {
 				displayAgentDetection(w, detResult)
 			}
 
+			// Offer to install shell completions (interactive human path only;
+			// never fails init).
+			offerCompletionInstall(cmd, app)
+
 			// Deploy built-in assets using the registry
-			deployed, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)
+			deployedAssets, deployErr := deployBuiltinAssets(cmd, app, configDir, reg, app.initAgent)
 
 			if app.JSON {
+				// A failed builtin deploy must surface as a JSON error envelope
+				// plus a non-zero exit; never report status:"ok" when it failed.
+				if deployErr != nil {
+					_ = printJSONError(w, []output.JSONError{{
+						Code:    "builtin_deploy_failed",
+						Message: deployErr.Error(),
+					}})
+					return deployErr
+				}
 				result := map[string]interface{}{
 					"config_path":     app.ConfigPath,
 					"config_dir":      configDir,
 					"agents_detected": agentStatus,
 				}
-				if deployed > 0 {
-					result["builtin_deployed"] = deployed
+				if len(deployedAssets) > 0 {
+					result["builtin_deployed"] = len(deployedAssets)
+					result["builtin_assets"] = deployedAssets
 				}
 				return printJSON(w, result, false)
 			}
@@ -153,11 +168,18 @@ func agentDetectionMap(result agent.DetectionResult) map[string]bool {
 	return m
 }
 
+// builtinAsset is the JSON representation of a single deployed built-in asset
+// surfaced in `nd init --json` (name + type).
+type builtinAsset struct {
+	Name string       `json:"name"`
+	Type nd.AssetType `json:"type"`
+}
+
 // deployBuiltinAssets extracts and deploys all built-in assets during init.
 // Uses the provided registry to resolve the default agent. If ag is non-nil,
 // it overrides the registry's default (test use only).
-// Returns the number of deployed assets and any error.
-func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *agent.Registry, ag *agent.Agent) (int, error) {
+// Returns the list of deployed assets (name + type) and any error.
+func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *agent.Registry, ag *agent.Agent) ([]builtinAsset, error) {
 	w := cmd.OutOrStdout()
 
 	// Extract the builtin cache
@@ -166,13 +188,13 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 		if !app.Quiet {
 			printHuman(cmd.ErrOrStderr(), "warning: could not extract built-in assets: %v\n", err)
 		}
-		return 0, nil
+		return nil, nil
 	}
 
 	// Scan the builtin source for assets
 	scanResult := sourcemanager.ScanSource(nd.BuiltinSourceID, builtinPath)
 	if len(scanResult.Assets) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
 	// Build the summary for the prompt
@@ -189,13 +211,14 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 	}
 	promptMsg += "?"
 
-	// Decide whether to deploy
+	// Decide whether to deploy. --yes and --json both imply deploy.
 	shouldDeploy := app.Yes || app.JSON
 	if !shouldDeploy {
-		confirmed, err := confirm(cmd.InOrStdin(), w, promptMsg, false)
+		confirmed, err := promptDeployBuiltin(cmd.InOrStdin(), w, promptMsg, scanResult.Assets)
 		if err != nil {
-			// Non-interactive: default to deploying
-			shouldDeploy = true
+			// Non-interactive (non-TTY) without --yes: treat as decline. The
+			// builtin deploy is opt-in; --yes and --json still deploy above.
+			shouldDeploy = false
 		} else {
 			shouldDeploy = confirmed
 		}
@@ -205,51 +228,98 @@ func deployBuiltinAssets(cmd *cobra.Command, app *App, configDir string, reg *ag
 		if !app.Quiet && !app.JSON {
 			printHuman(w, "Skipped. Deploy later with 'nd deploy --source builtin'\n")
 		}
-		return 0, nil
+		return nil, nil
 	}
 
-	// Auto-detect agent from registry if not provided
-	if ag == nil {
-		detected, err := reg.Default()
-		if err != nil {
-			if !app.Quiet {
-				printHuman(cmd.ErrOrStderr(), "warning: no agent detected, skipping built-in deploy: %v\n", err)
-			}
-			return 0, nil
+	// Resolve the target agent set. When ag is provided (test override), deploy
+	// only to it. Otherwise honor config default_deploy_agents when set, falling
+	// back to the single default agent for back-compat. Init never fans out to
+	// every detected agent unless default_deploy_agents lists them.
+	var targets []*agent.Agent
+	if ag != nil {
+		targets = []*agent.Agent{ag}
+	} else {
+		var names []string
+		if sm, smErr := app.SourceManager(); smErr == nil {
+			names = sm.Config().DefaultDeployAgents
 		}
-		ag = detected
+		if len(names) > 0 {
+			reg.Detect()
+			for _, name := range names {
+				got, gErr := reg.Get(name)
+				if gErr != nil {
+					if !app.Quiet {
+						printHuman(cmd.ErrOrStderr(), "warning: unknown agent %q in default_deploy_agents, skipping\n", name)
+					}
+					continue
+				}
+				targets = append(targets, got)
+			}
+		}
+		if len(targets) == 0 {
+			detected, err := reg.Default()
+			if err != nil {
+				if !app.Quiet {
+					printHuman(cmd.ErrOrStderr(), "warning: no agent detected, skipping built-in deploy: %v\n", err)
+				}
+				return nil, nil
+			}
+			targets = []*agent.Agent{detected}
+		}
 	}
 
-	// Create the deploy engine
+	// Create the shared state store and deploy to each resolved agent.
 	sstore := state.NewStore(filepath.Join(configDir, "state", "deployments.yaml"))
 	backupDir := filepath.Join(configDir, "backups")
-	eng := deploy.New(sstore, ag, backupDir)
 
-	// Build deploy requests for all assets
-	reqs := make([]deploy.DeployRequest, len(scanResult.Assets))
-	for i, a := range scanResult.Assets {
-		reqs[i] = deploy.DeployRequest{
-			Asset:    a,
-			Scope:    nd.ScopeGlobal,
-			Origin:   nd.OriginManual,
-			Strategy: nd.SymlinkAbsolute,
+	// Resolve symlink strategy: config > default (absolute). nd init has no
+	// --relative/--absolute flags, so honor whatever the written config sets.
+	strategy := nd.SymlinkAbsolute
+	if sm, smErr := app.SourceManager(); smErr == nil {
+		cfg := sm.Config()
+		if cfg.SymlinkStrategy != "" {
+			strategy = cfg.SymlinkStrategy
 		}
 	}
 
-	bulkResult, err := eng.DeployBulk(reqs)
-	if err != nil {
-		return 0, fmt.Errorf("deploy built-in assets: %w", err)
+	// Deploy the built-in assets to each resolved agent, collecting the deployed
+	// asset list (name+type, for --json) and any failures across all agents.
+	deployedAssets := make([]builtinAsset, 0, len(scanResult.Assets)*len(targets))
+	var failures []deploy.DeployError
+	for _, target := range targets {
+		eng := deploy.New(sstore, target, backupDir)
+
+		reqs := make([]deploy.DeployRequest, len(scanResult.Assets))
+		for i, a := range scanResult.Assets {
+			reqs[i] = deploy.DeployRequest{
+				Asset:    a,
+				Scope:    nd.ScopeGlobal,
+				Origin:   nd.OriginManual,
+				Strategy: strategy,
+			}
+		}
+
+		bulkResult, err := eng.DeployBulk(reqs)
+		if err != nil {
+			return deployedAssets, fmt.Errorf("deploy built-in assets: %w", err)
+		}
+		for _, r := range bulkResult.Succeeded {
+			deployedAssets = append(deployedAssets, builtinAsset{
+				Name: r.Deployment.AssetName,
+				Type: r.Deployment.AssetType,
+			})
+		}
+		failures = append(failures, bulkResult.Failed...)
 	}
 
-	deployed := len(bulkResult.Succeeded)
 	if !app.Quiet && !app.JSON {
-		printHuman(w, "Deployed %d built-in asset(s)\n", deployed)
-		for _, f := range bulkResult.Failed {
+		printHuman(w, "Deployed %d built-in asset(s)\n", len(deployedAssets))
+		for _, f := range failures {
 			printHuman(cmd.ErrOrStderr(), "Failed: %s/%s: %v\n", f.AssetType, f.AssetName, f.Err)
 		}
 	}
 
-	return deployed, nil
+	return deployedAssets, nil
 }
 
 // buildAssetCountParts builds description fragments like "3 skills", "2 commands".

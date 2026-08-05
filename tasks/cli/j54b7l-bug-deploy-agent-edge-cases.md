@@ -1,7 +1,7 @@
 ---
 title: "Fix deploy/agent edge cases in backup target default detection and init symlink strategy"
 id: "j54b7l"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["deploy"]
@@ -18,17 +18,18 @@ context:
   - "cmd/app.go"
 verify:
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go build -o nd ."
+    run: "go build -o nd ."
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go test ./internal/deploy/... ./internal/agent/... ./cmd/..."
+    run: "go test ./internal/deploy/... ./internal/agent/... ./cmd/..."
   - type: bash
-    run: "cd /Users/larah/Repos/Personal/nd && go test -race ./internal/deploy/... ./internal/agent/... ./cmd/..."
+    run: "go test -race ./internal/deploy/... ./internal/agent/... ./cmd/..."
   - type: assert
     check: "Foreign-symlink conflict backup warning for a context asset includes the previous symlink target path"
   - type: assert
     check: "Registry.Default() does not select a binary-less stale GlobalDir over an agent whose binary is in PATH"
   - type: assert
     check: "nd init built-in deploy uses SymlinkRelative when the written config sets symlink_strategy: relative"
+completed_at: 2026-08-01
 ---
 
 ## Fix deploy/agent edge cases

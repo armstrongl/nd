@@ -1,7 +1,7 @@
 ---
 title: "Prevent state-file data loss on corrupt-rename and backup collision"
 id: "fpff5s"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["state", "data-loss"]
@@ -27,6 +27,7 @@ verify:
     check: "Two existing files with the same basename backed up within a single DeployBulk call produce two distinct backup paths and both survive on disk"
   - type: assert
     check: "DeploymentState.Validate() returns non-empty errors for duplicate identities or an invalid scope, and Store.Load() surfaces that as an error"
+completed_at: 2026-08-01
 ---
 
 ## Prevent state-file data loss on corrupt-rename and backup collision

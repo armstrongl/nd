@@ -213,6 +213,35 @@ func TestFirstRunPrompt_DryRun_SkipsInit(t *testing.T) {
 	}
 }
 
+func TestFirstRunPrompt_JSON_Errors(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "nonexistent", "config.yaml")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out, errBuf bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", configPath, "--json", "list"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error under --json when config is missing")
+	}
+	if !strings.Contains(err.Error(), "not initialized") {
+		t.Errorf("expected 'not initialized' error, got: %v", err)
+	}
+	// Under --json, offerInit must not auto-init or write human prose to stdout.
+	if out.Len() != 0 {
+		t.Errorf("expected empty stdout under --json, got: %s", out.String())
+	}
+	// Config must not have been created (no auto-init under --json).
+	if _, statErr := os.Stat(configPath); statErr == nil {
+		t.Error("config file should not be created under --json")
+	}
+}
+
 func TestFirstRunPrompt_YesFlag_RunsInit(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")

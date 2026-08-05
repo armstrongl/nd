@@ -1,7 +1,7 @@
 ---
 title: "Update nd to deploy to .agents/<type> by default"
 id: "bbd9oy"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["deploy", "breaking-change"]
@@ -38,6 +38,7 @@ verify:
     check: "FindProjectRoot detects a directory containing only .agents/ (no .git, no .claude); the not-found error message lists the correct marker(s)"
   - type: assert
     check: "Global scope (~/.claude/...) deploy paths are byte-for-byte unchanged; no global-scope test fixture was modified"
+completed_at: 2026-08-01
 ---
 
 ## Update nd to deploy to .agents/<type> by default
@@ -105,9 +106,9 @@ rename. The error message at `internal/nd/project.go:28` also hard-codes
   `"project\tDeploy to .claude/ in project"` (note: same line also contains
   the global completion `"global\tDeploy to ~/.claude/"` which must stay).
 - `internal/export/plugin.go:318` — generated install-doc text
-  `Copy to your `.claude/rules/` directory:`.
+  `Copy to your`.claude/rules/`directory:`.
 - `internal/export/plugin.go:326` — generated install-doc text
-  `Copy to your project root or `~/.claude/`:` (the `~/.claude/` half is
+  `Copy to your project root or`~/.claude/`:` (the `~/.claude/` half is
   global; only adjust project-scope wording if you change it at all).
 - Symlink creation: `internal/deploy/deploy.go:222` computes `linkPath` via
   `e.agent.DeployPath(...)`; `:248-263` `mkdirAll(parentDir)` then
@@ -146,7 +147,7 @@ Core (non-negotiable):
 - [ ] `internal/export/plugin.go:318` — update the generated install-doc
   text for project-scope rules to `.agents/rules/`.
 - [ ] `internal/export/plugin.go:326` — review the
-  `Copy to your project root or `~/.claude/`:` string; the `~/.claude/`
+  `Copy to your project root or`~/.claude/`:` string; the `~/.claude/`
   part is global and stays. Only reword if it implies a project-scope
   `.claude/` path.
 
@@ -212,7 +213,7 @@ Optional (only if implementing compat symlinks per decision #2):
 Docs:
 
 - [ ] `docs/guide/how-nd-works.md:82` — table row
-  `| Claude Code (default) | `~/.claude/` | `<project>/.claude/` |`: change
+  `| Claude Code (default) |`~/.claude/` | `<project>/.claude/`|`: change
   only the project column to `<project>/.agents/`.
 - [ ] `docs/guide/how-nd-works.md:99` — example
   `~/myproject/.claude/skills/greeting -> ...`: change to
@@ -222,7 +223,7 @@ Docs:
   the "NOT inside `.claude/`" phrasing to "NOT inside `.agents/`" so it
   stays accurate; do NOT move CLAUDE.md.
 - [ ] `docs/guide/getting-started.md:136` — bullet
-  `**Project** (...): ... (e.g., `.claude/` for Claude Code, ...)`: change
+  `**Project** (...): ... (e.g.,`.claude/`for Claude Code, ...)`: change
   the Claude Code project example to `.agents/`. Leave the global bullet at
   `:135` and the `~/.claude/` example at `:125` unchanged.
 - [ ] Sweep remaining docs for project-scope `.claude/<type>` examples:

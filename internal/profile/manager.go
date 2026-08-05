@@ -23,6 +23,13 @@ type DeployEngine interface {
 	RemoveBulk(reqs []deploy.RemoveRequest) (*deploy.BulkRemoveResult, error)
 }
 
+// EngineFactory returns a deploy engine bound to the named agent. Restore uses
+// it to route each snapshot deployment through an engine bound to that
+// deployment's recorded agent, so both the recreated symlink path and the
+// state record land on the correct agent. An empty name is treated as
+// "claude-code" (the v1→v2 migration default) before invocation.
+type EngineFactory func(agentName string) (DeployEngine, error)
+
 // SwitchResult describes the outcome of a profile switch.
 type SwitchResult struct {
 	FromProfile   string
@@ -283,9 +290,12 @@ func (m *Manager) DeployProfile(name string, engine DeployEngine, index *asset.I
 }
 
 // Restore reverts deployments to match a saved snapshot.
-// Removes all current deployments, then re-deploys snapshot entries
-// by looking up assets in the source index (re-deploy from sources strategy).
-func (m *Manager) Restore(snapshotName string, engine DeployEngine, index *asset.Index) (*RestoreResult, error) {
+// Removes all current deployments, then re-deploys snapshot entries by looking
+// up assets in the source index (re-deploy from sources strategy). Both the
+// removals and the re-deploys are grouped by their recorded agent and routed
+// through an engine bound to that agent (via engineFor), so each deployment is
+// recreated on the exact agent it was captured from.
+func (m *Manager) Restore(snapshotName string, engineFor EngineFactory, index *asset.Index) (*RestoreResult, error) {
 	// Try user snapshot first, then auto
 	snap, err := m.store.GetSnapshot(snapshotName, false)
 	if err != nil {
@@ -303,25 +313,43 @@ func (m *Manager) Restore(snapshotName string, engine DeployEngine, index *asset
 		return nil, fmt.Errorf("load state: %w", err)
 	}
 
-	// Remove all current deployments
+	// Remove all current deployments, grouped by their recorded agent so each
+	// removal targets the exact deployment (RemoveRequest.Agent populated).
 	if len(st.Deployments) > 0 {
-		removeReqs := make([]deploy.RemoveRequest, len(st.Deployments))
-		for i, d := range st.Deployments {
-			removeReqs[i] = deploy.RemoveRequest{
+		byAgent := make(map[string][]deploy.RemoveRequest)
+		var order []string
+		for _, d := range st.Deployments {
+			an := agentOrDefault(d.Agent)
+			if _, ok := byAgent[an]; !ok {
+				order = append(order, an)
+			}
+			byAgent[an] = append(byAgent[an], deploy.RemoveRequest{
 				Identity:    d.Identity(),
 				Scope:       d.Scope,
 				ProjectRoot: d.ProjectPath,
+				Agent:       an,
+			})
+		}
+		merged := &deploy.BulkRemoveResult{}
+		for _, an := range order {
+			eng, err := engineFor(an)
+			if err != nil {
+				return nil, fmt.Errorf("deploy engine for agent %q: %w", an, err)
 			}
+			removed, err := eng.RemoveBulk(byAgent[an])
+			if err != nil {
+				return nil, fmt.Errorf("remove current deployments: %w", err)
+			}
+			merged.Succeeded = append(merged.Succeeded, removed.Succeeded...)
+			merged.Failed = append(merged.Failed, removed.Failed...)
 		}
-		removed, err := engine.RemoveBulk(removeReqs)
-		if err != nil {
-			return nil, fmt.Errorf("remove current deployments: %w", err)
-		}
-		result.Removed = removed
+		result.Removed = merged
 	}
 
-	// Re-deploy snapshot entries from sources
-	var deployReqs []deploy.DeployRequest
+	// Re-deploy snapshot entries from sources, grouped by their recorded agent
+	// so the engine binding recreates each on the correct agent.
+	deployByAgent := make(map[string][]deploy.DeployRequest)
+	var deployOrder []string
 	for _, entry := range snap.Deployments {
 		id := asset.Identity{
 			SourceID: entry.SourceID,
@@ -333,7 +361,11 @@ func (m *Manager) Restore(snapshotName string, engine DeployEngine, index *asset
 			result.MissingAssets = append(result.MissingAssets, entry)
 			continue
 		}
-		deployReqs = append(deployReqs, deploy.DeployRequest{
+		an := agentOrDefault(entry.Agent)
+		if _, ok := deployByAgent[an]; !ok {
+			deployOrder = append(deployOrder, an)
+		}
+		deployByAgent[an] = append(deployByAgent[an], deploy.DeployRequest{
 			Asset:       *a,
 			Scope:       entry.Scope,
 			ProjectRoot: entry.ProjectPath,
@@ -341,12 +373,21 @@ func (m *Manager) Restore(snapshotName string, engine DeployEngine, index *asset
 		})
 	}
 
-	if len(deployReqs) > 0 {
-		deployed, err := engine.DeployBulk(deployReqs)
-		if err != nil {
-			return nil, fmt.Errorf("deploy snapshot assets: %w", err)
+	if len(deployOrder) > 0 {
+		merged := &deploy.BulkDeployResult{}
+		for _, an := range deployOrder {
+			eng, err := engineFor(an)
+			if err != nil {
+				return nil, fmt.Errorf("deploy engine for agent %q: %w", an, err)
+			}
+			deployed, err := eng.DeployBulk(deployByAgent[an])
+			if err != nil {
+				return nil, fmt.Errorf("deploy snapshot assets: %w", err)
+			}
+			merged.Succeeded = append(merged.Succeeded, deployed.Succeeded...)
+			merged.Failed = append(merged.Failed, deployed.Failed...)
 		}
-		result.Deployed = deployed
+		result.Deployed = merged
 	}
 
 	// Clear active profile on restore (snapshot may not correspond to any profile)
@@ -355,4 +396,13 @@ func (m *Manager) Restore(snapshotName string, engine DeployEngine, index *asset
 	}
 
 	return result, nil
+}
+
+// agentOrDefault maps an empty agent name to "claude-code", matching the v1→v2
+// state migration rule used by the deploy engine's removeOne.
+func agentOrDefault(name string) string {
+	if name == "" {
+		return "claude-code"
+	}
+	return name
 }

@@ -30,8 +30,8 @@ type statusScreen struct {
 	// statusLoadedMsg results from a previous scope's goroutine are discarded.
 	generation uint64
 
-	renderedLines []string  // content lines cached after data loads
-	height        int       // terminal height, updated by tea.WindowSizeMsg
+	renderedLines []string // content lines cached after data loads
+	height        int      // terminal height, updated by tea.WindowSizeMsg
 	scroll        listScroll
 }
 
@@ -64,6 +64,38 @@ func (s *statusScreen) HelpItems() []HelpItem {
 		{"f", "fix"},
 	}
 	return items
+}
+
+// HelpSections groups the status keybindings under headings for the '?' overlay.
+func (s *statusScreen) HelpSections() []HelpSection {
+	if s.filter.active {
+		return []HelpSection{
+			{Title: "Filter", Items: []HelpItem{
+				{"esc", "clear filter"},
+				{"enter", "apply filter"},
+				{"backspace", "delete character"},
+			}},
+		}
+	}
+	return []HelpSection{
+		{Title: "Navigation", Items: []HelpItem{
+			{"j/k", "scroll"},
+			{"esc", "back"},
+			{"q", "quit"},
+		}},
+		{Title: "Actions", Items: []HelpItem{
+			{"d", "deploy assets"},
+			{"r", "remove assets"},
+			{"f", "fix (run doctor)"},
+		}},
+		{Title: "Filter", Items: []HelpItem{
+			{"/", "filter by name"},
+		}},
+		{Title: "Tips", Items: []HelpItem{
+			{GlyphDot, "Press / to filter deployments by name."},
+			{GlyphDot, "Press d, r, or f to act on what you see."},
+		}},
+	}
 }
 
 func (s *statusScreen) Init() tea.Cmd {

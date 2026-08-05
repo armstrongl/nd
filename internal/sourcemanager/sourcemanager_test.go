@@ -5,10 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/sourcemanager"
 )
+
+// userAssetNames returns the set of asset names discovered in a scan, excluding
+// the always-present builtin source (mirrors the filtering in TestScan).
+func userAssetNames(summary *sourcemanager.ScanSummary) map[string]bool {
+	names := make(map[string]bool)
+	for _, a := range summary.Index.All() {
+		if a.SourceID != nd.BuiltinSourceID {
+			names[a.Name] = true
+		}
+	}
+	return names
+}
 
 func TestNewWithMissingConfig(t *testing.T) {
 	dir := t.TempDir()
@@ -167,6 +180,122 @@ func TestScan(t *testing.T) {
 		for _, a := range all {
 			t.Logf("  %s (source: %s)", a.Identity, a.SourceID)
 		}
+	}
+}
+
+// TestScanReloadsExternalConfigEdit proves the long-lived-process staleness fix:
+// after an external rewrite of config.yaml (as a concurrent `nd source add` in
+// another shell would produce), the next Scan in the same SourceManager reflects
+// the new source set.
+func TestScanReloadsExternalConfigEdit(t *testing.T) {
+	src1 := makeSourceTree(t, map[string][]string{
+		"skills": {"alpha/"},
+	})
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if _, err := sm.AddLocal(src1, ""); err != nil {
+		t.Fatalf("AddLocal: %v", err)
+	}
+	summary, err := sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if names := userAssetNames(summary); !names["alpha"] {
+		t.Fatalf("expected 'alpha' before external edit, got %v", names)
+	}
+
+	// Externally rewrite config.yaml to add a second local source, using the
+	// same YAML shape as TestSourcesPopulated.
+	src2 := makeSourceTree(t, map[string][]string{
+		"skills": {"beta/"},
+	})
+	external := fmt.Sprintf(`version: 1
+default_scope: global
+default_agent: claude-code
+symlink_strategy: absolute
+sources:
+  - id: src1
+    type: local
+    path: %s
+  - id: src2
+    type: local
+    path: %s
+`, src1, src2)
+	if err := os.WriteFile(configPath, []byte(external), 0o644); err != nil {
+		t.Fatalf("external rewrite: %v", err)
+	}
+	// Guarantee a detectable mtime change even on coarse-granularity filesystems
+	// (the size also changes, so detection does not rely on mtime alone).
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(configPath, future, future); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	summary, err = sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan after external edit: %v", err)
+	}
+	names := userAssetNames(summary)
+	if !names["beta"] {
+		t.Errorf("expected externally-added source's asset 'beta' after reload, got %v", names)
+	}
+	if !names["alpha"] {
+		t.Errorf("expected original 'alpha' to remain, got %v", names)
+	}
+}
+
+// TestScanReflectsNewAssetInRegisteredSource guards against introducing a
+// directory-mtime short-circuit: adding a file inside an already-registered
+// source (config.yaml unchanged) must appear on the next scan.
+func TestScanReflectsNewAssetInRegisteredSource(t *testing.T) {
+	src := makeSourceTree(t, map[string][]string{
+		"skills": {"first/"},
+	})
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	sm, err := sourcemanager.New(configPath, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := sm.AddLocal(src, ""); err != nil {
+		t.Fatalf("AddLocal: %v", err)
+	}
+
+	summary, err := sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if names := userAssetNames(summary); names["second"] {
+		t.Fatalf("did not expect 'second' before it is created, got %v", names)
+	}
+
+	// Add a new skill inside the already-registered source. config.yaml is not
+	// touched, so only a per-source scan (not a config reload) surfaces it.
+	newSkill := filepath.Join(src, "skills", "second")
+	if err := os.MkdirAll(newSkill, 0o755); err != nil {
+		t.Fatalf("mkdir new skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(newSkill, "SKILL.md"), []byte("# skill"), 0o644); err != nil {
+		t.Fatalf("write SKILL.md: %v", err)
+	}
+
+	summary, err = sm.Scan()
+	if err != nil {
+		t.Fatalf("Scan after in-source add: %v", err)
+	}
+	names := userAssetNames(summary)
+	if !names["second"] {
+		t.Errorf("expected new in-source asset 'second' on next scan, got %v", names)
+	}
+	if !names["first"] {
+		t.Errorf("expected original 'first' to remain, got %v", names)
 	}
 }
 

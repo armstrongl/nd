@@ -73,9 +73,27 @@ func (s *settingsScreen) buildMenu() {
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
 }
 
-func (s *settingsScreen) Title() string    { return "Settings" }
+func (s *settingsScreen) Title() string { return "Settings" }
 func (s *settingsScreen) InputActive() bool {
 	return s.step == settingsMenu || s.step == settingsSwitchScope
+}
+
+// FullHelpItems returns step-specific keybindings for the help bar and overlay.
+func (s *settingsScreen) FullHelpItems() []HelpItem {
+	switch s.step {
+	case settingsShowResult:
+		return []HelpItem{
+			{"enter", "return"},
+			{"q", "quit"},
+		}
+	default: // menu, switchScope
+		return []HelpItem{
+			{"esc", "back"},
+			{"j/k", "navigate"},
+			{"enter", "select"},
+			{"q", "quit"},
+		}
+	}
 }
 
 func (s *settingsScreen) Init() tea.Cmd {
@@ -98,13 +116,24 @@ func (s *settingsScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, s.form.Init()
 
 	case settingsScopeSelectedMsg:
-		// Project scope requires a project root.
-		if msg.scope == nd.ScopeProject && s.svc.GetProjectRoot() == "" {
-			s.result = "Cannot switch to project scope: no project root detected."
-			s.step = settingsShowResult
-			return s, nil
+		projectRoot := s.svc.GetProjectRoot()
+		// Project scope requires a project root; resolve it on demand from cwd
+		// so switching works even when the TUI was launched in global scope.
+		if msg.scope == nd.ScopeProject {
+			root, err := s.svc.ResolveProjectRoot()
+			if err != nil {
+				s.result = fmt.Sprintf("Cannot switch to project scope: %v", err)
+				s.step = settingsShowResult
+				return s, nil
+			}
+			if root == "" {
+				s.result = "Cannot switch to project scope: no project root detected."
+				s.step = settingsShowResult
+				return s, nil
+			}
+			projectRoot = root
 		}
-		s.svc.ResetForScope(msg.scope, s.svc.GetProjectRoot())
+		s.svc.ResetForScope(msg.scope, projectRoot)
 		s.result = fmt.Sprintf("Scope switched to %q.", msg.scope)
 		s.step = settingsShowResult
 		return s, tea.Batch(

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/armstrongl/nd/internal/profile"
 	"github.com/armstrongl/nd/internal/state"
 )
-
 
 func tempDirs(t *testing.T) (string, string) {
 	t.Helper()
@@ -53,6 +54,66 @@ func TestStoreCreateProfileDuplicate(t *testing.T) {
 	}
 	if err := store.CreateProfile(p); err == nil {
 		t.Error("should reject duplicate profile name")
+	}
+}
+
+// TestStoreCreateProfileConcurrent is a regression test for the TOCTOU race
+// where two concurrent CreateProfile calls with the same name could both pass
+// the existence check and both write, silently overwriting one another. With
+// the file lock in place, exactly one call must succeed and every other must
+// fail with an "already exists" error, leaving one intact file on disk.
+func TestStoreCreateProfileConcurrent(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	p := profile.Profile{
+		Version:   nd.SchemaVersion,
+		Name:      "race",
+		CreatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second),
+		Assets: []profile.ProfileAsset{
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "review", Scope: nd.ScopeGlobal},
+		},
+	}
+
+	const n = 8
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errs []error
+
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			err := store.CreateProfile(p)
+			mu.Lock()
+			errs = append(errs, err)
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	nilCount := 0
+	for _, err := range errs {
+		if err == nil {
+			nilCount++
+			continue
+		}
+		if !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("expected 'already exists' error from losing writer, got: %v", err)
+		}
+	}
+	if nilCount != 1 {
+		t.Fatalf("expected exactly 1 successful CreateProfile, got %d (of %d)", nilCount, n)
+	}
+
+	// The single persisted profile must be intact and readable.
+	got, err := store.GetProfile("race")
+	if err != nil {
+		t.Fatalf("GetProfile after race: %v", err)
+	}
+	if got.Name != "race" || len(got.Assets) != 1 {
+		t.Errorf("persisted profile corrupted: name=%q assets=%d", got.Name, len(got.Assets))
 	}
 }
 
@@ -276,6 +337,67 @@ func TestStoreSaveSnapshotDuplicate(t *testing.T) {
 	_ = store.SaveSnapshot(snap)
 	if err := store.SaveSnapshot(snap); err == nil {
 		t.Error("should reject duplicate snapshot name")
+	}
+}
+
+// TestStoreSaveSnapshotConcurrent is a regression test for the TOCTOU race in
+// SaveSnapshot: concurrent same-name saves must not both write. Exactly one
+// call succeeds; every other returns an "already exists" error.
+func TestStoreSaveSnapshotConcurrent(t *testing.T) {
+	profilesDir, snapshotsDir := tempDirs(t)
+	store := profile.NewStore(profilesDir, snapshotsDir)
+
+	snap := profile.Snapshot{
+		Version:   nd.SchemaVersion,
+		Name:      "race-snap",
+		CreatedAt: time.Now().Truncate(time.Second),
+		Deployments: []profile.SnapshotEntry{
+			{
+				SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "review",
+				SourcePath: "/a/b", LinkPath: "/c/d", Scope: nd.ScopeGlobal,
+				Origin: nd.OriginManual, DeployedAt: time.Now().Truncate(time.Second),
+			},
+		},
+	}
+
+	const n = 8
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errs []error
+
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			err := store.SaveSnapshot(snap)
+			mu.Lock()
+			errs = append(errs, err)
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	nilCount := 0
+	for _, err := range errs {
+		if err == nil {
+			nilCount++
+			continue
+		}
+		if !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("expected 'already exists' error from losing writer, got: %v", err)
+		}
+	}
+	if nilCount != 1 {
+		t.Fatalf("expected exactly 1 successful SaveSnapshot, got %d (of %d)", nilCount, n)
+	}
+
+	// The single persisted snapshot must be intact and readable.
+	got, err := store.GetSnapshot("race-snap", false)
+	if err != nil {
+		t.Fatalf("GetSnapshot after race: %v", err)
+	}
+	if len(got.Deployments) != 1 {
+		t.Errorf("persisted snapshot corrupted: deployments=%d, want 1", len(got.Deployments))
 	}
 }
 

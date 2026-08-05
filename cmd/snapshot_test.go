@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -138,6 +139,60 @@ func TestSnapshotListCmd_Empty(t *testing.T) {
 	}
 }
 
+func TestSnapshotBare_DelegatesToList(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Bare `nd snapshot` should behave exactly like `nd snapshot list`.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var bare bytes.Buffer
+	rootCmd.SetOut(&bare)
+	rootCmd.SetErr(&bare)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	var list bytes.Buffer
+	rootCmd2.SetOut(&list)
+	rootCmd2.SetErr(&list)
+	rootCmd2.SetArgs([]string{"--config", configPath, "snapshot", "list"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+
+	if bare.String() != list.String() {
+		t.Errorf("bare `nd snapshot` output %q != `nd snapshot list` output %q", bare.String(), list.String())
+	}
+	if strings.Contains(bare.String(), "Usage:") || strings.Contains(bare.String(), "Available Commands:") {
+		t.Errorf("bare `nd snapshot` should not print Cobra usage, got:\n%s", bare.String())
+	}
+	if !strings.Contains(bare.String(), "No snapshots") {
+		t.Errorf("expected 'No snapshots' in bare output, got: %s", bare.String())
+	}
+}
+
+func TestSnapshotBare_UnknownSubcommand(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "bogus"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("expected 'unknown command' error, got: %v", err)
+	}
+}
+
 func TestSnapshotListCmd_JSON(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
@@ -188,6 +243,52 @@ func TestSnapshotDeleteCmd(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "Deleted") {
 		t.Errorf("expected 'Deleted' in output, got: %s", got)
+	}
+}
+
+func TestSnapshotDeleteCmd_Quiet_SuppressesCancel(t *testing.T) {
+	setTestTerminal(t, true)
+	configPath, _ := setupDeployEnv(t)
+
+	// Save a snapshot to delete.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "snapshot", "save", "q-snap"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Decline the delete under --quiet: the cancellation line must be suppressed.
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetIn(strings.NewReader("n\n"))
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--quiet", "snapshot", "delete", "q-snap"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out.String(), "Cancelled") {
+		t.Errorf("expected cancellation message suppressed under --quiet, got: %s", out.String())
+	}
+
+	// The snapshot must still exist (delete was declined).
+	out.Reset()
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "snapshot", "list"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "q-snap") {
+		t.Errorf("expected snapshot to survive a declined delete, got: %s", out.String())
 	}
 }
 
@@ -272,6 +373,12 @@ func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 		t.Fatalf("save failed: %v", err)
 	}
 
+	// Capture live deployment state before the dry-run restore.
+	before, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state before dry-run: %v", err)
+	}
+
 	// Dry-run restore
 	app2 := &App{}
 	rootCmd2 := NewRootCmd(app2)
@@ -286,6 +393,15 @@ func TestSnapshotRestoreCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Live deployment state must be byte-for-byte unchanged by a dry-run restore.
+	after, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state after dry-run: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("dry-run restore must not modify deployment state")
 	}
 }
 

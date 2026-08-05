@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/armstrongl/nd/internal/nd"
@@ -10,14 +12,21 @@ import (
 // Model is the root Bubble Tea model. It manages a stack of screens,
 // a persistent header, and a context-sensitive help bar.
 type Model struct {
-	svc     Services
-	styles  Styles
-	screens []Screen
-	header  Header
-	helpbar HelpBar
-	width   int
-	height  int
-	isDark  bool
+	svc         Services
+	styles      Styles
+	screens     []Screen
+	header      Header
+	helpbar     HelpBar
+	helpOverlay HelpOverlay
+	width       int
+	height      int
+	isDark      bool
+
+	// helpOpen is true while the '?' help overlay is showing.
+	helpOpen bool
+	// firstRunTip shows a one-time "Press ? for help" hint until the first
+	// key press dismisses it and the help_seen flag is persisted.
+	firstRunTip bool
 }
 
 // Run launches the TUI. It detects the terminal color scheme, determines the
@@ -35,10 +44,11 @@ func Run(svc Services) error {
 	}
 
 	m := Model{
-		svc:     svc,
-		styles:  styles,
-		isDark:  isDark,
-		screens: []Screen{initial},
+		svc:         svc,
+		styles:      styles,
+		isDark:      isDark,
+		screens:     []Screen{initial},
+		firstRunTip: !helpSeen(svc),
 	}
 
 	p := tea.NewProgram(m)
@@ -113,6 +123,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		current := m.screens[len(m.screens)-1]
 
+		// Dismiss the first-run tip on the first key press and persist the
+		// flag so it never reappears (best-effort, matching App.LogOp).
+		if m.firstRunTip {
+			m.firstRunTip = false
+			_ = markHelpSeen(m.svc)
+		}
+
+		// The help overlay is modal: while it is open, '?'/esc close it and
+		// every other key is swallowed so esc does not also pop the nav stack.
+		if m.helpOpen {
+			if s := msg.String(); s == "?" || s == "esc" {
+				m.helpOpen = false
+			}
+			return m, nil
+		}
+
 		// When text input is active, only ctrl+c force-quits.
 		if current.InputActive() {
 			if msg.String() == "ctrl+c" {
@@ -120,6 +146,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Fall through to delegate to screen.
 		} else {
+			// '?' opens the help overlay when no text input is focused.
+			if msg.String() == "?" {
+				m.helpOpen = true
+				return m, nil
+			}
 			// Global keys only when no text input is active.
 			switch msg.String() {
 			case "q", "ctrl+c":
@@ -153,7 +184,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// toggleScope switches between global and project scope inline.
+// toggleScope switches between global and project scope inline. Switching to
+// project scope resolves the project root on demand from cwd; when it genuinely
+// cannot be resolved (cwd is not inside a project), it navigates to a visible
+// error screen instead of silently doing nothing.
 func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 	current := m.svc.GetScope()
 	var newScope nd.Scope
@@ -163,12 +197,25 @@ func (m Model) toggleScope() (tea.Model, tea.Cmd) {
 		newScope = nd.ScopeProject
 	}
 
-	// Project scope requires a project root.
-	if newScope == nd.ScopeProject && m.svc.GetProjectRoot() == "" {
-		return m, nil
+	projectRoot := m.svc.GetProjectRoot()
+	// Project scope requires a project root; resolve it on demand from cwd so
+	// the toggle works even when the TUI was launched in global scope. A genuine
+	// resolution failure surfaces a visible message (mirroring scopeScreen's
+	// error step) rather than a silent no-op.
+	if newScope == nd.ScopeProject {
+		root, err := m.svc.ResolveProjectRoot()
+		if err != nil || root == "" {
+			msg := "Cannot switch to project scope: no project root detected."
+			if err != nil {
+				msg = fmt.Sprintf("Cannot switch to project scope: %v", err)
+			}
+			screen := newScopeErrorScreen(m.svc, m.styles, m.isDark, msg)
+			return m, func() tea.Msg { return NavigateMsg{Screen: screen} }
+		}
+		projectRoot = root
 	}
 
-	m.svc.ResetForScope(newScope, m.svc.GetProjectRoot())
+	m.svc.ResetForScope(newScope, projectRoot)
 	return m, tea.Batch(
 		func() tea.Msg { return ScopeSwitchedMsg{} },
 		func() tea.Msg { return RefreshHeaderMsg{} },
@@ -196,11 +243,23 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 
+	currentScreen := m.screens[len(m.screens)-1]
 	header := m.header.View(m.styles, m.width)
-	content := m.screens[len(m.screens)-1].View().Content
-	helpbar := m.helpbar.View(m.styles, m.screens[len(m.screens)-1], m.width)
+	helpbar := m.helpbar.View(m.styles, currentScreen, m.width)
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, "", content, "", helpbar))
+	content := currentScreen.View().Content
+	if m.helpOpen {
+		content = m.helpOverlay.View(m.styles, currentScreen, m.width, m.height)
+	}
+
+	segments := []string{header, "", content, "", helpbar}
+	if m.firstRunTip && !m.helpOpen {
+		// One-time hint, shown until the first key press dismisses it.
+		tip := "  " + m.styles.Subtle.Render("Press ? for help at any time")
+		segments = []string{header, "", content, "", tip, helpbar}
+	}
+
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, segments...))
 	v.AltScreen = true
 	return v
 }

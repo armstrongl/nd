@@ -9,33 +9,33 @@ import (
 
 func claudeCode() agent.Agent {
 	return agent.Agent{
-		Name:               "claude-code",
-		GlobalDir:          "/Users/dev/.claude",
-		ProjectDir:         ".claude",
-		SourceAlias:        "claude",
-		Binary:             "claude",
-		SupportedTypes:     nd.DeployableAssetTypes(),
-		DefaultContextFile: "",
+		Name:                "claude-code",
+		GlobalDir:           "/Users/dev/.claude",
+		ProjectDir:          ".agents",
+		SourceAlias:         "claude",
+		Binary:              "claude",
+		SupportedTypes:      nd.DeployableAssetTypes(),
+		DefaultContextFile:  "",
 		ContextInProjectDir: false,
-		VersionPattern:     `(?i)claude`,
-		Detected:           true,
-		InPath:             true,
+		VersionPattern:      `(?i)claude`,
+		Detected:            true,
+		InPath:              true,
 	}
 }
 
 func copilot() agent.Agent {
 	return agent.Agent{
-		Name:               "copilot",
-		GlobalDir:          "/Users/dev/.copilot",
-		ProjectDir:         ".github",
-		SourceAlias:        "copilot",
-		Binary:             "copilot",
-		SupportedTypes:     []nd.AssetType{nd.AssetSkill, nd.AssetAgent, nd.AssetContext},
-		DefaultContextFile: "copilot-instructions.md",
+		Name:                "copilot",
+		GlobalDir:           "/Users/dev/.copilot",
+		ProjectDir:          ".github",
+		SourceAlias:         "copilot",
+		Binary:              "copilot",
+		SupportedTypes:      []nd.AssetType{nd.AssetSkill, nd.AssetAgent, nd.AssetContext},
+		DefaultContextFile:  "copilot-instructions.md",
 		ContextInProjectDir: true,
-		VersionPattern:     `(?i)copilot|github\.copilot`,
-		Detected:           true,
-		InPath:             true,
+		VersionPattern:      `(?i)copilot|github\.copilot`,
+		Detected:            true,
+		InPath:              true,
 	}
 }
 
@@ -57,7 +57,7 @@ func TestDeployPathSkillProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "/Users/dev/myapp/.claude/skills/review"
+	want := "/Users/dev/myapp/.agents/skills/review"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -81,7 +81,7 @@ func TestDeployPathContextProjectRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Context files deploy to project root, not inside .claude/
+	// Context files deploy to project root, not inside .agents/
 	want := "/Users/dev/myapp/CLAUDE.md"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)

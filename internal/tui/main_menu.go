@@ -60,8 +60,18 @@ func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen
 }
 
 // Screen interface
-func (m *mainMenuScreen) Title() string    { return "Main Menu" }
+func (m *mainMenuScreen) Title() string     { return "Main Menu" }
 func (m *mainMenuScreen) InputActive() bool { return false }
+
+// FullHelpItems returns the menu keybindings for the help bar and overlay.
+func (m *mainMenuScreen) FullHelpItems() []HelpItem {
+	return []HelpItem{
+		{"j/k", "navigate"},
+		{"enter", "select"},
+		{"?", "help"},
+		{"q", "quit"},
+	}
+}
 
 // Init initializes the embedded huh form.
 func (m *mainMenuScreen) Init() tea.Cmd {
@@ -125,11 +135,14 @@ func (m *mainMenuScreen) handleSelection() tea.Cmd {
 	case "settings":
 		screen = newSettingsScreen(m.svc, m.styles, m.isDark)
 	case "export":
-		// Export has no TUI screen yet — return to the main menu.
-		return func() tea.Msg { return BackMsg{} }
+		// Export is a CLI-only action; show a notice pointing to nd export.
+		screen = newExportScreen(m.svc, m.styles, m.isDark)
 	case "quit":
 		return tea.Quit
 	default:
+		// Deliberate no-op: the separator sentinels (menuSepManage/menuSepSystem)
+		// and any unknown value are not real actions. Returning nil keeps the menu
+		// put; Update resets navigated=false on a nil cmd so it stays responsive.
 		return nil
 	}
 	return func() tea.Msg { return NavigateMsg{Screen: screen} }

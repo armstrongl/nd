@@ -20,7 +20,7 @@ func newPinCmd(app *App) *cobra.Command {
 			"docs.guides":  "profiles-and-snapshots",
 			"docs.related": "nd unpin,nd deploy",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginPinned, "Pinned")
 		},
@@ -41,7 +41,7 @@ func newUnpinCmd(app *App) *cobra.Command {
 			"docs.guides":  "profiles-and-snapshots",
 			"docs.related": "nd pin,nd deploy",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return setAssetOrigin(cmd, app, args[0], nd.OriginManual, "Unpinned")
 		},

@@ -63,6 +63,8 @@ This creates `~/.config/nd/config.yaml` with sensible defaults and sets up direc
 
 [`nd init`](../reference/nd_init.md) then prompts you to deploy nd's built-in assets (skills, commands, and an agent) to the detected default agent. Answer **y** to deploy them immediately so you have something to work with, or **n** to skip — you can deploy them later with [`nd deploy`](../reference/nd_deploy.md) `--source builtin`. Pass `--yes` to skip the prompt entirely and deploy automatically.
 
+When you run `nd init` interactively, it also detects your shell from `$SHELL` and offers to install tab-completion for it (bash, zsh, or fish). Answer **y** to install completions to the standard location for your shell, or **n**/Enter to skip. This step is opt-in only: `--yes`, `--json`, and `--quiet` never prompt for or install completions. See [Shell completions](#shell-completions) below to install them later.
+
 If nd cannot detect any coding agent (e.g., none are installed or not in `$PATH`), it skips the built-in deploy with a warning and continues. Install an agent and run `nd deploy --source builtin` afterward.
 
 If a config file already exists, `nd init` exits with an error. Use [`nd settings edit`](../reference/nd_settings_edit.md) to modify an existing configuration.
@@ -122,7 +124,7 @@ nd deploy skills/greeting commands/hello agents/researcher
 
 Or run `nd deploy` with no arguments to get an interactive picker. Many nd commands support this interactive mode — [`nd remove`](../reference/nd_remove.md), [`nd profile switch`](../reference/nd_profile_switch.md), [`nd snapshot restore`](../reference/nd_snapshot_restore.md), and others present a picker when run without arguments. nd disables interactive mode in non-TTY environments (pipes, scripts) and when `--json` is set.
 
-nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
+nd creates a symlink from your agent's config directory (e.g., `~/.claude/skills/greeting` for Claude Code, or `~/.copilot/skills/greeting` for Copilot CLI) back to the source. The source stays where it is: edit it and the change shows up immediately. See [How nd works](how-nd-works.md) for the full picture of what happens on disk.
 
 **Deploy by type:**
 
@@ -133,7 +135,7 @@ nd deploy --type skills greeting
 **Scopes:**
 
 - **Global** (`--scope global`, default): Deploys to your agent's global config directory (e.g., `~/.claude/` for Claude Code, `~/.copilot/` for Copilot CLI)
-- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.claude/` for Claude Code, `.github/` for Copilot CLI)
+- **Project** (`--scope project`): Deploys to the project-level config directory (e.g., `.agents/` for Claude Code, `.github/` for Copilot CLI)
 
 ```shell {filename="Terminal"}
 nd deploy skills/greeting --scope project
@@ -180,7 +182,7 @@ nd doctor
 
 ### Shell completions
 
-Enable tab-completion for your shell with [`nd completion`](../reference/nd_completion.md):
+If you ran `nd init` interactively and accepted its completion prompt, tab-completion is already installed for your shell. You can also install or reinstall it at any time with [`nd completion`](../reference/nd_completion.md):
 
 ```shell {filename="Terminal"}
 # Print completion script

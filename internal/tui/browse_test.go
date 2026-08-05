@@ -181,9 +181,9 @@ func TestBrowseScreen_DeployedMarkerShown(t *testing.T) {
 	})
 
 	v := s.View()
-	// deployed assets show a marker (e.g. "*")
-	if !strings.Contains(v.Content, "*") {
-		t.Errorf("deployed asset should show '*' marker, got: %q", v.Content)
+	// deployed assets show the styled deployed glyph (checkmark) in place of "*"
+	if !strings.Contains(v.Content, GlyphDeployed) {
+		t.Errorf("deployed asset should show deployed glyph %q, got: %q", GlyphDeployed, v.Content)
 	}
 }
 
@@ -481,7 +481,7 @@ func TestBrowseScreen_ScrollOffsetAdjustsWhenCursorMovesUp(t *testing.T) {
 	s.cursor = 9
 	s.scroll.offset = 5
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 8, fine
-	s.scroll.offset = 5                                       // force offset above cursor
+	s.scroll.offset = 5                                      // force offset above cursor
 	s.cursor = 3
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 2 < offset 5 → adjust
 

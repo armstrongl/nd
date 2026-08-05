@@ -1,7 +1,7 @@
 ---
 title: "Fix silent TUI handlers across screens"
 id: "dze4e7"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["tui"]
@@ -34,6 +34,7 @@ verify:
     check: "Ctrl+S toggle to project scope with no resolvable project root shows a visible message instead of silently doing nothing"
   - type: assert
     check: "Pin no-change, deploy no-selection, and remove no-selection paths each render a visible message before returning"
+completed_at: 2026-08-01
 ---
 
 ## Fix silent TUI handlers across screens

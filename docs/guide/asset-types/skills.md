@@ -54,7 +54,7 @@ The agent sees the full directory contents through the symlink.
 | Scope | Claude Code | Copilot CLI |
 |-------|-------------|-------------|
 | Global | `~/.claude/skills/<name>` | `~/.copilot/skills/<name>` |
-| Project | `.claude/skills/<name>` | `.github/skills/<name>` |
+| Project | `.agents/skills/<name>` | `.github/skills/<name>` |
 
 To undeploy a skill, run [`nd remove`](../../reference/nd_remove.md) `skills/greeting`.
 

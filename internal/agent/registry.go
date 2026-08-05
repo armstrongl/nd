@@ -36,7 +36,7 @@ func New(cfg config.Config) *Registry {
 		{
 			Name:                "claude-code",
 			GlobalDir:           filepath.Join(homeDir, ".claude"),
-			ProjectDir:          ".claude",
+			ProjectDir:          ".agents",
 			SourceAlias:         "claude",
 			Binary:              "claude",
 			SupportedTypes:      nd.DeployableAssetTypes(),
@@ -103,6 +103,17 @@ func (r *Registry) All() []Agent {
 	result := make([]Agent, len(r.agents))
 	copy(result, r.agents)
 	return result
+}
+
+// KnownAgentNames returns the names of all built-in agents, independent of
+// detection. Useful for flag validation and shell completion.
+func KnownAgentNames() []string {
+	r := New(config.Config{})
+	names := make([]string, len(r.agents))
+	for i := range r.agents {
+		names[i] = r.agents[i].Name
+	}
+	return names
 }
 
 // defaultRunCommand executes a binary with a 5-second timeout, capturing both stdout and stderr.
@@ -183,7 +194,8 @@ func (r *Registry) Get(name string) (*Agent, error) {
 }
 
 // Default returns the default agent: the one named in config.DefaultAgent if
-// detected, otherwise the first detected agent, otherwise an error.
+// detected, otherwise the first agent whose binary is in PATH, otherwise the
+// first detected agent, otherwise an error.
 // Calls Detect() automatically if not already called.
 func (r *Registry) Default() (*Agent, error) {
 	if !r.detected {
@@ -195,6 +207,14 @@ func (r *Registry) Default() (*Agent, error) {
 			if r.agents[i].Name == r.defaultCfg && r.agents[i].Detected {
 				return &r.agents[i], nil
 			}
+		}
+	}
+
+	// Prefer an agent whose binary is verified in PATH over one that is only
+	// "detected" via a stale, binary-less GlobalDir.
+	for i := range r.agents {
+		if r.agents[i].InPath {
+			return &r.agents[i], nil
 		}
 	}
 

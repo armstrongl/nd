@@ -98,6 +98,37 @@ func TestAtomicWriteNoTempFilesAfterSuccess(t *testing.T) {
 	}
 }
 
+func TestAtomicWriteFsyncsParentDir(t *testing.T) {
+	// Exercises the post-rename parent-directory fsync path: the write must
+	// succeed, land the correct content, and leave no temp files behind.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "durable.yaml")
+
+	want := "durable: true\n"
+	if err := nd.AtomicWrite(path, []byte(want)); err != nil {
+		t.Fatalf("AtomicWrite: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != want {
+		t.Errorf("content: got %q, want %q", got, want)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	for _, e := range entries {
+		matched, _ := filepath.Match(".nd-*.tmp", e.Name())
+		if matched {
+			t.Errorf("temp file left behind: %s", e.Name())
+		}
+	}
+}
+
 func TestAtomicWriteNoTempFilesAfterFailure(t *testing.T) {
 	dir := t.TempDir()
 

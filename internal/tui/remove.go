@@ -65,7 +65,8 @@ type removeScreen struct {
 	dryRun    bool                   // true when result is a dry-run preview
 	dryReqs   []deploy.RemoveRequest // populated for dry-run display
 
-	err error
+	err  error
+	info string // non-error informational message (e.g. "No assets selected.")
 
 	// result scrolling
 	height      int
@@ -189,6 +190,11 @@ func (m *removeScreen) View() tea.View {
 			m.styles.Danger.Render(m.err.Error()),
 			m.styles.Subtle.Render("Press esc to go back.")))
 	}
+	if m.info != "" {
+		return tea.NewView(fmt.Sprintf("  %s\n\n  %s",
+			m.info,
+			m.styles.Subtle.Render("Press esc to go back.")))
+	}
 
 	switch m.step {
 	case removeSelectAssets:
@@ -255,8 +261,12 @@ func (m *removeScreen) updateSelectAssets(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.assetForm.State == huh.StateCompleted {
 		if len(m.selected) == 0 {
-			// Nothing selected — go back.
-			return m, func() tea.Msg { return BackMsg{} }
+			// Nothing selected — land on the result step with an informational
+			// message instead of silently bouncing back (mirrors deployScreen.info,
+			// non-error styling for a benign no-op).
+			m.info = "No assets selected."
+			m.step = removeResult
+			return m, nil
 		}
 		return m.transitionToConfirm()
 	}
@@ -355,7 +365,7 @@ func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
 		if d, ok := lookup[key]; ok {
 			reqs = append(reqs, deploy.RemoveRequest{
 				Identity:    d.Identity(),
-				Scope:       d.Scope,       // H3: use deployment's recorded scope
+				Scope:       d.Scope, // H3: use deployment's recorded scope
 				ProjectRoot: d.ProjectPath,
 			})
 		}
@@ -420,7 +430,7 @@ func (m *removeScreen) buildResultContent() string {
 	// H2: Dry-run preview
 	if m.dryRun {
 		fmt.Fprintf(&b, "  %s Would remove %d asset(s):\n\n",
-			m.styles.Warning.Render("[DRY RUN]"), len(m.dryReqs))
+			m.styles.Warning.Render(GlyphDryRun), len(m.dryReqs))
 		for _, req := range m.dryReqs {
 			fmt.Fprintf(&b, "    %s %s/%s\n",
 				GlyphArrow, req.Identity.Type, req.Identity.Name)

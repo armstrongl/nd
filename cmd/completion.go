@@ -10,6 +10,9 @@ import (
 )
 
 func newCompletionCmd(app *App) *cobra.Command {
+	var install bool
+	var installDir string
+
 	cmd := &cobra.Command{
 		Use:   "completion",
 		Short: "Generate shell completion scripts",
@@ -22,7 +25,40 @@ Run "nd completion <shell> --help" for shell-specific instructions.`,
   nd completion zsh --install
   nd completion fish`,
 		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
+			// Auto-detect the shell from $SHELL and generate that script.
+			shell := filepath.Base(os.Getenv("SHELL"))
+			switch shell {
+			case "bash", "zsh", "fish":
+				// supported
+			default:
+				return fmt.Errorf("could not detect a supported shell from $SHELL (%q); specify one explicitly: bash, zsh, fish", os.Getenv("SHELL"))
+			}
+			for _, c := range cmd.Commands() {
+				if c.Name() != shell {
+					continue
+				}
+				// Forward --install / --install-dir to the matched subcommand.
+				if install {
+					if err := c.Flags().Set("install", "true"); err != nil {
+						return err
+					}
+				}
+				if installDir != "" {
+					if err := c.Flags().Set("install-dir", installDir); err != nil {
+						return err
+					}
+				}
+				return c.RunE(c, nil)
+			}
+			return fmt.Errorf("completion subcommand %q not available", shell)
+		},
 	}
+	cmd.Flags().BoolVar(&install, "install", false, "install to standard location")
+	cmd.Flags().StringVar(&installDir, "install-dir", "", "override install directory")
 
 	cmd.AddCommand(
 		newCompletionBashCmd(app),
@@ -185,6 +221,74 @@ func defaultFishCompletionDir() string {
 		return ""
 	}
 	return filepath.Join(home, ".config", "fish", "completions")
+}
+
+// detectShellFromEnv inspects $SHELL and maps it to a completion shell nd can
+// generate for. Returns ("", false) when $SHELL is unset or names an
+// unsupported shell (e.g. csh, tcsh).
+func detectShellFromEnv() (string, bool) {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		return "", false
+	}
+	switch filepath.Base(shell) {
+	case "bash":
+		return "bash", true
+	case "zsh":
+		return "zsh", true
+	case "fish":
+		return "fish", true
+	default:
+		return "", false
+	}
+}
+
+// offerCompletionInstall offers to install shell completions during `nd init`.
+// It is an opt-in, interactive-only convenience step: it is skipped on the
+// non-interactive, JSON, quiet, and --yes paths, and any failure is reported as
+// a warning and never propagated, so it cannot fail `nd init`.
+func offerCompletionInstall(cmd *cobra.Command, app *App) {
+	// Opt-in only: guard short-circuits on --yes (and confirm is called with
+	// yesFlag=false below) so --yes neither prompts nor installs.
+	if app.JSON || app.Quiet || app.Yes || !isTerminal() {
+		return
+	}
+
+	shell, ok := detectShellFromEnv()
+	if !ok {
+		return
+	}
+
+	rootCmd := cmd.Root()
+	var (
+		dir      string
+		filename string
+		genFn    func(*bytes.Buffer) error
+	)
+	switch shell {
+	case "bash":
+		dir, filename = defaultBashCompletionDir(), "nd"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenBashCompletionV2(buf, true) }
+	case "zsh":
+		dir, filename = defaultZshCompletionDir(), "_nd"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenZshCompletion(buf) }
+	case "fish":
+		dir, filename = defaultFishCompletionDir(), "nd.fish"
+		genFn = func(buf *bytes.Buffer) error { return rootCmd.GenFishCompletion(buf, true) }
+	}
+	if dir == "" {
+		return
+	}
+
+	confirmed, err := confirm(cmd.InOrStdin(), cmd.OutOrStdout(),
+		fmt.Sprintf("Install shell completions for %s?", shell), false)
+	if err != nil || !confirmed {
+		return
+	}
+
+	if err := installCompletion(cmd, genFn, dir, filename); err != nil {
+		printHuman(cmd.ErrOrStderr(), "warning: could not install completions: %v\n", err)
+	}
 }
 
 func installCompletion(cmd *cobra.Command, genFn func(*bytes.Buffer) error, dir, filename string) error {

@@ -79,7 +79,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 | Agent | Global directory | Project directory |
 |---|---|---|
-| Claude Code (default) | `~/.claude/` | `<project>/.claude/` |
+| Claude Code (default) | `~/.claude/` | `<project>/.agents/` |
 | Copilot CLI | `~/.copilot/` | `<project>/.github/` |
 
 **Global scope** (default) deploys to the agent's user-wide config directory:
@@ -96,7 +96,7 @@ nd deploys to one of two places depending on the scope. The exact directories de
 
 ```text {filename="Deployment paths"}
 # Claude Code
-~/myproject/.claude/skills/greeting -> ~/my-assets/skills/greeting
+~/myproject/.agents/skills/greeting -> ~/my-assets/skills/greeting
 
 # Copilot CLI
 ~/myproject/.github/skills/greeting -> ~/my-assets/skills/greeting
@@ -131,13 +131,13 @@ Claude Code reads context from a file named `CLAUDE.md`.
 ~/.claude/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
-**Project scope:** deploys into the project root, NOT inside `.claude/`:
+**Project scope:** deploys into the project root, NOT inside `.agents/`:
 
 ```text {filename="Deployment paths"}
 ~/myproject/CLAUDE.md -> ~/my-assets/context/go-project-rules/CLAUDE.md
 ```
 
-This is intentional. Claude Code reads project-level context from the project root (`./CLAUDE.md`), not from `.claude/CLAUDE.md`.
+This is intentional. Claude Code reads project-level context from the project root (`./CLAUDE.md`), not from `.agents/CLAUDE.md`.
 
 ### Copilot CLI
 
@@ -170,7 +170,7 @@ Two things to keep in mind:
 
 ## Absolute vs relative symlinks
 
-nd supports two symlink strategies. The default is absolute:
+nd supports two symlink strategies. The default is absolute. The paths below use the Claude Code directory (`~/.claude/`) as an example; the same strategy applies to any agent's config directory, such as `~/.copilot/` for Copilot CLI.
 
 **Absolute** (default): the symlink target is a full path:
 
@@ -217,6 +217,32 @@ For Claude Code, two asset types need an extra step after deploying:
 - **Hooks** and **output-styles** require manual registration in Claude Code's `settings.json`. nd creates the symlink, but Claude Code needs to be told about them in its settings file. Check Claude Code's documentation for the specific settings entries.
 
 For everything else, deploy and go: no additional nd configuration required.
+
+## Ghost deployments
+
+A **ghost deployment** is a record in nd's state whose symlink no longer exists on disk: you deleted the link by hand, or a directory was removed out from under nd. nd prunes these records automatically so status and health counts stay accurate.
+
+Pruning runs implicitly during [`nd deploy`](../reference/nd_deploy.md) and [`nd status`](../reference/nd_status.md), across every agent. For each tracked deployment, nd checks whether the symlink still exists:
+
+- If the link is **gone** (the path returns "no such file or directory"), nd drops the record. The deployment was already effectively removed, so the stale entry is discarded.
+- If the link **exists**, or the check fails for another reason such as a permission error, nd **keeps** the record. Only a confirmed missing link triggers a prune, so a temporary permission problem never deletes your state.
+
+The cleanup is quiet: you do not run a separate command. nd prints a brief `Pruned N stale deployment(s)` note only when it actually removes records.
+
+This differs from [`nd sync`](../reference/nd_sync.md), which re-creates broken links whose source still exists. Pruning discards records for links that are already gone; sync repairs or removes links based on whether their source is still present.
+
+## Backup retention
+
+When you deploy a context file over an existing one, nd does not discard the old file. It moves the existing file to `~/.config/nd/backups/` first, then creates the new symlink. Backups are named `<original>.<timestamp>.bak`, for example `CLAUDE.md.2026-07-05T14-30-00.bak`.
+
+nd keeps the **5 most recent backups per original filename** and deletes older ones automatically. The last five `CLAUDE.md` backups are retained; a sixth deploy that backs up `CLAUDE.md` again removes the oldest. Backups for different filenames are counted separately.
+
+Recover a backed-up file by copying it out of the backups directory:
+
+```shell {filename="Terminal"}
+ls ~/.config/nd/backups/
+cp ~/.config/nd/backups/CLAUDE.md.2026-07-05T14-30-00.bak ~/my-assets/context/mine/CLAUDE.md
+```
 
 ## Next steps
 

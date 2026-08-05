@@ -6,6 +6,12 @@ weight: 310
 
 Remove a registered source
 
+## Synopsis
+
+Remove a registered source from nd.
+
+If assets from the source are currently deployed, nd asks whether to remove them along with the source, orphan them (remove the source only), or cancel. Passing --yes (or -y) skips this prompt and removes the source AND deletes all of its deployed assets without confirmation — a destructive default. To keep the deployed assets, omit --yes and choose "Remove source only" at the prompt.
+
 ```shell {filename="Terminal"}
 nd source remove <source-id> [flags]
 ```
@@ -13,10 +19,10 @@ nd source remove <source-id> [flags]
 ## Examples
 
 ```shell {filename="Terminal"}
-  # Remove a source by ID
+  # Remove a source by ID (prompts when assets are deployed)
   nd source remove my-assets
 
-  # Skip confirmation prompt
+  # Skip the prompt AND delete all of the source's deployed assets
   nd source remove my-assets --yes
 ```
 

@@ -164,6 +164,55 @@ func TestExportCmd_NoFlagsNonTTY(t *testing.T) {
 	}
 }
 
+func TestExportCmd_JSON_TTY_NoForm(t *testing.T) {
+	// Even on a real terminal, --json must never launch the huh form (which
+	// would corrupt the JSON stream). It should fall through to the explicit
+	// required-flag error with no human text on stdout.
+	setTestTerminal(t, true)
+	configPath, _ := setupExportEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--json", "export"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error under --json with missing flags (must not launch huh form)")
+	}
+	if !strings.Contains(err.Error(), "--name is required") {
+		t.Errorf("expected '--name is required' error, got: %v", err)
+	}
+	if strings.Contains(out.String(), "Select assets") || strings.Contains(out.String(), "Export cancelled") {
+		t.Errorf("expected no interactive form output on stdout, got: %s", out.String())
+	}
+}
+
+func TestExportCmd_Yes_TTY_NoForm(t *testing.T) {
+	// --yes on a terminal must skip the interactive form and require flags.
+	setTestTerminal(t, true)
+	configPath, _ := setupExportEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "export", "--name", "test-plugin"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error under --yes with missing --assets (must not launch huh form)")
+	}
+	if !strings.Contains(err.Error(), "--assets is required") {
+		t.Errorf("expected '--assets is required' error, got: %v", err)
+	}
+}
+
 func TestExportCmd_InvalidFormat(t *testing.T) {
 	configPath, _ := setupExportEnv(t)
 

@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,6 +33,31 @@ func TestProfileCreateCmd(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "test-profile") {
 		t.Errorf("expected profile name in output, got: %s", got)
+	}
+}
+
+func TestProfileCreateCmd_FromCurrentAndAssets_MutuallyExclusive(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{
+		"--config", configPath, "profile", "create", "conflict",
+		"--from-current", "--assets", "skills/greeting",
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when both --from-current and --assets are set")
+	}
+	if !strings.Contains(err.Error(), "if any flags in the group") &&
+		!strings.Contains(err.Error(), "mutually exclusive") &&
+		!strings.Contains(err.Error(), "from-current") {
+		t.Errorf("expected mutual-exclusion error, got: %v", err)
 	}
 }
 
@@ -214,6 +241,60 @@ func TestProfileListCmd_Empty(t *testing.T) {
 	}
 }
 
+func TestProfileBare_DelegatesToList(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Bare `nd profile` should behave exactly like `nd profile list`.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var bare bytes.Buffer
+	rootCmd.SetOut(&bare)
+	rootCmd.SetErr(&bare)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	var list bytes.Buffer
+	rootCmd2.SetOut(&list)
+	rootCmd2.SetErr(&list)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "list"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+
+	if bare.String() != list.String() {
+		t.Errorf("bare `nd profile` output %q != `nd profile list` output %q", bare.String(), list.String())
+	}
+	if strings.Contains(bare.String(), "Usage:") || strings.Contains(bare.String(), "Available Commands:") {
+		t.Errorf("bare `nd profile` should not print Cobra usage, got:\n%s", bare.String())
+	}
+	if !strings.Contains(bare.String(), "No profiles") {
+		t.Errorf("expected 'No profiles' in bare output, got: %s", bare.String())
+	}
+}
+
+func TestProfileBare_UnknownSubcommand(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "bogus"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("expected 'unknown command' error, got: %v", err)
+	}
+}
+
 func TestProfileListCmd_JSON(t *testing.T) {
 	configPath, _ := setupDeployEnv(t)
 
@@ -301,6 +382,90 @@ func TestProfileDeployCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Dry-run profile deploy must not create a symlink or write state.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
+		t.Errorf("dry-run profile deploy must not create a symlink (err=%v)", err)
+	}
+	if _, err := os.Stat(envStateFile(configPath)); !os.IsNotExist(err) {
+		t.Errorf("dry-run profile deploy must not write the state file (err=%v)", err)
+	}
+}
+
+func TestProfileSwitchCmd_DryRun(t *testing.T) {
+	configPath, _ := setupDeployEnv(t)
+
+	// Two profiles: prof-a holds greeting, prof-b holds hello.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "profile", "create", "prof-a", "--assets", "skills/greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("create prof-a failed: %v", err)
+	}
+
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	out.Reset()
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "profile", "create", "prof-b", "--assets", "commands/hello.md"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("create prof-b failed: %v", err)
+	}
+
+	// Deploy prof-a for real so it becomes the active profile.
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	out.Reset()
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "profile", "deploy", "prof-a"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("deploy prof-a failed: %v", err)
+	}
+
+	before, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state before dry-run switch: %v", err)
+	}
+
+	// Dry-run switch to prof-b.
+	app4 := &App{}
+	rootCmd4 := NewRootCmd(app4)
+	out.Reset()
+	rootCmd4.SetOut(&out)
+	rootCmd4.SetErr(&out)
+	rootCmd4.SetArgs([]string{"--config", configPath, "--dry-run", "profile", "switch", "prof-b"})
+	if err := rootCmd4.Execute(); err != nil {
+		t.Fatalf("dry-run switch failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "[dry-run] would switch") {
+		t.Errorf("expected '[dry-run] would switch' in output, got: %s", got)
+	}
+
+	// prof-a's greeting symlink must remain; prof-b's hello must not appear;
+	// state must be byte-for-byte unchanged.
+	greetingLink := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(greetingLink); err != nil {
+		t.Errorf("dry-run switch must not remove prof-a's symlink: %v", err)
+	}
+	helloLink := filepath.Join(envAgentDir(configPath), "commands", "hello.md")
+	if _, err := os.Lstat(helloLink); !os.IsNotExist(err) {
+		t.Errorf("dry-run switch must not deploy prof-b's symlink (err=%v)", err)
+	}
+	after, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state after dry-run switch: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("dry-run switch must not modify deployment state")
 	}
 }
 

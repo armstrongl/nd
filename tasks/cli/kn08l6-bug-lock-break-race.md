@@ -1,7 +1,7 @@
 ---
 title: "Fix unsafe state lock-break race"
 id: "kn08l6"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["state", "concurrency"]
@@ -26,6 +26,7 @@ context:
   - "internal/nd/errors.go"
   - "internal/nd/atomic.go"
   - "internal/deploy/deploy.go"
+completed_at: 2026-08-01
 ---
 
 ## Fix unsafe state lock-break race

@@ -38,6 +38,40 @@ func TestDeployNotFound(t *testing.T) {
 	}
 }
 
+func TestDeployWithAgentsFlag(t *testing.T) {
+	configPath, _ := setupIntegrationEnv(t)
+
+	// claude-code is detected in the sandbox (its global_dir exists).
+	result := runND(t, "--config", configPath, "deploy", "--agents", "claude-code", "greeting")
+	if result.ExitCode != 0 {
+		t.Fatalf("deploy --agents claude-code exit %d, stderr: %s", result.ExitCode, result.Stderr)
+	}
+	if !strings.Contains(result.Stdout, "greeting") {
+		t.Errorf("expected 'greeting' in output, got: %s", result.Stdout)
+	}
+	if !strings.Contains(result.Stdout, "claude-code") {
+		t.Errorf("expected target agent 'claude-code' in output, got: %s", result.Stdout)
+	}
+
+	// The deployment should be recorded and visible in status.
+	status := runND(t, "--config", configPath, "status")
+	if !strings.Contains(status.Stdout, "greeting") {
+		t.Errorf("expected 'greeting' in status after --agents deploy, got: %s", status.Stdout)
+	}
+}
+
+func TestDeployWithUnknownAgent(t *testing.T) {
+	configPath, _ := setupIntegrationEnv(t)
+
+	result := runND(t, "--config", configPath, "deploy", "--agents", "bogus", "greeting")
+	if result.ExitCode == 0 {
+		t.Fatal("expected non-zero exit code for unknown --agents value")
+	}
+	if !strings.Contains(result.Stderr, "bogus") {
+		t.Errorf("expected error mentioning 'bogus', got stderr: %s", result.Stderr)
+	}
+}
+
 func TestDeployDryRun(t *testing.T) {
 	configPath, _ := setupIntegrationEnv(t)
 

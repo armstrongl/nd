@@ -29,11 +29,11 @@ func RenderScrolledLines(styles Styles, scroll *listScroll, lines []string, page
 
 	var b strings.Builder
 	if above := scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(styles, "↑", above))
+		fmt.Fprintf(&b, "%s\n", scrollIndicatorLine(styles, GlyphScrollUp, above))
 	}
 	b.WriteString(strings.Join(lines[start:end], "\n"))
 	if below := scroll.MoreBelow(len(lines), pageSize); below > 0 {
-		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(styles, "↓", below))
+		fmt.Fprintf(&b, "\n%s", scrollIndicatorLine(styles, GlyphScrollDown, below))
 	}
 	return b.String()
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/armstrongl/nd/internal/deploy"
@@ -22,7 +21,7 @@ func newUninstallCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "getting-started,troubleshooting",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -57,14 +56,16 @@ func newUninstallCmd(app *App) *cobra.Command {
 			}
 
 			// Confirm before proceeding
-			ok, err := confirm(os.Stdin, w,
+			ok, err := confirm(cmd.InOrStdin(), w,
 				fmt.Sprintf("Remove all %d nd-managed symlinks?", len(st.Deployments)),
 				app.Yes)
 			if err != nil {
 				return err
 			}
 			if !ok {
-				printHuman(w, "Aborted.\n")
+				if !app.Quiet && !app.JSON {
+					printHuman(w, "Aborted.\n")
+				}
 				return nil
 			}
 
@@ -75,10 +76,18 @@ func newUninstallCmd(app *App) *cobra.Command {
 
 			removeReqs := make([]deploy.RemoveRequest, len(st.Deployments))
 			for i, d := range st.Deployments {
+				// Target the exact recorded deployment's agent rather than relying
+				// on the any-agent fallback. Empty d.Agent maps to "claude-code"
+				// per the v1→v2 migration rule in removeOne.
+				agentName := d.Agent
+				if agentName == "" {
+					agentName = "claude-code"
+				}
 				removeReqs[i] = deploy.RemoveRequest{
 					Identity:    d.Identity(),
 					Scope:       d.Scope,
 					ProjectRoot: d.ProjectPath,
+					Agent:       agentName,
 				}
 			}
 

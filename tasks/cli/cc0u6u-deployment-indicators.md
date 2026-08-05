@@ -1,7 +1,7 @@
 ---
 title: "Show deployment indicators in asset lists"
 id: "cc0u6u"
-status: pending
+status: completed
 priority: medium
 type: feature
 tags: ["tui", "deploy"]
@@ -30,6 +30,7 @@ context:
   - internal/asset/identity.go
   - internal/config/config.go
   - cmd/app.go
+completed_at: 2026-08-01
 ---
 
 ## Show deployment indicators in asset lists
@@ -106,53 +107,52 @@ assets first" — users cannot tell at a glance what is live or what is new.
 **Glyph module (the file every item below references):**
 
 - [ ] Create `internal/tui/glyphs.go` (package `tui`). Move/reuse the constant
-      block from `theme.go:51-60` OR add new constants there — pick one home and
-      keep it consistent; do not duplicate symbols. Export at minimum:
-      `GlyphDeployed`, `GlyphNew`, `GlyphActive`, `GlyphPinned`,
-      `GlyphScrollUp`, `GlyphScrollDown`, `GlyphDryRun`, plus a warning glyph
-      constant (replacing the bare `"!"`). Keep values ASCII-safe (match the
-      existing "readable without color" contract in `theme.go:51`). Add styled
-      render helpers, e.g. `func (s Styles) Deployed() string`,
-      `func (s Styles) NewBadge() string`, mirroring how `theme.go`/screens pair
-      a glyph with a `lipgloss.Style` (see `Styles` in `theme.go:28-49`:
-      `Success`, `Primary`, `Warning`, `Subtle`).
+  block from `theme.go:51-60` OR add new constants there — pick one home and
+  keep it consistent; do not duplicate symbols. Export at minimum:
+  `GlyphDeployed`, `GlyphNew`, `GlyphActive`, `GlyphPinned`,
+  `GlyphScrollUp`, `GlyphScrollDown`, `GlyphDryRun`, plus a warning glyph
+  constant (replacing the bare `"!"`). Keep values ASCII-safe (match the
+  existing "readable without color" contract in `theme.go:51`). Add styled
+  render helpers, e.g. `func (s Styles) Deployed() string`,
+  `func (s Styles) NewBadge() string`, mirroring how `theme.go`/screens pair
+  a glyph with a `lipgloss.Style` (see `Styles` in `theme.go:28-49`:
+  `Success`, `Primary`, `Warning`, `Subtle`).
 
 **Deployment + recency indicators (issue #81 core):**
 
 - [ ] `internal/config/config.go:8-16` — add field
-      `RecencyDays int \`yaml:"recency_days,omitempty" json:"recency_days,omitempty"\``
-      to `config.Config`. Default behavior: `0` (unset) means use 7 days. Mirror
-      the `omitempty` style of the adjacent `ContextTypes` field. Confirm no
-      strict-unknown-key validation rejects it (`internal/config/validation.go`
-      has no field allowlist today — verify it stays that way).
+  `RecencyDays int \`yaml:"recency_days,omitempty" json:"recency_days,omitempty"\``to`config.Config`. Default behavior:`0` (unset) means use 7 days. Mirror
+  the `omitempty` style of the adjacent `ContextTypes`field. Confirm no
+  strict-unknown-key validation rejects it (`internal/config/validation.go`
+  has no field allowlist today — verify it stays that way).
 - [ ] Surface `RecencyDays` to the TUI. Either (a) add `Config() *config.Config`
-      to the `Services` interface (`internal/tui/services.go:16-45`), implement
-      it on `*App` in `cmd/app.go` via `SourceManager().Config()`, and add the
-      function field + method to `mockServices`
-      (`internal/tui/testutil_test.go:16-43`); or (b) read it inside
-      `browseScreen.Init` (`browse.go:73-104`) via
-      `svc.SourceManager().Config()` and store the threshold on `browseScreen`.
-      Resolve effective window: `days := cfg.RecencyDays; if days <= 0 { days = 7 }`.
+  to the `Services` interface (`internal/tui/services.go:16-45`), implement
+  it on `*App` in `cmd/app.go` via `SourceManager().Config()`, and add the
+  function field + method to `mockServices`
+  (`internal/tui/testutil_test.go:16-43`); or (b) read it inside
+  `browseScreen.Init` (`browse.go:73-104`) via
+  `svc.SourceManager().Config()` and store the threshold on `browseScreen`.
+  Resolve effective window: `days := cfg.RecencyDays; if days <= 0 { days = 7 }`.
 - [ ] `browse.go:249-252` — replace the `marker = "*"` literal with the styled
-      deployed glyph from the new module (use `styles.Success`). Keep the column
-      alignment in the `fmt.Fprintf` at `browse.go:262-263` correct (the marker
-      occupies a fixed slot; a styled string changes width — render into a
-      fixed-width cell or measure with `lipgloss.Width`).
+  deployed glyph from the new module (use `styles.Success`). Keep the column
+  alignment in the `fmt.Fprintf` at `browse.go:262-263` correct (the marker
+  occupies a fixed slot; a styled string changes width — render into a
+  fixed-width cell or measure with `lipgloss.Width`).
 - [ ] `browse.go` View loop (`browse.go:242-264`) — compute per-asset "new":
-      `isNew(a, window) bool` that does `os.Stat(a.SourcePath)`, returns false on
-      empty path / error, else `time.Since(info.ModTime()) <= window`. Render
-      `GlyphNew` styled with `styles.Primary` when new. An asset may show BOTH
-      the deployed and new badges simultaneously.
+  `isNew(a, window) bool` that does `os.Stat(a.SourcePath)`, returns false on
+  empty path / error, else `time.Since(info.ModTime()) <= window`. Render
+  `GlyphNew` styled with `styles.Primary` when new. An asset may show BOTH
+  the deployed and new badges simultaneously.
 - [ ] Add stable sort in browse (apply to `b.assets` after load in the
-      `browseLoadedMsg` case `browse.go:119-128`, or inside `visibleAssets`
-      `browse.go:317-328`): order = new/updated first, then undeployed, then
-      deployed; alphabetical by `a.Name` within each group. Use
-      `sort.SliceStable`. Cursor/scroll math (`clampCursor`, `scroll`) must stay
-      correct after reordering.
+  `browseLoadedMsg` case `browse.go:119-128`, or inside `visibleAssets`
+  `browse.go:317-328`): order = new/updated first, then undeployed, then
+  deployed; alphabetical by `a.Name` within each group. Use
+  `sort.SliceStable`. Cursor/scroll math (`clampCursor`, `scroll`) must stay
+  correct after reordering.
 - [ ] `deploy.go:378-397` (`buildAssetForm`) — append the styled new badge to the
-      option `label` using the shared helper (deployed badge logic available but
-      `ds.assets` is undeployed-only, so it is a no-op there today). Keep the
-      existing description-append branch (`deploy.go:382-384`) intact.
+  option `label` using the shared helper (deployed badge logic available but
+  `ds.assets` is undeployed-only, so it is a no-op there today). Keep the
+  existing description-append branch (`deploy.go:382-384`) intact.
 
 **Merged scope from cancelled task `7l7r5d` (verified file:line):**
 `7l7r5d` ("Centralize and style TUI status indicators",
@@ -162,43 +162,43 @@ assets first" — users cannot tell at a glance what is live or what is new.
 `7l7r5d` separately; do its work here:
 
 - [ ] `internal/tui/profile.go:406` — replace `marker = "*"` (inside the
-      `for _, p := range s.profiles` loop, active-profile marker) with the styled
-      `GlyphActive`.
+  `for _, p := range s.profiles` loop, active-profile marker) with the styled
+  `GlyphActive`.
 - [ ] `internal/tui/profile.go:259` — replace the `(active)` string literal
-      (`label += " (active)"`) with the same active badge used at `:406` so the
-      picker and the list agree.
+  (`label += " (active)"`) with the same active badge used at `:406` so the
+  picker and the list agree.
 - [ ] `internal/tui/pin.go:158` — replace `[pinned]` literal
-      (`label += " [pinned]"`) with the styled `GlyphPinned` badge.
+  (`label += " [pinned]"`) with the styled `GlyphPinned` badge.
 - [ ] `internal/tui/doctor.go:346` — replace `d.styles.Warning.Render("!")` with
-      the shared warning glyph constant rendered via `styles.Warning`.
+  the shared warning glyph constant rendered via `styles.Warning`.
 - [ ] Replace the three repeated `"[DRY RUN]"` literals with one
-      `GlyphDryRun`/constant: `deploy.go:548`
-      (`ds.styles.Warning.Render("[DRY RUN]")`), `remove.go:423`
-      (`m.styles.Warning.Render("[DRY RUN]")`), and `header.go:28`
-      (`left = "  [DRY RUN] " + left[2:]`).
+  `GlyphDryRun`/constant: `deploy.go:548`
+  (`ds.styles.Warning.Render("[DRY RUN]")`), `remove.go:423`
+  (`m.styles.Warning.Render("[DRY RUN]")`), and `header.go:28`
+  (`left = "  [DRY RUN] " + left[2:]`).
 - [ ] Replace the scroll-arrow literals with `GlyphScrollUp`/`GlyphScrollDown`.
-      The single render chokepoint is `scrollIndicatorLine` (`scroll.go:93-95`);
-      the literals are passed in by callers `browse.go:239`, `browse.go:267`,
-      `listview.go:32`, `listview.go:36` (the task's previous `scroll.go:32,36`
-      reference was stale — those lines are inside `ScrollDown`). Prefer changing
-      the callers to pass the new constants (or have `scrollIndicatorLine` take a
-      direction enum); keep the rendered output ("↑/↓ N more") visually stable.
+  The single render chokepoint is `scrollIndicatorLine` (`scroll.go:93-95`);
+  the literals are passed in by callers `browse.go:239`, `browse.go:267`,
+  `listview.go:32`, `listview.go:36` (the task's previous `scroll.go:32,36`
+  reference was stale — those lines are inside `ScrollDown`). Prefer changing
+  the callers to pass the new constants (or have `scrollIndicatorLine` take a
+  direction enum); keep the rendered output ("↑/↓ N more") visually stable.
 
 **Tests:**
 
 - [ ] Unit tests for the glyph module: each helper returns the expected
-      glyph+style; `isNew` true/false for recent vs old mtime; edge cases:
-      empty `SourcePath`, `os.Stat` error, mtime exactly at the window boundary;
-      `RecencyDays=0` ⇒ 7-day default; `RecencyDays=14` ⇒ 14-day window.
+  glyph+style; `isNew` true/false for recent vs old mtime; edge cases:
+  empty `SourcePath`, `os.Stat` error, mtime exactly at the window boundary;
+  `RecencyDays=0` ⇒ 7-day default; `RecencyDays=14` ⇒ 14-day window.
 - [ ] Sort test: assets in new / undeployed / deployed groups end up in that
-      order, alphabetical within each group; sort is stable.
+  order, alphabetical within each group; sort is stable.
 - [ ] TUI tests mirroring `browse_test.go:59-90`: browse `View().Content`
-      contains the deployed glyph for a deployed asset; contains the new glyph
-      for an asset with a recent `SourcePath` mtime (write a temp file, set
-      `SourcePath`); deploy picker option labels include the new badge.
+  contains the deployed glyph for a deployed asset; contains the new glyph
+  for an asset with a recent `SourcePath` mtime (write a temp file, set
+  `SourcePath`); deploy picker option labels include the new badge.
 - [ ] Run the full `internal/tui` and `internal/config` suites — all existing
-      tests must still pass (none assert on the literal `*`/`[DRY RUN]` strings;
-      grep first and update any that do).
+  tests must still pass (none assert on the literal `*`/`[DRY RUN]` strings;
+  grep first and update any that do).
 
 ### Acceptance criteria
 

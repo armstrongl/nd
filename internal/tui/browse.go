@@ -2,7 +2,10 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"sort"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/armstrongl/nd/internal/asset"
@@ -10,10 +13,11 @@ import (
 
 // browseLoadedMsg carries the results of the async asset load.
 type browseLoadedMsg struct {
-	assets     []*asset.Asset
-	deployed   map[string]bool // identity.String() -> true
-	err        error
-	generation uint64
+	assets      []*asset.Asset
+	deployed    map[string]bool // identity.String() -> true
+	recencyDays int             // resolved recency_days from config (0 = 7-day default)
+	err         error
+	generation  uint64
 }
 
 // browseScreen shows all available assets with deployment status markers.
@@ -25,19 +29,20 @@ type browseScreen struct {
 	styles Styles
 	isDark bool
 
-	assets   []*asset.Asset
-	deployed map[string]bool
-	cursor   int
-	filter   filterInput
-	notice   string // transient feedback (e.g. "already deployed")
-	err       error
-	loaded    bool
+	assets      []*asset.Asset
+	deployed    map[string]bool
+	recencyDays int // recency_days from config (0 = 7-day default); see Init
+	cursor      int
+	filter      filterInput
+	notice      string // transient feedback (e.g. "already deployed")
+	err         error
+	loaded      bool
 
 	// generation is incremented on every ScopeSwitchedMsg so that stale
 	// browseLoadedMsg results from a previous scope's goroutine are discarded.
 	generation uint64
 
-	height int       // terminal height, updated by tea.WindowSizeMsg
+	height int // terminal height, updated by tea.WindowSizeMsg
 	scroll listScroll
 }
 
@@ -99,7 +104,18 @@ func (b *browseScreen) Init() tea.Cmd {
 			}
 		}
 
-		return browseLoadedMsg{assets: assets, deployed: deployed, generation: gen}
+		// Resolve the recency window from config here — off the UI goroutine —
+		// and carry it in the load message (approach (b) from the task: read via
+		// svc.SourceManager().Config(), mirroring deploy.go). 0 means "unset",
+		// which recencyWindow() resolves to the 7-day default.
+		recencyDays := 0
+		if sm, err := svc.SourceManager(); err == nil && sm != nil {
+			if cfg := sm.Config(); cfg != nil {
+				recencyDays = cfg.RecencyDays
+			}
+		}
+
+		return browseLoadedMsg{assets: assets, deployed: deployed, recencyDays: recencyDays, generation: gen}
 	}
 }
 
@@ -123,7 +139,9 @@ func (b *browseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		b.loaded = true
 		b.assets = msg.assets
 		b.deployed = msg.deployed
+		b.recencyDays = msg.recencyDays
 		b.err = msg.err
+		b.sortAssets()
 		b.clampCursor()
 		return b, nil
 
@@ -236,9 +254,10 @@ func (b *browseScreen) View() tea.View {
 	start, end := b.scroll.Window(len(visible), pageSize)
 
 	if above := b.scroll.MoreAbove(); above > 0 {
-		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, "↑", above))
+		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, GlyphScrollUp, above))
 	}
 
+	window := recencyWindow(b.recencyDays)
 	for i, a := range visible[start:end] {
 		absIdx := start + i
 		cursor := "  "
@@ -246,9 +265,12 @@ func (b *browseScreen) View() tea.View {
 			cursor = GlyphArrow + " "
 		}
 
+		// Deployed assets get a styled checkmark in place of the leading marker.
+		// The plain space and the styled glyph both occupy one display column,
+		// so column alignment is preserved.
 		marker := " "
 		if b.deployed[a.String()] {
-			marker = "*"
+			marker = b.styles.Deployed()
 		}
 
 		typePart := b.styles.Subtle.Render(string(a.Type))
@@ -259,12 +281,19 @@ func (b *browseScreen) View() tea.View {
 			description = b.styles.Subtle.Render("  " + a.Meta.Description)
 		}
 
-		fmt.Fprintf(&buf, "%s%s  %-12s  %-24s  %s%s\n",
-			cursor, marker, typePart, a.Name, srcPart, description)
+		// Recently modified assets get a "new" badge appended to the row. An
+		// asset can be both deployed (checkmark) and new (badge) at once.
+		newBadge := ""
+		if isNew(a, window) {
+			newBadge = "  " + b.styles.NewBadge()
+		}
+
+		fmt.Fprintf(&buf, "%s%s  %-12s  %-24s  %s%s%s\n",
+			cursor, marker, typePart, a.Name, srcPart, description, newBadge)
 	}
 
 	if below := b.scroll.MoreBelow(len(visible), pageSize); below > 0 {
-		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, "↓", below))
+		fmt.Fprintf(&buf, "%s\n", scrollIndicatorLine(b.styles, GlyphScrollDown, below))
 	}
 
 	// Transient feedback message (e.g. "already deployed").
@@ -311,6 +340,61 @@ func (b *browseScreen) clampCursor() {
 		b.cursor = len(visible) - 1
 	}
 	b.scroll.EnsureVisible(b.cursor, b.contentHeight())
+}
+
+// recencyWindow resolves the effective "new" window from a configured day
+// count. Zero or negative means "unset", which falls back to 7 days.
+func recencyWindow(days int) time.Duration {
+	if days <= 0 {
+		days = 7
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
+
+// isNew reports whether a's source file was modified within window, measured
+// against the current time.
+func isNew(a *asset.Asset, window time.Duration) bool {
+	return isNewAt(a, window, time.Now())
+}
+
+// isNewAt reports whether a's source file mtime falls within window of now.
+// Assets with no SourcePath (synthetic entries) or an unstat-able path are
+// never "new": recency is best-effort and must never break rendering.
+func isNewAt(a *asset.Asset, window time.Duration, now time.Time) bool {
+	if a == nil || a.SourcePath == "" {
+		return false
+	}
+	info, err := os.Stat(a.SourcePath)
+	if err != nil {
+		return false
+	}
+	// Inclusive boundary: mtime exactly window ago still counts as new.
+	return !info.ModTime().Before(now.Add(-window))
+}
+
+// sortAssets orders b.assets in place: new/updated first, then undeployed,
+// then deployed; alphabetical by name within each group. The sort is stable,
+// so entries with an equal (group, name) key keep their prior order.
+func (b *browseScreen) sortAssets() {
+	window := recencyWindow(b.recencyDays)
+	now := time.Now()
+	group := func(a *asset.Asset) int {
+		switch {
+		case isNewAt(a, window, now):
+			return 0
+		case b.deployed[a.String()]:
+			return 2
+		default:
+			return 1
+		}
+	}
+	sort.SliceStable(b.assets, func(i, j int) bool {
+		gi, gj := group(b.assets[i]), group(b.assets[j])
+		if gi != gj {
+			return gi < gj
+		}
+		return b.assets[i].Name < b.assets[j].Name
+	})
 }
 
 // visibleAssets returns the filtered asset list (or all if no filter set).

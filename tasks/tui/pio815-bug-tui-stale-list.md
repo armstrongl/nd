@@ -1,7 +1,7 @@
 ---
 title: "Refresh TUI screen list after create/save/add mutation"
 id: "pio815"
-status: pending
+status: completed
 priority: medium
 type: bug
 tags: ["tui"]
@@ -31,6 +31,7 @@ context:
   - internal/tui/testutil_test.go
   - internal/tui/services.go
   - internal/tui/screens.go
+completed_at: 2026-08-01
 ---
 
 ## Refresh TUI screen list after create/save/add mutation

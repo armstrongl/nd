@@ -22,6 +22,9 @@ func newProfileCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return delegateToSubcommand(cmd, args, "list")
+		},
 	}
 
 	cmd.AddCommand(
@@ -54,7 +57,7 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots,getting-started",
 		},
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			name := args[0]
@@ -130,6 +133,9 @@ func newProfileCreateCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&assets, "assets", "", "comma-separated list of assets (type/name)")
 	cmd.Flags().BoolVar(&fromCurrent, "from-current", false, "create profile from current deployments")
 	cmd.Flags().StringVar(&description, "description", "", "profile description")
+	// --from-current and --assets are two different ways to populate a profile;
+	// passing both would silently ignore --assets, so reject the combination.
+	cmd.MarkFlagsMutuallyExclusive("from-current", "assets")
 	return cmd
 }
 
@@ -145,7 +151,7 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -185,7 +191,7 @@ func newProfileDeleteCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				if !app.Quiet {
+				if !app.Quiet && !app.JSON {
 					printHuman(w, "Delete cancelled.\n")
 				}
 				return nil
@@ -222,7 +228,7 @@ func newProfileListCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -295,7 +301,7 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -346,6 +352,20 @@ func newProfileDeployCmd(app *App) *cobra.Command {
 				}
 				return nil
 			}
+
+			// Resolve deployment scope (may prompt interactively; an explicit
+			// --scope flag or a non-interactive invocation skips the prompt).
+			// Reuses the same session preference as `nd deploy`.
+			resolvedScope, err := resolveDeployScope(cmd, app)
+			if err != nil {
+				return err
+			}
+			if resolvedScope == nd.ScopeProject {
+				if _, err := app.ResolveProjectRoot(); err != nil {
+					return err
+				}
+			}
+			app.Scope = resolvedScope
 
 			summary, err := app.ScanIndex()
 			if err != nil {
@@ -414,7 +434,7 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -512,7 +532,7 @@ func newProfileSwitchCmd(app *App) *cobra.Command {
 				return err
 			}
 			if !ok {
-				if !app.Quiet {
+				if !app.Quiet && !app.JSON {
 					printHuman(w, "Switch cancelled.\n")
 				}
 				return nil
@@ -594,7 +614,7 @@ func newProfileAddAssetCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "profiles-and-snapshots",
 		},
-		Args:  cobra.ExactArgs(2),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			profileName := args[0]

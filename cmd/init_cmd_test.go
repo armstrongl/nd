@@ -13,6 +13,7 @@ import (
 	"github.com/armstrongl/nd/internal/config"
 	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/output"
+	"github.com/armstrongl/nd/internal/sourcemanager"
 )
 
 // testInitAgent returns an agent pointing at a temp directory for safe testing.
@@ -23,7 +24,7 @@ func testInitAgent(t *testing.T, tmp string) *agent.Agent {
 	return &agent.Agent{
 		Name:           "claude-code",
 		GlobalDir:      agentDir,
-		ProjectDir:     ".claude",
+		ProjectDir:     ".agents",
 		Binary:         "claude",
 		SupportedTypes: nd.DeployableAssetTypes(),
 		VersionPattern: `(?i)claude`,
@@ -130,6 +131,108 @@ func TestInitCmd_WithYes_DeploysBuiltinAssets(t *testing.T) {
 	statePath := filepath.Join(tmp, ".config", "nd", "state", "deployments.yaml")
 	if _, err := os.Stat(statePath); err != nil {
 		t.Errorf("deployment state file not created: %v", err)
+	}
+}
+
+func TestInitCmd_WithYes_HonorsRelativeSymlinkStrategy(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	// runInitSetup always writes an "absolute" default to app.ConfigPath, and
+	// init refuses to run if the config already exists, so seed the cached
+	// SourceManager with a config whose symlink_strategy is "relative". The
+	// built-in deploy must read the strategy from this SourceManager rather than
+	// hardcoding absolute.
+	relCfgPath := filepath.Join(tmp, "rel-config.yaml")
+	relCfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: relative\nsources: []\n"
+	if err := os.WriteFile(relCfgPath, []byte(relCfg), 0o644); err != nil {
+		t.Fatalf("write relative config: %v", err)
+	}
+	sm, err := sourcemanager.New(relCfgPath, "")
+	if err != nil {
+		t.Fatalf("build source manager: %v", err)
+	}
+	if got := sm.Config().SymlinkStrategy; got != nd.SymlinkRelative {
+		t.Fatalf("seeded config strategy = %q, want %q", got, nd.SymlinkRelative)
+	}
+
+	app := &App{initAgent: testInitAgent(t, tmp), sm: sm}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// A deployed built-in symlink must be relative (non-absolute readlink target).
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	checked := 0
+	for _, e := range entries {
+		linkPath := filepath.Join(skillsDir, e.Name())
+		info, lerr := os.Lstat(linkPath)
+		if lerr != nil || info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		target, rerr := os.Readlink(linkPath)
+		if rerr != nil {
+			t.Fatalf("readlink %s: %v", linkPath, rerr)
+		}
+		if filepath.IsAbs(target) {
+			t.Errorf("expected relative symlink target for %q, got absolute %q", e.Name(), target)
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("expected at least one deployed symlink to verify")
+	}
+}
+
+func TestInitCmd_NonTTY_NoYes_SkipsBuiltinDeploy(t *testing.T) {
+	// A non-interactive (non-TTY) init without --yes must NOT auto-deploy
+	// built-ins; the deploy is opt-in. It prints the "Skipped." hint instead.
+	setTestTerminal(t, false)
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Skipped.") {
+		t.Errorf("expected 'Skipped.' hint, got: %s", got)
+	}
+	if strings.Contains(got, "Deployed") {
+		t.Errorf("expected no deploy confirmation on non-TTY without --yes, got: %s", got)
+	}
+
+	// The deployment state file is only written when built-ins are deployed.
+	statePath := filepath.Join(tmp, ".config", "nd", "state", "deployments.yaml")
+	if _, err := os.Stat(statePath); err == nil {
+		t.Errorf("expected no deployment state file (builtins should not deploy): %s exists", statePath)
+	}
+
+	// No builtin skill symlinks should have been created.
+	if entries, err := os.ReadDir(filepath.Join(agentDir, "skills")); err == nil && len(entries) > 0 {
+		t.Errorf("expected no deployed skill symlinks, found %d", len(entries))
 	}
 }
 
@@ -258,6 +361,198 @@ func TestInitCmd_JSON_IncludesBuiltinDeployCount(t *testing.T) {
 	}
 	if countFloat < 1 {
 		t.Errorf("expected at least 1 deployed asset, got %v", countFloat)
+	}
+}
+
+func TestInitCmd_Interactive_DefaultYesDeploys(t *testing.T) {
+	fakeTerminal(t, true)
+	// Isolate the built-in deploy prompt from the shell-completion prompt
+	// (ce0bw6): with no detected shell, offerCompletionInstall is a no-op, so
+	// stdin feeds the deploy prompt directly.
+	t.Setenv("SHELL", "")
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("\n")) // Enter => default Yes
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "[Y/n/list]") {
+		t.Errorf("expected interactive prompt '[Y/n/list]', got: %s", got)
+	}
+	if !strings.Contains(got, "Deployed") {
+		t.Errorf("expected deploy after Enter (default Yes), got: %s", got)
+	}
+
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	if len(entries) == 0 {
+		t.Error("expected at least one skill symlink deployed")
+	}
+}
+
+func TestInitCmd_Interactive_ListThenDeploys(t *testing.T) {
+	fakeTerminal(t, true)
+	// Isolate the built-in deploy prompt from the shell-completion prompt
+	// (ce0bw6): with no detected shell, offerCompletionInstall is a no-op, so
+	// stdin feeds the deploy prompt directly.
+	t.Setenv("SHELL", "")
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("list\n\n")) // list, then Enter => deploy
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+
+	// The list action prints each asset as "<type>/<name>"; built-in assets
+	// include skills, so at least one "skills/" line must appear.
+	if !strings.Contains(got, "skills/") {
+		t.Errorf("expected 'list' to print assets as '<type>/<name>', got: %s", got)
+	}
+	// Listing must happen before the deploy summary (no deploy until Y/n given).
+	listIdx := strings.Index(got, "skills/")
+	deployIdx := strings.Index(got, "Deployed")
+	if deployIdx < 0 {
+		t.Fatalf("expected deploy after list+Enter, got: %s", got)
+	}
+	if listIdx < 0 || listIdx > deployIdx {
+		t.Errorf("expected asset list before deploy summary, got: %s", got)
+	}
+
+	skillsDir := filepath.Join(agentDir, "skills")
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		t.Fatalf("expected skills dir at %s: %v", skillsDir, err)
+	}
+	if len(entries) == 0 {
+		t.Error("expected at least one skill symlink deployed")
+	}
+}
+
+func TestInitCmd_JSON_IncludesBuiltinAssets(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "--json", "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+
+	data, ok := resp.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", resp.Data)
+	}
+
+	// The existing count key must be preserved.
+	if _, ok := data["builtin_deployed"]; !ok {
+		t.Error("expected builtin_deployed count to be preserved")
+	}
+
+	// builtin_assets must be a non-empty array of {name, type} objects.
+	assetsRaw, ok := data["builtin_assets"]
+	if !ok {
+		t.Fatal("expected builtin_assets in JSON data")
+	}
+	arr, ok := assetsRaw.([]interface{})
+	if !ok {
+		t.Fatalf("expected builtin_assets to be array, got %T", assetsRaw)
+	}
+	if len(arr) == 0 {
+		t.Fatal("expected builtin_assets to be non-empty")
+	}
+	for i, el := range arr {
+		obj, ok := el.(map[string]interface{})
+		if !ok {
+			t.Fatalf("builtin_assets[%d] not an object: %T", i, el)
+		}
+		if name, ok := obj["name"].(string); !ok || name == "" {
+			t.Errorf("builtin_assets[%d] missing string name, got: %v", i, obj)
+		}
+		if typ, ok := obj["type"].(string); !ok || typ == "" {
+			t.Errorf("builtin_assets[%d] missing string type, got: %v", i, obj)
+		}
+	}
+
+	// The count must equal the array length.
+	if cnt, ok := data["builtin_deployed"].(float64); ok {
+		if int(cnt) != len(arr) {
+			t.Errorf("builtin_deployed (%v) != len(builtin_assets) (%d)", cnt, len(arr))
+		}
+	}
+}
+
+func TestInitCmd_NonInteractiveNoYes_Skips(t *testing.T) {
+	fakeTerminal(t, false)
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+	agentDir := filepath.Join(tmp, ".claude")
+
+	app := &App{initAgent: testInitAgent(t, tmp)}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("")) // piped stdin, non-TTY
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Skipped.") {
+		t.Errorf("expected 'Skipped.' hint on non-TTY without --yes, got: %s", got)
+	}
+	if strings.Contains(got, "Deployed") {
+		t.Errorf("expected no deploy on non-TTY without --yes, got: %s", got)
+	}
+
+	// Nothing should have been deployed into the agent dir.
+	skillsDir := filepath.Join(agentDir, "skills")
+	if entries, err := os.ReadDir(skillsDir); err == nil && len(entries) > 0 {
+		t.Errorf("expected no deployed skills on skip, found %d", len(entries))
 	}
 }
 
@@ -532,5 +827,277 @@ func TestInitCmd_DeployBuiltinAssets_UsesRegistry(t *testing.T) {
 	}
 	if len(entries) == 0 {
 		t.Error("expected at least one skill symlink deployed")
+	}
+}
+
+// setTestTerminal overrides the package-level isTerminal check for the duration
+// of the test so completion-prompt paths (gated behind an interactive terminal)
+// are reachable in the non-interactive test environment.
+func setTestTerminal(t *testing.T, interactive bool) {
+	t.Helper()
+	prev := isTerminal
+	isTerminal = func() bool { return interactive }
+	t.Cleanup(func() { isTerminal = prev })
+}
+
+func TestDetectShellFromEnv(t *testing.T) {
+	tests := []struct {
+		name      string
+		shell     string
+		wantShell string
+		wantOK    bool
+	}{
+		{"bash", "/bin/bash", "bash", true},
+		{"zsh", "/bin/zsh", "zsh", true},
+		{"fish", "/usr/bin/fish", "fish", true},
+		{"zsh non-standard path", "/opt/homebrew/bin/zsh", "zsh", true},
+		{"unsupported csh", "/bin/csh", "", false},
+		{"unsupported tcsh", "/bin/tcsh", "", false},
+		{"empty", "", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SHELL", tc.shell)
+			gotShell, gotOK := detectShellFromEnv()
+			if gotShell != tc.wantShell || gotOK != tc.wantOK {
+				t.Errorf("detectShellFromEnv() with SHELL=%q = (%q, %v), want (%q, %v)",
+					tc.shell, gotShell, gotOK, tc.wantShell, tc.wantOK)
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_InstallsForShell(t *testing.T) {
+	tests := []struct {
+		name       string
+		shellEnv   string
+		promptWord string
+		relPath    []string
+		contentSub string
+	}{
+		{"bash", "/bin/bash", "bash", []string{".bash_completion.d", "nd"}, "__nd"},
+		{"zsh", "/bin/zsh", "zsh", []string{".zfunc", "_nd"}, "#compdef"},
+		{"fish", "/usr/bin/fish", "fish", []string{".config", "fish", "completions", "nd.fish"}, "complete"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			setTestTerminal(t, true)
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("SHELL", tc.shellEnv)
+
+			app := &App{}
+			rootCmd := NewRootCmd(app)
+			var out, errBuf bytes.Buffer
+			rootCmd.SetIn(strings.NewReader("y\n"))
+			rootCmd.SetOut(&out)
+			rootCmd.SetErr(&errBuf)
+
+			offerCompletionInstall(rootCmd, app)
+
+			wantPrompt := "Install shell completions for " + tc.promptWord + "?"
+			if !strings.Contains(out.String(), wantPrompt) {
+				t.Errorf("expected prompt %q, got: %s", wantPrompt, out.String())
+			}
+			installed := filepath.Join(append([]string{home}, tc.relPath...)...)
+			content, err := os.ReadFile(installed)
+			if err != nil {
+				t.Fatalf("expected completion installed at %s: %v", installed, err)
+			}
+			if !strings.Contains(string(content), tc.contentSub) {
+				t.Errorf("installed %s missing %q content", installed, tc.contentSub)
+			}
+			if !strings.Contains(out.String(), "Completion script installed to "+installed) {
+				t.Errorf("expected install confirmation for %s, got: %s", installed, out.String())
+			}
+			if errBuf.Len() != 0 {
+				t.Errorf("expected no stderr output, got: %s", errBuf.String())
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_DeclineSkips(t *testing.T) {
+	setTestTerminal(t, true)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	// Pressing Enter (empty answer) declines.
+	rootCmd.SetIn(strings.NewReader("\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+
+	offerCompletionInstall(rootCmd, app)
+
+	if !strings.Contains(out.String(), "Install shell completions for zsh?") {
+		t.Errorf("expected prompt to be shown, got: %s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(home, ".zfunc", "_nd")); err == nil {
+		t.Error("expected no completion file when the prompt is declined")
+	}
+	if errBuf.Len() != 0 {
+		t.Errorf("expected no error output on decline, got: %s", errBuf.String())
+	}
+}
+
+func TestOfferCompletionInstall_Skips(t *testing.T) {
+	tests := []struct {
+		name        string
+		shellEnv    string
+		interactive bool
+		mutate      func(*App)
+	}{
+		{"unsupported shell", "/bin/csh", true, nil},
+		{"another unsupported shell", "/bin/tcsh", true, nil},
+		{"unset shell", "", true, nil},
+		{"yes flag", "/bin/zsh", true, func(a *App) { a.Yes = true }},
+		{"json flag", "/bin/zsh", true, func(a *App) { a.JSON = true }},
+		{"quiet flag", "/bin/zsh", true, func(a *App) { a.Quiet = true }},
+		{"not a terminal", "/bin/zsh", false, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			setTestTerminal(t, tc.interactive)
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("SHELL", tc.shellEnv)
+
+			app := &App{}
+			rootCmd := NewRootCmd(app)
+			// Mutate after NewRootCmd: registering the persistent flags binds
+			// them to the App fields and resets each to its default (false).
+			if tc.mutate != nil {
+				tc.mutate(app)
+			}
+			var out, errBuf bytes.Buffer
+			rootCmd.SetIn(strings.NewReader("y\n"))
+			rootCmd.SetOut(&out)
+			rootCmd.SetErr(&errBuf)
+
+			offerCompletionInstall(rootCmd, app)
+
+			if strings.Contains(out.String(), "Install shell completions") {
+				t.Errorf("expected no completion prompt, got: %s", out.String())
+			}
+			for _, seg := range [][]string{
+				{".zfunc", "_nd"},
+				{".bash_completion.d", "nd"},
+				{".config", "fish", "completions", "nd.fish"},
+			} {
+				full := filepath.Join(append([]string{home}, seg...)...)
+				if _, err := os.Stat(full); err == nil {
+					t.Errorf("expected no completion file, but found %s", full)
+				}
+			}
+		})
+	}
+}
+
+func TestOfferCompletionInstall_InstallFailureWarns(t *testing.T) {
+	setTestTerminal(t, true)
+	home := t.TempDir()
+	// Put a regular file where ~/.zfunc must be created so MkdirAll fails.
+	if err := os.WriteFile(filepath.Join(home, ".zfunc"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+
+	// Must not panic or propagate an error.
+	offerCompletionInstall(rootCmd, app)
+
+	if !strings.Contains(errBuf.String(), "warning: could not install completions") {
+		t.Errorf("expected install warning on stderr, got: %s", errBuf.String())
+	}
+}
+
+func TestInitCmd_OffersCompletionInteractive(t *testing.T) {
+	setTestTerminal(t, true)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("SHELL", "/bin/zsh")
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{
+		initAgent:    testInitAgent(t, tmp),
+		initRegistry: testInitRegistry(t, tmp),
+	}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	// "y" installs completions; the built-in deploy prompt then reads EOF and is skipped.
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	detIdx := strings.Index(got, "Detected agents:")
+	compIdx := strings.Index(got, "Install shell completions for zsh?")
+	deployIdx := strings.Index(got, "Deploy ")
+	if detIdx < 0 || compIdx < 0 || deployIdx < 0 {
+		t.Fatalf("missing expected sections (det=%d comp=%d deploy=%d) in output:\n%s",
+			detIdx, compIdx, deployIdx, got)
+	}
+	if detIdx >= compIdx || compIdx >= deployIdx {
+		t.Errorf("expected order Detected agents < completion prompt < Deploy prompt; got det=%d comp=%d deploy=%d\n%s",
+			detIdx, compIdx, deployIdx, got)
+	}
+
+	installed := filepath.Join(tmp, ".zfunc", "_nd")
+	if _, err := os.Stat(installed); err != nil {
+		t.Errorf("expected zsh completion installed at %s: %v", installed, err)
+	}
+	if !strings.Contains(got, "Completion script installed to "+installed) {
+		t.Errorf("expected install confirmation, got: %s", got)
+	}
+}
+
+func TestInitCmd_CompletionInstallFailure_StillSucceeds(t *testing.T) {
+	setTestTerminal(t, true)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("SHELL", "/bin/zsh")
+	// Block ~/.zfunc so the completion install fails, but leave HOME otherwise
+	// valid so built-in extraction and config creation still work.
+	if err := os.WriteFile(filepath.Join(tmp, ".zfunc"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(tmp, ".config", "nd", "config.yaml")
+
+	app := &App{
+		initAgent:    testInitAgent(t, tmp),
+		initRegistry: testInitRegistry(t, tmp),
+	}
+	rootCmd := NewRootCmd(app)
+	var out, errBuf bytes.Buffer
+	rootCmd.SetIn(strings.NewReader("y\n"))
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", configPath, "init"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("nd init must still succeed when completion install fails: %v", err)
+	}
+
+	if !strings.Contains(errBuf.String(), "warning: could not install completions") {
+		t.Errorf("expected completion warning on stderr, got: %s", errBuf.String())
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		t.Errorf("config file should still exist after failed completion install: %v", err)
 	}
 }

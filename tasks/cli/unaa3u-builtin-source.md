@@ -1,7 +1,7 @@
 ---
 title: "Ship built-in source with nd"
 id: "unaa3u"
-status: pending
+status: completed
 priority: high
 type: feature
 tags: ["core", "onboarding"]
@@ -33,6 +33,7 @@ verify:
     run: "go test ./tests/integration/ -run Builtin -v"
   - type: assert
     check: "An end-to-end integration test in tests/integration/ exercises `nd init --yes` then asserts builtin assets are deployed and `nd source list` includes a source with type builtin that `nd source remove builtin` refuses to delete"
+completed_at: 2026-08-01
 ---
 
 ## Ship built-in source with nd

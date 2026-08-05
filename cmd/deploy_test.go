@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/output"
 )
 
@@ -32,6 +33,46 @@ func setupDeployEnv(t *testing.T) (configPath string, srcDir string) {
 
 	// Write config with the source pre-registered and agent global_dir override
 	cfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: absolute\nsources:\n  - id: my-source\n    type: local\n    path: " + srcDir + "\nagents:\n  - name: claude-code\n    global_dir: " + agentDir + "\n"
+	os.WriteFile(configPath, []byte(cfg), 0o644)
+
+	return configPath, srcDir
+}
+
+// envAgentDir returns the agent global_dir configured by setupDeployEnv.
+func envAgentDir(configPath string) string {
+	tmp := filepath.Dir(filepath.Dir(filepath.Dir(configPath)))
+	return filepath.Join(tmp, ".claude")
+}
+
+// envStateFile returns the deployments.yaml path for a setupDeployEnv config.
+func envStateFile(configPath string) string {
+	return filepath.Join(filepath.Dir(configPath), "state", "deployments.yaml")
+}
+
+// setupTwoAgentDeployEnv is like setupDeployEnv but also configures and detects
+// a second agent (copilot) by overriding its global_dir to an existing dir.
+// Both claude-code and copilot resolve as detected, enabling multi-agent tests.
+func setupTwoAgentDeployEnv(t *testing.T) (configPath string, srcDir string) {
+	t.Helper()
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, ".config", "nd")
+	os.MkdirAll(configDir, 0o755)
+	os.MkdirAll(filepath.Join(configDir, "state"), 0o755)
+	configPath = filepath.Join(configDir, "config.yaml")
+
+	srcDir = filepath.Join(tmp, "my-source")
+	os.MkdirAll(filepath.Join(srcDir, "skills", "greeting"), 0o755)
+	os.WriteFile(filepath.Join(srcDir, "skills", "greeting", "SKILL.md"), []byte("# Greeting"), 0o644)
+
+	claudeDir := filepath.Join(tmp, ".claude")
+	os.MkdirAll(claudeDir, 0o755)
+	copilotDir := filepath.Join(tmp, ".copilot")
+	os.MkdirAll(copilotDir, 0o755)
+
+	cfg := "version: 1\ndefault_scope: global\ndefault_agent: claude-code\nsymlink_strategy: absolute\n" +
+		"sources:\n  - id: my-source\n    type: local\n    path: " + srcDir + "\n" +
+		"agents:\n  - name: claude-code\n    global_dir: " + claudeDir + "\n" +
+		"  - name: copilot\n    global_dir: " + copilotDir + "\n"
 	os.WriteFile(configPath, []byte(cfg), 0o644)
 
 	return configPath, srcDir
@@ -112,6 +153,15 @@ func TestDeployCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Dry-run must not touch the filesystem: no symlink and no state file.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); !os.IsNotExist(err) {
+		t.Errorf("dry-run must not create a symlink at %s (err=%v)", linkPath, err)
+	}
+	if _, err := os.Stat(envStateFile(configPath)); !os.IsNotExist(err) {
+		t.Errorf("dry-run must not write the state file (err=%v)", err)
 	}
 }
 
@@ -260,5 +310,154 @@ func TestDeployCmd_Completions(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "greeting") {
 		t.Errorf("expected 'greeting' in completions, got:\n%s", got)
+	}
+}
+
+// Explicit --scope project is honored (deploys under the project root) and
+// skips the interactive scope prompt. ProjectRoot is preset to an isolated
+// temp dir so the test does not resolve (and pollute) the real repo root.
+func TestDeployCmd_ScopeProject_NoPrompt(t *testing.T) {
+	resetDeployScopePref()
+	t.Cleanup(resetDeployScopePref)
+
+	configPath, _ := setupDeployEnv(t)
+	projRoot := t.TempDir()
+
+	app := &App{ProjectRoot: projRoot}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--scope", "project", "deploy", "greeting"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Deployed") {
+		t.Errorf("expected 'Deployed' in output, got: %s", got)
+	}
+	if strings.Contains(got, "Deploy scope:") {
+		t.Errorf("explicit --scope must skip the scope prompt, got: %s", got)
+	}
+	// Deployment should land under the project root's agent project dir.
+	// The default agent's ProjectDir is ".agents" (see internal/agent/registry.go).
+	linkPath := filepath.Join(projRoot, ".agents", "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Errorf("expected project-scope symlink at %s: %v", linkPath, err)
+	}
+}
+
+// Explicit --scope global deploys with no prompt.
+func TestDeployCmd_ScopeGlobal_NoPrompt(t *testing.T) {
+	resetDeployScopePref()
+	t.Cleanup(resetDeployScopePref)
+
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--scope", "global", "deploy", "greeting"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Deployed") {
+		t.Errorf("expected 'Deployed' in output, got: %s", got)
+	}
+	if strings.Contains(got, "Deploy scope:") {
+		t.Errorf("explicit --scope global must skip the scope prompt, got: %s", got)
+	}
+}
+
+// Piped (non-TTY) stdin with no --scope must not prompt and must not error;
+// it defaults to global, preserving existing scripted behavior.
+func TestDeployCmd_NoScopeFlag_NonTTY_NoPrompt(t *testing.T) {
+	resetDeployScopePref()
+	t.Cleanup(resetDeployScopePref)
+
+	configPath, _ := setupDeployEnv(t)
+
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetIn(strings.NewReader("")) // piped, non-terminal stdin
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "greeting"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := out.String()
+	if strings.Contains(got, "Deploy scope:") {
+		t.Errorf("non-TTY deploy without --scope must not prompt for scope, got: %s", got)
+	}
+	if !strings.Contains(got, "Deployed") {
+		t.Errorf("expected 'Deployed' in output, got: %s", got)
+	}
+}
+
+// A scope chosen earlier in the process is reused without re-consulting input.
+func TestResolveDeployScope_SessionPrefReused(t *testing.T) {
+	resetDeployScopePref()
+	t.Cleanup(resetDeployScopePref)
+
+	// Simulate a choice already made earlier in the process.
+	proj := nd.ScopeProject
+	deployScopePref = &proj
+
+	app := &App{Scope: nd.ScopeGlobal}
+	cmd := newDeployCmd(app)
+
+	// Two calls in the same process: both reuse the stored preference rather
+	// than falling through to the (global) default or an interactive prompt.
+	for i := 0; i < 2; i++ {
+		got, err := resolveDeployScope(cmd, app)
+		if err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i, err)
+		}
+		if got != nd.ScopeProject {
+			t.Errorf("call %d: got scope %q, want session preference %q", i, got, nd.ScopeProject)
+		}
+	}
+}
+
+// cmd.Flags().Changed("scope") is true only when --scope is actually passed.
+func TestDeployCmd_ScopeFlagChanged(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"with scope flag", []string{"deploy", "--scope", "project", "greeting"}, true},
+		{"without scope flag", []string{"deploy", "greeting"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &App{}
+			rootCmd := NewRootCmd(app)
+
+			target, flags, err := rootCmd.Find(tc.args)
+			if err != nil {
+				t.Fatalf("Find(%v): %v", tc.args, err)
+			}
+			if err := target.ParseFlags(flags); err != nil {
+				t.Fatalf("ParseFlags(%v): %v", flags, err)
+			}
+			if got := target.Flags().Changed("scope"); got != tc.want {
+				t.Errorf("Changed(\"scope\") = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

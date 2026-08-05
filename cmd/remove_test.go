@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -38,6 +40,56 @@ func TestRemoveCmd(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "Removed") {
 		t.Errorf("expected 'Removed' in output, got: %s", got)
+	}
+}
+
+func TestRemoveCmd_ScopedToAgent(t *testing.T) {
+	configPath, _ := setupTwoAgentDeployEnv(t)
+
+	// Deploy greeting to both agents.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "deploy", "--agents", "claude-code,copilot", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("multi-agent deploy failed: %v\n%s", err, out.String())
+	}
+
+	// Remove greeting for the active agent (claude-code) only.
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "--yes", "remove", "greeting"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("remove failed: %v\n%s", err, out.String())
+	}
+
+	// The copilot deployment must remain; the claude-code one must be gone.
+	out.Reset()
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "--json", "status"})
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("status failed: %v", err)
+	}
+	var resp output.JSONResponse
+	if err := json.Unmarshal(out.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, out.String())
+	}
+	data := resp.Data.(map[string]interface{})
+	deployments, _ := data["deployments"].([]interface{})
+	if len(deployments) != 1 {
+		t.Fatalf("expected exactly 1 surviving deployment, got %d: %s", len(deployments), out.String())
+	}
+	dm := deployments[0].(map[string]interface{})
+	if dm["agent"] != "copilot" {
+		t.Errorf("expected copilot deployment to survive removal of claude-code's, got agent %v", dm["agent"])
 	}
 }
 
@@ -86,6 +138,67 @@ func TestRemoveCmd_DryRun(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "dry-run") {
 		t.Errorf("expected 'dry-run' in output, got: %s", got)
+	}
+
+	// Dry-run remove must leave the deployed symlink and its state entry intact.
+	linkPath := filepath.Join(envAgentDir(configPath), "skills", "greeting")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Errorf("dry-run remove must not delete the symlink at %s: %v", linkPath, err)
+	}
+	data, err := os.ReadFile(envStateFile(configPath))
+	if err != nil {
+		t.Fatalf("read state file: %v", err)
+	}
+	if !strings.Contains(string(data), "greeting") {
+		t.Errorf("dry-run remove must not drop the state entry, got: %s", data)
+	}
+}
+
+func TestRemoveCmd_Pinned_DryRun_NoPrompt(t *testing.T) {
+	// `remove <pinned> --dry-run` must print the plan without prompting, even in
+	// a non-TTY without --yes (the pinned re-confirm is skipped under --dry-run).
+	setTestTerminal(t, false)
+	configPath, _ := setupDeployEnv(t)
+
+	// Deploy and pin greeting.
+	app := &App{}
+	rootCmd := NewRootCmd(app)
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"--config", configPath, "--yes", "deploy", "greeting"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("deploy failed: %v", err)
+	}
+
+	out.Reset()
+	app2 := &App{}
+	rootCmd2 := NewRootCmd(app2)
+	rootCmd2.SetOut(&out)
+	rootCmd2.SetErr(&out)
+	rootCmd2.SetArgs([]string{"--config", configPath, "pin", "greeting"})
+	if err := rootCmd2.Execute(); err != nil {
+		t.Fatalf("pin failed: %v", err)
+	}
+
+	// Dry-run remove without --yes on a non-TTY: must not prompt or error.
+	out.Reset()
+	app3 := &App{}
+	rootCmd3 := NewRootCmd(app3)
+	rootCmd3.SetOut(&out)
+	rootCmd3.SetErr(&out)
+	rootCmd3.SetArgs([]string{"--config", configPath, "--dry-run", "remove", "greeting"})
+
+	if err := rootCmd3.Execute(); err != nil {
+		t.Fatalf("expected no error for pinned --dry-run remove, got: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "dry-run") || !strings.Contains(got, "would remove") {
+		t.Errorf("expected dry-run plan in output, got: %s", got)
+	}
+	if strings.Contains(got, "pinned") || strings.Contains(got, "Remove anyway") {
+		t.Errorf("expected no confirmation prompt for --dry-run, got: %s", got)
 	}
 }
 

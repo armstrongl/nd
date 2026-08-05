@@ -44,7 +44,7 @@ nd symlinks the individual file into the target location (see [How nd works](../
 | Scope | Target path |
 |-------|-------------|
 | Global | `~/.claude/commands/<name>.md` |
-| Project | `.claude/commands/<name>.md` |
+| Project | `.agents/commands/<name>.md` |
 
 To undeploy a command, run [`nd remove`](../../reference/nd_remove.md) `commands/deploy-all`.
 

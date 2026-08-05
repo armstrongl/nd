@@ -1,7 +1,7 @@
 ---
 title: "Additional test coverage gaps beyond TUI audit"
 id: "wughc0"
-status: pending
+status: completed
 priority: low
 type: chore
 tags: ["testing"]
@@ -34,6 +34,7 @@ context:
   - cmd/deploy_test.go
   - cmd/oplog_integration_test.go
   - tasks/cli/agtaqm-test-coverage-gaps.md
+completed_at: 2026-08-01
 ---
 
 ## Additional test coverage gaps beyond TUI audit
@@ -93,66 +94,66 @@ Two test harnesses already exist — mirror the one matching the layer:
 #### Error-path gaps (engine / store / git / source-remove)
 
 - [ ] `internal/deploy/deploy.go:186` (`Deploy` → `e.store.Save`),
-      `:501` (`DeployBulk` → `e.store.Save`), `:521` (`Remove` →
-      `e.store.Save`), `:548` (`RemoveBulk` → `e.store.Save`): set
-      `store.saveErr = errors.New("disk full")` and assert each public method
-      returns a non-nil error wrapping it and persists nothing
-      (`store.saved == nil`). One test per call site.
+  `:501` (`DeployBulk` → `e.store.Save`), `:521` (`Remove` →
+  `e.store.Save`), `:548` (`RemoveBulk` → `e.store.Save`): set
+  `store.saveErr = errors.New("disk full")` and assert each public method
+  returns a non-nil error wrapping it and persists nothing
+  (`store.saved == nil`). One test per call site.
 - [ ] `internal/state/store.go:88-90` (`Save` MkdirAll failure → "create state
-      directory"), `:92-95` (`yaml.Marshal` failure → "marshal state"),
-      `:102-104` (`WithLock` lock-acquire failure). Drive `Store` directly:
-      point `NewStore` at a path whose parent dir cannot be created (e.g. a
-      path under an existing regular file) for the MkdirAll branch; for
-      WithLock, create the `.lock` file held by an un-releasable lock or use a
-      0-timeout path (inspect `NewFileLock`/`FileLock.Acquire` in
-      `internal/state/` to pick the cleanest trigger). Marshal failure may be
-      hard to force with the real `DeploymentState`; if no input makes
-      `yaml.Marshal` fail, strike the marshal sub-item with that one-line note.
+  directory"), `:92-95` (`yaml.Marshal` failure → "marshal state"),
+  `:102-104` (`WithLock` lock-acquire failure). Drive `Store` directly:
+  point `NewStore` at a path whose parent dir cannot be created (e.g. a
+  path under an existing regular file) for the MkdirAll branch; for
+  WithLock, create the `.lock` file held by an un-releasable lock or use a
+  0-timeout path (inspect `NewFileLock`/`FileLock.Acquire` in
+  `internal/state/` to pick the cleanest trigger). Marshal failure may be
+  hard to force with the real `DeploymentState`; if no input makes
+  `yaml.Marshal` fail, strike the marshal sub-item with that one-line note.
 - [ ] `internal/sourcemanager/git.go:62-64` (`gitClone` non-zero exit →
-      `git clone ...: %w`) and `:72-74` (`gitPull` non-zero exit). Exercise via
-      a bogus URL/dir so `git` exits non-zero; assert the wrapped error.
-      `gitClone` is reached through `SourceManager.AddGit`
-      (`internal/sourcemanager/register.go:154`).
+  `git clone ...: %w`) and `:72-74` (`gitPull` non-zero exit). Exercise via
+  a bogus URL/dir so `git` exits non-zero; assert the wrapped error.
+  `gitClone` is reached through `SourceManager.AddGit`
+  (`internal/sourcemanager/register.go:154`).
 - [ ] `internal/sourcemanager/register.go:154-157` -- `AddGit` clone-failure
-      path: `gitClone` error → `os.RemoveAll(cloneTarget)` cleanup → returns
-      the error; assert `cloneTarget` does not exist and config is unchanged.
-      `:170-174` -- `WriteConfig` failure after a successful clone: rolls
-      `sm.cfg.Sources` back to `oldSources`, removes `cloneTarget`, returns
-      "save config: %w". Force `WriteConfig` failure by making `sm.configPath`
-      unwritable (e.g. a directory at that path); assert in-memory sources
-      reverted and clone dir removed.
+  path: `gitClone` error → `os.RemoveAll(cloneTarget)` cleanup → returns
+  the error; assert `cloneTarget` does not exist and config is unchanged.
+  `:170-174` -- `WriteConfig` failure after a successful clone: rolls
+  `sm.cfg.Sources` back to `oldSources`, removes `cloneTarget`, returns
+  "save config: %w". Force `WriteConfig` failure by making `sm.configPath`
+  unwritable (e.g. a directory at that path); assert in-memory sources
+  reverted and clone dir removed.
 - [ ] `cmd/source.go:341-374` -- `removeSourceDeployments` is currently 0%
-      covered. Cover: (a) `eng.Status()` error return (`:343-345`);
-      (b) `eng.RemoveBulk` error (`:366-368`); (c) partial failure where
-      `result.Failed` is non-empty → `"failed to remove %d assets"`
-      (`:370-372`); (d) the no-matching-deployments early return
-      (`:362-364`). Reach it through `nd source remove <id> --yes` with prior
-      deployments from that source (see the symlink-cleanup item below for the
-      flow), or unit-test `removeSourceDeployments` directly with a fake
-      engine.
+  covered. Cover: (a) `eng.Status()` error return (`:343-345`);
+  (b) `eng.RemoveBulk` error (`:366-368`); (c) partial failure where
+  `result.Failed` is non-empty → `"failed to remove %d assets"`
+  (`:370-372`); (d) the no-matching-deployments early return
+  (`:362-364`). Reach it through `nd source remove <id> --yes` with prior
+  deployments from that source (see the symlink-cleanup item below for the
+  flow), or unit-test `removeSourceDeployments` directly with a fake
+  engine.
 
 #### Nil/empty-input guard gaps
 
 - [ ] `internal/deploy/deploy.go:556-580` -- `Engine.SetOrigin` is 0% covered.
-      Add tests for all four branches: (a) no matching deployment →
-      `"deployment not found: ..."` (`:578`); (b) project-scope mismatch
-      (`d.ProjectPath != projectRoot`) continues past a same-identity entry
-      (`:570-572`); (c) a match updates `Origin` and calls `e.store.Save`
-      (`:573-574`) — assert the persisted `Deployment.Origin` changed;
-      (d) `e.store.Load` error returns `"load state: %w"` (`:561-563`) via
-      `store.loadErr`.
+  Add tests for all four branches: (a) no matching deployment →
+  `"deployment not found: ..."` (`:578`); (b) project-scope mismatch
+  (`d.ProjectPath != projectRoot`) continues past a same-identity entry
+  (`:570-572`); (c) a match updates `Origin` and calls `e.store.Save`
+  (`:573-574`) — assert the persisted `Deployment.Origin` changed;
+  (d) `e.store.Load` error returns `"load state: %w"` (`:561-563`) via
+  `store.loadErr`.
 - [ ] `internal/deploy/deploy.go:596-604` -- `removeOne` agent-filtering
-      branch: when `req.Agent != ""`, a deployment whose `Agent` differs is
-      skipped, and an empty `d.Agent` is treated as `"claude-code"`. Add a test
-      with two deployments differing only by `Agent`, call `Remove`/`RemoveBulk`
-      with `RemoveRequest.Agent` set, and assert only the matching one is
-      removed; include the empty-`d.Agent` ⇒ `"claude-code"` compat case.
+  branch: when `req.Agent != ""`, a deployment whose `Agent` differs is
+  skipped, and an empty `d.Agent` is treated as `"claude-code"`. Add a test
+  with two deployments differing only by `Agent`, call `Remove`/`RemoveBulk`
+  with `RemoveRequest.Agent` set, and assert only the matching one is
+  removed; include the empty-`d.Agent` ⇒ `"claude-code"` compat case.
 - [ ] `internal/config/validation.go:71-74` -- a `SourceEntry` with empty `ID`
-      produces a `sources[i].id: must not be empty` `ValidationError`. `:17-22`
-      -- `ValidationError.Error()`: assert the **no-file** branch (`File == ""`
-      → `field %s: %s`) and the with-file branch (`File != "" → %s:%d: ...`).
-      Build `config.Config` / `config.ValidationError` values directly and
-      assert `.Validate()` / `.Error()` output.
+  produces a `sources[i].id: must not be empty` `ValidationError`. `:17-22`
+  -- `ValidationError.Error()`: assert the **no-file** branch (`File == ""`
+  → `field %s: %s`) and the with-file branch (`File != "" → %s:%d: ...`).
+  Build `config.Config` / `config.ValidationError` values directly and
+  assert `.Validate()` / `.Error()` output.
 
 #### Dry-run no-side-effect gaps (cmd layer)
 
@@ -161,24 +162,21 @@ filesystem/state assertions (no symlink created, `deployments.yaml` unchanged,
 config unchanged) to:
 
 - [ ] `cmd/deploy_test.go:96` `TestDeployCmd_DryRun` -- after `--dry-run deploy
-      greeting`, assert no symlink exists under the agent dir and the state file
-      is absent/empty.
+  greeting`, assert no symlink exists under the agent dir and the state file
+  is absent/empty.
 - [ ] `cmd/remove_test.go:60` `TestRemoveCmd_DryRun` -- assert the deployed
-      symlink and its state entry still exist after `--dry-run remove`.
+  symlink and its state entry still exist after `--dry-run remove`.
 - [ ] `cmd/snapshot_test.go:250` `TestSnapshotRestoreCmd_DryRun` -- assert
-      live deployment state is unchanged by the dry-run restore.
+  live deployment state is unchanged by the dry-run restore.
 - [ ] `cmd/sync_test.go:33` `TestSyncCmd_DryRun` -- assert state file unchanged.
 - [ ] `cmd/uninstall_test.go:12` `TestUninstallCmd_DryRun` -- assert symlinks
-      and state still present.
+  and state still present.
 - [ ] `cmd/profile_test.go:273` `TestProfileDeployCmd_DryRun` -- assert no
-      symlink/state change.
+  symlink/state change.
 - [ ] **New test**: profile-**switch** dry-run has no existing test
-      (`cmd/profile_test.go` has `TestProfileSwitchCmd_*` at `:419/:535/:552/
-      :604` but none for `--dry-run`). The guard is `cmd/profile.go:474-486`
-      (prints `[dry-run] would ...`, returns before `app.DeployEngine()` at
-      `:526`). Add `TestProfileSwitchCmd_DryRun`: with two profiles, run
-      `--dry-run profile switch <name>` and assert no symlink/state change and
-      output contains `[dry-run] would switch`.
+  (`cmd/profile_test.go` has `TestProfileSwitchCmd_*` at `:419/:535/:552/
+  :604` but none for `--dry-run`). The guard is`cmd/profile.go:474-486`(prints`[dry-run] would ...`, returns before`app.DeployEngine()`at`:526`). Add`TestProfileSwitchCmd_DryRun`: with two profiles, run`--dry-run profile switch <name>` and assert no symlink/state change and
+  output contains `[dry-run] would switch`.
 
 #### OpLog side-effect gaps (cmd layer)
 
@@ -189,64 +187,64 @@ the full-reconcile `cmd/sync.go:92`), dry-run no-log for plain deploy (`:160`),
 `OpSnapshotSave` (`:181`). Add the **missing** ones:
 
 - [ ] `OpProfileSwitch` -- emitted at `cmd/profile.go:546-553` (op constant
-      `cmd/profile.go:548`). Assert one entry with `Operation ==
-      oplog.OpProfileSwitch` and `Detail == "<from> -> <to>"`.
+  `cmd/profile.go:548`). Assert one entry with `Operation ==
+  oplog.OpProfileSwitch` and `Detail == "<from> -> <to>"`.
 - [ ] profile-deploy `OpDeploy` -- emitted at `cmd/profile.go:371-373` for
-      `nd profile deploy <name>` (distinct from plain `nd deploy`); assert an
-      `OpDeploy` entry results.
+  `nd profile deploy <name>` (distinct from plain `nd deploy`); assert an
+  `OpDeploy` entry results.
 - [ ] `OpSnapshotRestore` -- emitted at `cmd/snapshot.go:194-196`; assert one
-      entry after `nd snapshot restore`.
+  entry after `nd snapshot restore`.
 - [ ] `OpSourceAdd` -- emitted at `cmd/source.go:80-85` (git) and `:103-108`
-      (local); assert an `OpSourceAdd` entry with the expected `Detail`
-      (`"local <id>"` / `"git <id>"`) after `nd source add`.
+  (local); assert an `OpSourceAdd` entry with the expected `Detail`
+  (`"local <id>"` / `"git <id>"`) after `nd source add`.
 - [ ] `OpSourceRemove` -- emitted at `cmd/source.go:237-242`; assert one entry
-      after `nd source remove <id> --yes`.
+  after `nd source remove <id> --yes`.
 - [ ] `OpSourceSync` -- emitted at `cmd/sync.go:48-50` (per-git-source path of
-      `nd sync`; **not** the `OpSync` at `cmd/sync.go:92` which is already
-      covered by `TestOplog_SyncWritesEntry`). Add a git source so this branch
-      runs, then assert an `OpSourceSync` entry.
+  `nd sync`; **not** the `OpSync` at `cmd/sync.go:92` which is already
+  covered by `TestOplog_SyncWritesEntry`). Add a git source so this branch
+  runs, then assert an `OpSourceSync` entry.
 - [ ] `OpUninstall` -- emitted at `cmd/uninstall.go:90-92`; assert one entry
-      after a non-dry-run `nd uninstall`.
+  after a non-dry-run `nd uninstall`.
 - [ ] Dry-run no-log: mirror `TestOplog_DryRunDoesNotLog`
-      (`cmd/oplog_integration_test.go:160`) for `remove`, `snapshot restore`,
-      `profile deploy`, `profile switch`, `sync`, and `uninstall` — each with
-      `--dry-run` must leave `operations.log` with zero entries (verify the
-      dry-run guard precedes the `LogOp` call: e.g. `cmd/uninstall.go:48` guard
-      before `:90` log; `cmd/profile.go:340` before `:371`;
-      `cmd/profile.go:474` before `:546`; `cmd/snapshot.go:146` before `:194`;
-      `cmd/sync.go:42`/`:66` before `:48`/`:90`).
+  (`cmd/oplog_integration_test.go:160`) for `remove`, `snapshot restore`,
+  `profile deploy`, `profile switch`, `sync`, and `uninstall` — each with
+  `--dry-run` must leave `operations.log` with zero entries (verify the
+  dry-run guard precedes the `LogOp` call: e.g. `cmd/uninstall.go:48` guard
+  before `:90` log; `cmd/profile.go:340` before `:371`;
+  `cmd/profile.go:474` before `:546`; `cmd/snapshot.go:146` before `:194`;
+  `cmd/sync.go:42`/`:66` before `:48`/`:90`).
 
 #### Symlink target/cleanup gaps
 
 - [ ] `internal/deploy/deploy.go:254-258` -- relative-symlink branch: when
-      `req.Strategy == nd.SymlinkRelative` and `filepath.Rel` returns an error,
-      `deployOne` returns `"compute relative path from %s to %s: %w"`.
-      `filepath.Rel` errors when one path is absolute and the other relative;
-      construct a `DeployRequest` with `Strategy: nd.SymlinkRelative` and a
-      relative `Asset.SourcePath` (link path is absolute) so `Rel` fails, and
-      assert the wrapped error. If a deterministic trigger is not reachable,
-      strike with a one-line note.
+  `req.Strategy == nd.SymlinkRelative` and `filepath.Rel` returns an error,
+  `deployOne` returns `"compute relative path from %s to %s: %w"`.
+  `filepath.Rel` errors when one path is absolute and the other relative;
+  construct a `DeployRequest` with `Strategy: nd.SymlinkRelative` and a
+  relative `Asset.SourcePath` (link path is absolute) so `Rel` fails, and
+  assert the wrapped error. If a deterministic trigger is not reachable,
+  strike with a one-line note.
 - [ ] `internal/deploy/deploy.go:371-374` (foreign **symlink** + `ForceReplace`,
-      `e.remove` fails → "remove conflicting symlink at %s: %w") and
-      `:389-392` (plain **file** + `ForceReplace`, `e.remove` fails → "remove
-      conflicting file at %s: %w"). Inject `e.SetLstat` returning a
-      symlink/regular `fakeFileInfo` (`internal/deploy/deploy_test.go:82-90`),
-      `e.SetReadlink`, and `e.SetRemove` returning an error; set
-      `DeployRequest.ForceReplace = true`; assert the wrapped error.
+  `e.remove` fails → "remove conflicting symlink at %s: %w") and
+  `:389-392` (plain **file** + `ForceReplace`, `e.remove` fails → "remove
+  conflicting file at %s: %w"). Inject `e.SetLstat` returning a
+  symlink/regular `fakeFileInfo` (`internal/deploy/deploy_test.go:82-90`),
+  `e.SetReadlink`, and `e.SetRemove` returning an error; set
+  `DeployRequest.ForceReplace = true`; assert the wrapped error.
 - [ ] **New test** (no existing coverage): deploy assets from a source, then
-      remove the source so its deployments are purged, and assert the symlinks
-      AND state entries are gone. NOTE: there is **no `--purge` flag** anywhere
-      in the codebase (verified by repo-wide grep). The actual mechanism is
-      `cmd/source.go`: `nd source remove <id> --yes` (or the interactive
-      "Remove source and all deployed assets" prompt choice at
-      `cmd/source.go:185-211`) → `removeSourceDeployments(eng, sourceID)` at
-      `cmd/source.go:201` / `:213` → `eng.RemoveBulk` (`cmd/source.go:366`),
-      then `sm.Remove(sourceID)` (`cmd/source.go:233`). Existing
-      `TestSourceRemove_WithYes` (`cmd/source_test.go:369`) only checks output
-      text and deploys nothing first — extend it or add a new test: deploy
-      `greeting` from a source via `nd deploy`, run `nd source remove <id>
-      --yes`, assert (a) the symlink under the agent dir is gone and (b) no
-      state entry for that source remains in `deployments.yaml`.
+  remove the source so its deployments are purged, and assert the symlinks
+  AND state entries are gone. NOTE: there is **no `--purge` flag** anywhere
+  in the codebase (verified by repo-wide grep). The actual mechanism is
+  `cmd/source.go`: `nd source remove <id> --yes` (or the interactive
+  "Remove source and all deployed assets" prompt choice at
+  `cmd/source.go:185-211`) → `removeSourceDeployments(eng, sourceID)` at
+  `cmd/source.go:201` / `:213` → `eng.RemoveBulk` (`cmd/source.go:366`),
+  then `sm.Remove(sourceID)` (`cmd/source.go:233`). Existing
+  `TestSourceRemove_WithYes` (`cmd/source_test.go:369`) only checks output
+  text and deploys nothing first — extend it or add a new test: deploy
+  `greeting` from a source via `nd deploy`, run `nd source remove <id>
+  --yes`, assert (a) the symlink under the agent dir is gone and (b) no
+  state entry for that source remains in `deployments.yaml`.
 
 ### Acceptance criteria
 

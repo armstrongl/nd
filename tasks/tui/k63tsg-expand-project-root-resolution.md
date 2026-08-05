@@ -1,7 +1,7 @@
 ---
 title: "Resolve project root on demand in TUI deploy/profile and sourcemanager"
 id: "k63tsg"
-status: pending
+status: completed
 priority: high
 type: bug
 tags: ["tui", "scope"]
@@ -39,6 +39,7 @@ verify:
     check: "SourceManager merges .nd/config.yaml project config when cwd is inside a project, regardless of launch scope"
   - type: assert
     check: "A cwd that is not inside any project still produces the FindProjectRoot error ('looked for .git/ or .claude/ from ...')"
+completed_at: 2026-08-01
 ---
 
 ## Resolve project root on demand in TUI deploy/profile and sourcemanager
@@ -109,55 +110,55 @@ error (`internal/nd/project.go:28`:
 ### Tasks
 
 - [ ] **`cmd/app.go:197-199`** — Change `GetProjectRoot()` to resolve on demand:
-      call `a.ResolveProjectRoot()` and on success return the resolved path; on
-      error return `""` (the existing callers treat `""` as "no project").
-      Mirror the doc-comment style of the other accessors (`cmd/app.go:185-199`).
-      Note: `ResolveProjectRoot()` caches into `a.ProjectRoot`, so this stays
-      cheap after the first call and is safe with `ResetForScope`
-      (`cmd/app.go:201-213`) which nils `ProjectRoot`.
+  call `a.ResolveProjectRoot()` and on success return the resolved path; on
+  error return `""` (the existing callers treat `""` as "no project").
+  Mirror the doc-comment style of the other accessors (`cmd/app.go:185-199`).
+  Note: `ResolveProjectRoot()` caches into `a.ProjectRoot`, so this stays
+  cheap after the first call and is safe with `ResetForScope`
+  (`cmd/app.go:201-213`) which nils `ProjectRoot`.
 - [ ] **`cmd/app.go:47-58` (`SourceManager`)** — Before calling
-      `sourcemanager.New(a.ConfigPath, a.ProjectRoot)` at `cmd/app.go:52`,
-      resolve the project root (best-effort: ignore the error, fall back to the
-      current `a.ProjectRoot`) so `.nd/config.yaml` merges
-      (`internal/sourcemanager/sourcemanager.go:33-40`) when cwd is inside a
-      project even if launched global. Prefer reusing the resolving accessor
-      from the previous item rather than duplicating `ResolveProjectRoot`
-      handling. Do not error the TUI when not in a project — pass `""` through
-      as today (the `projectDir == ""` branch is the supported non-project path).
+  `sourcemanager.New(a.ConfigPath, a.ProjectRoot)` at `cmd/app.go:52`,
+  resolve the project root (best-effort: ignore the error, fall back to the
+  current `a.ProjectRoot`) so `.nd/config.yaml` merges
+  (`internal/sourcemanager/sourcemanager.go:33-40`) when cwd is inside a
+  project even if launched global. Prefer reusing the resolving accessor
+  from the previous item rather than duplicating `ResolveProjectRoot`
+  handling. Do not error the TUI when not in a project — pass `""` through
+  as today (the `projectDir == ""` branch is the supported non-project path).
 - [ ] **`internal/tui/services.go:39`** — The `Services` interface already
-      declares `GetProjectRoot() string`. No signature change is required; the
-      resolving behavior comes from `cmd.App` (which satisfies this interface
-      per `services.go:14-16`). Confirm the interface comment still reads
-      accurately; update only if behavior wording changed.
+  declares `GetProjectRoot() string`. No signature change is required; the
+  resolving behavior comes from `cmd.App` (which satisfies this interface
+  per `services.go:14-16`). Confirm the interface comment still reads
+  accurately; update only if behavior wording changed.
 - [ ] **`internal/tui/deploy.go:451-453`** — With `GetProjectRoot()` now
-      resolving, no code change is required here unless resolution must be
-      surfaced as an error to the user; verify `projectRoot` is non-empty for a
-      project-scope deploy and add a comment noting the resolving accessor is
-      relied upon. If a clearer error is wanted for project scope with no
-      resolvable root, set `ds.err` and `ds.step = deployResult` (mirror the
-      pattern at `deploy.go:482-490`).
+  resolving, no code change is required here unless resolution must be
+  surfaced as an error to the user; verify `projectRoot` is non-empty for a
+  project-scope deploy and add a comment noting the resolving accessor is
+  relied upon. If a clearer error is wanted for project scope with no
+  resolvable root, set `ds.err` and `ds.step = deployResult` (mirror the
+  pattern at `deploy.go:482-490`).
 - [ ] **`internal/tui/profile.go:319`** — Same: `svc.GetProjectRoot()` now
-      resolves; verify non-empty for project-scope switch. No structural change
-      expected beyond the resolving accessor.
+  resolves; verify non-empty for project-scope switch. No structural change
+  expected beyond the resolving accessor.
 - [ ] **Consistency check (do NOT modify — owned by seed `2r0nyd`)** — Confirm
-      the resolving accessor makes the seed-covered gates at `scope.go:105`,
-      `settings.go:102`, and `tui.go:167` behave correctly together; if `2r0nyd`
-      is already merged, ensure no double-resolution or behavior conflict. These
-      sites read `s.svc.GetProjectRoot() == ""` /
-      `m.svc.GetProjectRoot() == ""`.
+  the resolving accessor makes the seed-covered gates at `scope.go:105`,
+  `settings.go:102`, and `tui.go:167` behave correctly together; if `2r0nyd`
+  is already merged, ensure no double-resolution or behavior conflict. These
+  sites read `s.svc.GetProjectRoot() == ""` /
+  `m.svc.GetProjectRoot() == ""`.
 - [ ] **Surface the genuine non-project message** — When `FindProjectRoot`
-      fails for a project-scoped action, ensure the user sees the underlying
-      message `no project root found (looked for .git/ or .claude/ from %s)`
-      (`internal/nd/project.go:28`, wrapped by `cmd/app.go:163-164`). Decide
-      whether to thread this string through or keep the existing static
-      "no project root detected" copy in the seed-covered gates; for
-      deploy/profile, prefer surfacing the real error since those paths show
-      `err.Error()` (`deploy.go:264-269`).
+  fails for a project-scoped action, ensure the user sees the underlying
+  message `no project root found (looked for .git/ or .claude/ from %s)`
+  (`internal/nd/project.go:28`, wrapped by `cmd/app.go:163-164`). Decide
+  whether to thread this string through or keep the existing static
+  "no project root detected" copy in the seed-covered gates; for
+  deploy/profile, prefer surfacing the real error since those paths show
+  `err.Error()` (`deploy.go:264-269`).
 - [ ] **Regression tests** — Add to `internal/tui/deploy_test.go` and
-      `internal/tui/profile_test.go`, driving the screens via the `mockServices`
-      double in `internal/tui/testutil_test.go` (override `getProjectRootFn`,
-      `getScopeFn`, `stateStoreFn`, `scanIndexFn`, `deployEngineFn` /
-      `profileManagerFn` as the existing tests do):
+  `internal/tui/profile_test.go`, driving the screens via the `mockServices`
+  double in `internal/tui/testutil_test.go` (override `getProjectRootFn`,
+  `getScopeFn`, `stateStoreFn`, `scanIndexFn`, `deployEngineFn` /
+  `profileManagerFn` as the existing tests do):
   - deploy in project scope builds a `deploy.DeployRequest` whose
     `ProjectRoot` equals the resolved project dir (assert non-empty / expected
     value). Inspect `ds.reqs` after `startDeploy`.

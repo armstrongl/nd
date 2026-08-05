@@ -27,7 +27,13 @@ jobs:
       - uses: actions/setup-go@v5
         if: ${{ steps.release.outputs.release_created == 'true' }}
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
+
+      - name: Check version drift
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: ./scripts/check-version-drift.sh
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
 
       - uses: goreleaser/goreleaser-action@v6
         if: ${{ steps.release.outputs.release_created == 'true' }}

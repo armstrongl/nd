@@ -25,6 +25,8 @@ Many nd commands support running without arguments to get an interactive picker.
 
 Interactive mode is automatically disabled in non-TTY environments (pipes, scripts) and when `--json` is set. In those cases, nd returns an error with a helpful message.
 
+Running `nd` with no command at all (rather than a command with no arguments) opens the full-screen interactive TUI: a menu-driven front end for every workflow in this guide. See [Interactive TUI](tui.md) for its layout, navigation, and key bindings.
+
 ## Global flags for scripting
 
 These flags work with every command:
@@ -57,6 +59,8 @@ Add a source with [`nd source add`](../reference/nd_source_add.md):
 nd source add ~/my-assets
 nd source add ~/my-assets --alias my-stuff
 ```
+
+Pass `--alias` to give a local source a memorable, human-readable name. nd shows the alias next to the generated source ID in `nd source list`, which makes a source registered from a long path quicker to recognize.
 
 nd scans the directory for convention-based subdirectories (`skills/`, `agents/`, `commands/`, `output-styles/`, `rules/`, `context/`, `plugins/`, `hooks/`).
 
@@ -156,14 +160,18 @@ When no `--agent` flag is provided, nd deploys to the configured default agent i
 
 ### Symlink strategy
 
-- **Absolute** (default): Symlinks use absolute paths
+- **Absolute** (default, `--absolute`): Symlinks use absolute paths
 - **Relative** (`--relative`): Symlinks use relative paths (better for portable setups)
 
 ```shell {filename="Terminal"}
+# Relative symlinks (portable across machines)
 nd deploy skills/greeting --relative
+
+# Absolute symlinks, overriding a relative config default
+nd deploy skills/greeting --absolute
 ```
 
-The default strategy can be changed in your config file (`symlink_strategy: relative`).
+The default strategy can be changed in your config file (`symlink_strategy: relative`). The `--relative` and `--absolute` flags are mutually exclusive, and each overrides the config default for a single deploy. For sharing portable setups across a team, see [Team and project config](team-config.md).
 
 ## Remove assets
 
@@ -248,6 +256,15 @@ Preview what would be repaired:
 ```shell {filename="Terminal"}
 nd sync --dry-run
 ```
+
+### Read the sync output
+
+For each deployment it acts on, `nd sync` prints one of two labels:
+
+- `Repaired <type>/<name>`: a broken or missing symlink was re-created because its source asset still exists on disk. For example, `Repaired skills/greeting`.
+- `Removed <type>/<name> (source gone)`: the source asset no longer exists, so nd dropped the deployment record and cleared the dangling link. For example, `Removed skills/greeting (source gone)`.
+
+When every deployment is already healthy, `nd sync` prints `All deployments healthy.` instead. A `Repaired` line means the link now resolves again; a `Removed` line means the underlying asset was deleted or moved, so redeploy it from a current source if you still want it. See [Broken symlinks](troubleshooting.md#broken-symlinks) for deeper diagnosis.
 
 ## Health checks
 
@@ -341,8 +358,11 @@ This removes symlinks but does **not** delete your config directory (`~/.config/
 
 ## Next steps
 
+- **[Interactive TUI](tui.md):** Drive every workflow from the menu-driven terminal interface
 - **[How nd works](how-nd-works.md):** Understand what happens on disk when you deploy and remove assets
 - **[Profiles and snapshots](profiles-and-snapshots.md):** Group assets into named profiles and switch between them
 - **[Creating sources](creating-sources.md):** Build and share your own asset libraries
+- **[Team and project config](team-config.md):** Share sources over git and scope config to a project
+- **[Export a plugin or marketplace](export-plugin-workflow.md):** Package assets into distributable plugins
 - **[Configuration](configuration.md):** Customize nd behavior, config merging, and global flags
 - **[Troubleshooting](troubleshooting.md):** Fix broken symlinks, missing assets, and other common issues

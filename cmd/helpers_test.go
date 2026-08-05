@@ -9,9 +9,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armstrongl/nd/internal/asset"
+	"github.com/armstrongl/nd/internal/nd"
 	"github.com/armstrongl/nd/internal/output"
 	"github.com/armstrongl/nd/internal/profile"
 )
+
+// fakeTerminal overrides the package-level isTerminal for the duration of a
+// test so interactive prompt paths can be exercised deterministically.
+func fakeTerminal(t *testing.T, v bool) {
+	t.Helper()
+	orig := isTerminal
+	isTerminal = func() bool { return v }
+	t.Cleanup(func() { isTerminal = orig })
+}
 
 func TestPrintJSON(t *testing.T) {
 	var buf bytes.Buffer
@@ -221,6 +232,90 @@ func TestLatestAutoSnapshot_None(t *testing.T) {
 	got := latestAutoSnapshot(app)
 	if got != "" {
 		t.Errorf("latestAutoSnapshot() = %q, want empty string", got)
+	}
+}
+
+func TestPromptDeployBuiltin_DefaultYesOnEnter(t *testing.T) {
+	fakeTerminal(t, true)
+	assets := []asset.Asset{
+		{Identity: asset.Identity{Type: nd.AssetSkill, Name: "greeting"}},
+	}
+	var w bytes.Buffer
+	ok, err := promptDeployBuiltin(strings.NewReader("\n"), &w, "Deploy?", assets)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Error("expected deploy (true) when Enter pressed (default Yes)")
+	}
+	if !strings.Contains(w.String(), "[Y/n/list]") {
+		t.Errorf("expected prompt to show [Y/n/list], got: %s", w.String())
+	}
+}
+
+func TestPromptDeployBuiltin_No(t *testing.T) {
+	fakeTerminal(t, true)
+	var w bytes.Buffer
+	ok, err := promptDeployBuiltin(strings.NewReader("n\n"), &w, "Deploy?", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok {
+		t.Error("expected skip (false) on 'n'")
+	}
+}
+
+func TestPromptDeployBuiltin_ListThenDeploy(t *testing.T) {
+	fakeTerminal(t, true)
+	assets := []asset.Asset{
+		{Identity: asset.Identity{Type: nd.AssetSkill, Name: "greeting"}},
+		{Identity: asset.Identity{Type: nd.AssetCommand, Name: "hello"}},
+	}
+	var w bytes.Buffer
+	ok, err := promptDeployBuiltin(strings.NewReader("list\n\n"), &w, "Deploy?", assets)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Error("expected deploy (true) after list then Enter")
+	}
+	out := w.String()
+	if !strings.Contains(out, "skills/greeting") {
+		t.Errorf("expected 'skills/greeting' listed, got: %s", out)
+	}
+	if !strings.Contains(out, "commands/hello") {
+		t.Errorf("expected 'commands/hello' listed, got: %s", out)
+	}
+	// Prompt appears twice: initial, then re-prompt after listing.
+	if got := strings.Count(out, "[Y/n/list]"); got != 2 {
+		t.Errorf("expected prompt shown twice (initial + re-prompt), got %d", got)
+	}
+}
+
+func TestPromptDeployBuiltin_UnrecognizedReprompts(t *testing.T) {
+	fakeTerminal(t, true)
+	var w bytes.Buffer
+	ok, err := promptDeployBuiltin(strings.NewReader("huh\ny\n"), &w, "Deploy?", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Error("expected deploy (true) after unrecognized input then 'y'")
+	}
+	if got := strings.Count(w.String(), "[Y/n/list]"); got != 2 {
+		t.Errorf("expected re-prompt after unrecognized input, prompt count = %d", got)
+	}
+}
+
+func TestPromptDeployBuiltin_NonTTY(t *testing.T) {
+	fakeTerminal(t, false)
+	var w bytes.Buffer
+	_, err := promptDeployBuiltin(strings.NewReader("y\n"), &w, "Deploy?", nil)
+	if err == nil {
+		t.Fatal("expected error when stdin is not a terminal")
+	}
+	if !strings.Contains(err.Error(), "not a terminal") {
+		t.Errorf("expected non-terminal error, got: %v", err)
 	}
 }
 
