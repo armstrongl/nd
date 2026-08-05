@@ -45,24 +45,24 @@ downstream of root detection.
 ### Tasks
 
 - [ ] Add a symlink-resolving helper for agent config dirs (resolve the deepest existing
-      ancestor when the leaf does not exist yet, so first-time deploys work)
+  ancestor when the leaf does not exist yet, so first-time deploys work)
 - [ ] Resolve the config dir in `agent.configDir` and `agent.contextDeployPath`
-      (`internal/agent/agent.go:63-88`) so `DeployPath` returns a physical path
+  (`internal/agent/agent.go:63-88`) so `DeployPath` returns a physical path
 - [ ] Fix relative-target computation in `internal/deploy/deploy.go:258-266` to use the resolved
-      parent directory
+  parent directory
 - [ ] Compare deployments by resolved path in `handleConflict`
-      (`internal/deploy/deploy.go:340-390`) instead of raw `LinkPath` string equality
+  (`internal/deploy/deploy.go:340-390`) instead of raw `LinkPath` string equality
 - [ ] Handle a broken symlinked config dir with a clear error instead of an opaque
-      `mkdirAll` failure (`internal/deploy/deploy.go:255`)
+  `mkdirAll` failure (`internal/deploy/deploy.go:255`)
 - [ ] Apply the same resolution in health checks (`internal/deploy/health.go:72`,
-      `internal/deploy/health.go:142`) and in `findDeployedAsset` (`cmd/remove.go:220`)
+  `internal/deploy/health.go:142`) and in `findDeployedAsset` (`cmd/remove.go:220`)
 - [ ] Decide and document migration for existing state entries recorded under unresolved paths
-      (resolve on read vs. one-time rewrite)
+  (resolve on read vs. one-time rewrite)
 - [ ] Add unit tests in `internal/agent/agent_test.go` and `internal/deploy/deploy_test.go`
-      covering a symlinked project config dir under both `SymlinkRelative` and absolute
-      strategies
+  covering a symlinked project config dir under both `SymlinkRelative` and absolute
+  strategies
 - [ ] Add an integration test in `tests/` for deploy → status → remove against a symlinked
-      `.claude`
+  `.claude`
 - [ ] Document the supported layout in the docs site
 
 ### Acceptance criteria
