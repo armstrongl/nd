@@ -8,12 +8,12 @@ import (
 // Report is the aggregate output of nd doctor.
 // Each section corresponds to a check category.
 type Report struct {
-	Config      ConfigCheck        `json:"config"`
-	Sources     []SourceCheck      `json:"sources"`
+	Config      ConfigCheck         `json:"config"`
+	Sources     []SourceCheck       `json:"sources"`
 	Deployments []state.HealthCheck `json:"deployments"`
-	Agents      []AgentCheck       `json:"agents"`
-	Git         GitCheck           `json:"git"`
-	Summary     Summary            `json:"summary"`
+	Agents      []AgentCheck        `json:"agents"`
+	Git         GitCheck            `json:"git"`
+	Summary     Summary             `json:"summary"`
 }
 
 // ConfigCheck reports config file validation results.

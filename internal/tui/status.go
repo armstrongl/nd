@@ -30,8 +30,8 @@ type statusScreen struct {
 	// statusLoadedMsg results from a previous scope's goroutine are discarded.
 	generation uint64
 
-	renderedLines []string  // content lines cached after data loads
-	height        int       // terminal height, updated by tea.WindowSizeMsg
+	renderedLines []string // content lines cached after data loads
+	height        int      // terminal height, updated by tea.WindowSizeMsg
 	scroll        listScroll
 }
 

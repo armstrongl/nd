@@ -24,7 +24,7 @@ func newStatusCmd(app *App) *cobra.Command {
 			"docs.guides":  "getting-started,troubleshooting",
 			"docs.related": "nd doctor,nd deploy",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

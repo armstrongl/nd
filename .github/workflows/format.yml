@@ -1,0 +1,73 @@
+name: Format
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: format-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Auto-format
+    runs-on: ubuntu-latest
+    # Forks get a read-only token on `pull_request`, so the push back would
+    # fail. Skip them; CI still gates the result via `rumdl check .`.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          # A PAT makes the format commit re-trigger CI normally. With the
+          # default GITHUB_TOKEN, GitHub creates runs for the pushed commit but
+          # parks them at conclusion `action_required` without executing them,
+          # so the PR is left showing checks that need manual approval.
+          # Verified live on this workflow's own PR.
+          token: ${{ secrets.FORMAT_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # Only bites when FORMAT_PAT is set; without it the re-triggered run
+      # never executes, so there is nothing to loop on either way.
+      - name: Skip if HEAD is already a format commit
+        id: guard
+        run: |
+          if git log -1 --pretty=%s | grep -q '^style: apply auto-formatting$'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.guard.outputs.skip == 'false'
+        with:
+          go-version-file: go.mod
+
+      - name: Install rumdl
+        if: steps.guard.outputs.skip == 'false'
+        # Pinned to match the version the Lint Markdown job checks against.
+        run: pip install rumdl==0.1.69
+
+      - name: Format markdown
+        if: steps.guard.outputs.skip == 'false'
+        run: rumdl fmt .
+
+      - name: Format Go
+        if: steps.guard.outputs.skip == 'false'
+        run: gofmt -w .
+
+      - name: Commit and push
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          if git diff --quiet; then
+            echo "Already formatted; nothing to commit."
+            exit 0
+          fi
+          git diff --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: apply auto-formatting"
+          git push origin HEAD:"$GITHUB_HEAD_REF"

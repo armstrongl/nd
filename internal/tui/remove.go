@@ -365,7 +365,7 @@ func (m *removeScreen) buildRemoveRequests() []deploy.RemoveRequest {
 		if d, ok := lookup[key]; ok {
 			reqs = append(reqs, deploy.RemoveRequest{
 				Identity:    d.Identity(),
-				Scope:       d.Scope,       // H3: use deployment's recorded scope
+				Scope:       d.Scope, // H3: use deployment's recorded scope
 				ProjectRoot: d.ProjectPath,
 			})
 		}
