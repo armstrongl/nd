@@ -102,6 +102,14 @@ func TestDeploy_InputActive_PickType(t *testing.T) {
 	}
 }
 
+func TestDeploy_InputActive_PickAgents(t *testing.T) {
+	ds := newTestDeployScreen(deployPickAgents)
+	// pickAgents step has a MultiSelect which is considered input-active
+	if !ds.InputActive() {
+		t.Fatal("InputActive() at pickAgents step should be true")
+	}
+}
+
 func TestDeploy_InputActive_SelectAssets(t *testing.T) {
 	ds := newTestDeployScreen(deploySelectAssets)
 	// selectAssets step has a MultiSelect which is considered input-active
@@ -770,6 +778,28 @@ func TestDeploy_FullHelpItems_PickType(t *testing.T) {
 	}
 	if !hasEnterSelect {
 		t.Errorf("FullHelpItems at pickType should include 'enter select'; got: %v", items)
+	}
+}
+
+func TestDeploy_FullHelpItems_PickAgents(t *testing.T) {
+	ds := newTestDeployScreen(deployPickAgents)
+	items := ds.FullHelpItems()
+
+	hasToggle := false
+	hasEnterConfirm := false
+	for _, item := range items {
+		if item.Key == "x/space" && item.Desc == "toggle" {
+			hasToggle = true
+		}
+		if item.Key == "enter" && item.Desc == "confirm" {
+			hasEnterConfirm = true
+		}
+	}
+	if !hasToggle {
+		t.Errorf("FullHelpItems at pickAgents should include 'x/space toggle'; got: %v", items)
+	}
+	if !hasEnterConfirm {
+		t.Errorf("FullHelpItems at pickAgents should include 'enter confirm'; got: %v", items)
 	}
 }
 

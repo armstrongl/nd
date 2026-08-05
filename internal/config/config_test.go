@@ -70,6 +70,25 @@ func TestConfigDefaultDeployAgentsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConfigDefaultDeployAgentsOmittedWhenEmpty(t *testing.T) {
+	c := config.Config{
+		Version:         1,
+		DefaultScope:    nd.ScopeGlobal,
+		DefaultAgent:    "claude-code",
+		SymlinkStrategy: nd.SymlinkAbsolute,
+		Sources:         []config.SourceEntry{},
+	}
+
+	data, err := yaml.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if contains(string(data), "default_deploy_agents") {
+		t.Errorf("empty default_deploy_agents should be omitted from YAML, got:\n%s", data)
+	}
+}
+
 func TestConfigValidateDefaultDeployAgentsValid(t *testing.T) {
 	c := config.Config{
 		Version:             1,
