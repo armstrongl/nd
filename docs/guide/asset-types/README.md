@@ -1,2 +1,1 @@
-# asset-types
-
+# Asset-types
