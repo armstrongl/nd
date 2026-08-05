@@ -54,15 +54,15 @@ cover link targets.
 
 - [ ] Pick a fix option (default: 1)
 - [ ] Update the reference bullet emitted by `update_task_references` in
-      `scripts/taskmd-issue-sync.py`
+  `scripts/taskmd-issue-sync.py`
 - [ ] Widen `ISSUE_BULLET_RE` and `find_issue_url` to accept bare, angle-bracket, and inline
-      link forms so existing files still parse
+  link forms so existing files still parse
 - [ ] One-time repair pass over the 46 affected files under `tasks/` (`grep -rl "GitHub.com" tasks/`)
 - [ ] Verify `scripts/taskmd-issue-sync.py set <id> --done` still finds and closes the issue on
-      a repaired file
+  a repaired file
 - [ ] Confirm a fresh `add` survives the pre-commit hook with the URL intact
 - [ ] Related: MD063 sentence-case capitalizes the lowercase tool name `rumdl` in headings —
-      add it to `ignore-words` under `[MD063]` in `.rumdl.toml` alongside `nd`
+  add it to `ignore-words` under `[MD063]` in `.rumdl.toml` alongside `nd`
 
 ### Environment
 
