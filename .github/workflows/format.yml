@@ -22,14 +22,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          # A PAT makes the format commit re-trigger CI. With the default
-          # GITHUB_TOKEN, pushes deliberately do not start new workflow runs,
-          # so the PR's checks stay pinned to the pre-format commit.
+          # A PAT makes the format commit re-trigger CI normally. With the
+          # default GITHUB_TOKEN, GitHub creates runs for the pushed commit but
+          # parks them at conclusion `action_required` without executing them,
+          # so the PR is left showing checks that need manual approval.
+          # Verified live on this workflow's own PR.
           token: ${{ secrets.FORMAT_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      # Only relevant when FORMAT_PAT is set: without it the push cannot
-      # re-trigger this workflow, so there is nothing to loop on.
+      # Only bites when FORMAT_PAT is set; without it the re-triggered run
+      # never executes, so there is nothing to loop on either way.
       - name: Skip if HEAD is already a format commit
         id: guard
         run: |
