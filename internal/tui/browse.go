@@ -35,14 +35,14 @@ type browseScreen struct {
 	cursor      int
 	filter      filterInput
 	notice      string // transient feedback (e.g. "already deployed")
-	err       error
-	loaded    bool
+	err         error
+	loaded      bool
 
 	// generation is incremented on every ScopeSwitchedMsg so that stale
 	// browseLoadedMsg results from a previous scope's goroutine are discarded.
 	generation uint64
 
-	height int       // terminal height, updated by tea.WindowSizeMsg
+	height int // terminal height, updated by tea.WindowSizeMsg
 	scroll listScroll
 }
 

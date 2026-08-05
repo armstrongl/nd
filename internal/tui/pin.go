@@ -62,7 +62,7 @@ func newPinScreen(svc Services, styles Styles, isDark bool) *pinScreen {
 	return &pinScreen{svc: svc, styles: styles, isDark: isDark}
 }
 
-func (s *pinScreen) Title() string     { return "Pin/Unpin" }
+func (s *pinScreen) Title() string { return "Pin/Unpin" }
 func (s *pinScreen) InputActive() bool {
 	return s.step == pinSelect || s.step == pinConfirm
 }

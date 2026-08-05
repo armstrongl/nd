@@ -31,7 +31,7 @@ func newRemoveCmd(app *App) *cobra.Command {
 			"docs.guides":  "getting-started,how-nd-works,profiles-and-snapshots",
 			"docs.related": "nd deploy,nd status",
 		},
-		Args:  cobra.ArbitraryArgs,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

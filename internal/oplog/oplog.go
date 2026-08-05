@@ -22,16 +22,16 @@ type LogEntry struct {
 type OperationType string
 
 const (
-	OpDeploy          OperationType = "deploy"
-	OpRemove          OperationType = "remove"
-	OpSync            OperationType = "sync"
-	OpProfileSwitch   OperationType = "profile-switch"
-	OpSnapshotSave    OperationType = "snapshot-save"
-	OpSnapshotRestore OperationType = "snapshot-restore"
-	OpSourceAdd       OperationType = "source-add"
-	OpSourceRemove    OperationType = "source-remove"
-	OpSourceSync      OperationType = "source-sync"
-	OpUninstall          OperationType = "uninstall"
-	OpExport             OperationType = "export"
-	OpExportMarketplace  OperationType = "export-marketplace"
+	OpDeploy            OperationType = "deploy"
+	OpRemove            OperationType = "remove"
+	OpSync              OperationType = "sync"
+	OpProfileSwitch     OperationType = "profile-switch"
+	OpSnapshotSave      OperationType = "snapshot-save"
+	OpSnapshotRestore   OperationType = "snapshot-restore"
+	OpSourceAdd         OperationType = "source-add"
+	OpSourceRemove      OperationType = "source-remove"
+	OpSourceSync        OperationType = "source-sync"
+	OpUninstall         OperationType = "uninstall"
+	OpExport            OperationType = "export"
+	OpExportMarketplace OperationType = "export-marketplace"
 )

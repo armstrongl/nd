@@ -247,4 +247,3 @@ func TestMainMenu_FirstOptionIsDeployNotSeparator(t *testing.T) {
 		t.Fatalf("choice = %q after construction, want %q (first option must be a real item, not separator)", m.choice, "deploy")
 	}
 }
-

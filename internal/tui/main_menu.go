@@ -60,7 +60,7 @@ func newMainMenuScreen(svc Services, styles Styles, isDark bool) *mainMenuScreen
 }
 
 // Screen interface
-func (m *mainMenuScreen) Title() string    { return "Main Menu" }
+func (m *mainMenuScreen) Title() string     { return "Main Menu" }
 func (m *mainMenuScreen) InputActive() bool { return false }
 
 // FullHelpItems returns the menu keybindings for the help bar and overlay.

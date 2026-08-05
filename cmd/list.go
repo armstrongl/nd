@@ -36,7 +36,7 @@ func newListCmd(app *App) *cobra.Command {
 			"docs.guides":  "getting-started,creating-sources,asset-types/skills,asset-types/agents,asset-types/commands,asset-types/rules",
 			"docs.related": "nd deploy",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 
@@ -180,4 +180,3 @@ func newListCmd(app *App) *cobra.Command {
 	})
 	return cmd
 }
-

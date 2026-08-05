@@ -62,7 +62,7 @@ func newScopeErrorScreen(svc Services, styles Styles, isDark bool, msg string) *
 	return s
 }
 
-func (s *scopeScreen) Title() string    { return "Switch Scope" }
+func (s *scopeScreen) Title() string     { return "Switch Scope" }
 func (s *scopeScreen) InputActive() bool { return s.step == scopeFormStep && !s.navigated }
 
 // FullHelpItems returns step-specific keybindings for the help bar and overlay.

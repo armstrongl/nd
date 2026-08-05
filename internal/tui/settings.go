@@ -73,7 +73,7 @@ func (s *settingsScreen) buildMenu() {
 	).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
 }
 
-func (s *settingsScreen) Title() string    { return "Settings" }
+func (s *settingsScreen) Title() string { return "Settings" }
 func (s *settingsScreen) InputActive() bool {
 	return s.step == settingsMenu || s.step == settingsSwitchScope
 }

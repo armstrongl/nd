@@ -17,13 +17,13 @@ func TestValidateNameAcceptsValid(t *testing.T) {
 
 func TestValidateNameRejectsInvalid(t *testing.T) {
 	invalid := []string{
-		"",              // empty
-		"has spaces",    // spaces
+		"",               // empty
+		"has spaces",     // spaces
 		"path/traversal", // slashes
-		"../escape",     // dot-dot
-		".hidden",       // leading dot
-		"special!char",  // special char
-		"a@b",           // at sign
+		"../escape",      // dot-dot
+		".hidden",        // leading dot
+		"special!char",   // special char
+		"a@b",            // at sign
 	}
 	for _, name := range invalid {
 		if err := profile.ValidateName(name); err == nil {
