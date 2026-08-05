@@ -26,7 +26,7 @@ func newDoctorCmd(app *App) *cobra.Command {
 			"docs.guides":  "getting-started,troubleshooting",
 			"docs.related": "nd status,nd sync",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 			report := doctor.Report{}

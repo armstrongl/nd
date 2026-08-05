@@ -5,8 +5,8 @@ import tea "charm.land/bubbletea/v2"
 // Screen is a TUI view that the root model manages on a stack.
 type Screen interface {
 	tea.Model
-	Title() string      // Displayed in breadcrumb context.
-	InputActive() bool  // True when a text field has focus (suppresses global keys).
+	Title() string     // Displayed in breadcrumb context.
+	InputActive() bool // True when a text field has focus (suppresses global keys).
 }
 
 // Navigation messages — screens emit these, root model handles them.

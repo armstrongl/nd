@@ -21,7 +21,7 @@ func newUninstallCmd(app *App) *cobra.Command {
 		Annotations: map[string]string{
 			"docs.guides": "getting-started,troubleshooting",
 		},
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
 

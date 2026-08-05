@@ -12,11 +12,11 @@ import (
 // (tea.Model + Title() + InputActive()).
 type helpTestScreen struct{}
 
-func (helpTestScreen) Init() tea.Cmd                            { return nil }
+func (helpTestScreen) Init() tea.Cmd                           { return nil }
 func (helpTestScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return helpTestScreen{}, nil }
-func (helpTestScreen) View() tea.View                           { return tea.NewView("") }
-func (helpTestScreen) Title() string                            { return "test" }
-func (helpTestScreen) InputActive() bool                        { return false }
+func (helpTestScreen) View() tea.View                          { return tea.NewView("") }
+func (helpTestScreen) Title() string                           { return "test" }
+func (helpTestScreen) InputActive() bool                       { return false }
 
 // helpTestScreenWithItems is a screen that also implements HelpProvider.
 type helpTestScreenWithItems struct{ helpTestScreen }

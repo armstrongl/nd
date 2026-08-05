@@ -21,7 +21,7 @@ func newExportScreen(svc Services, styles Styles, isDark bool) *exportScreen {
 	return &exportScreen{styles: styles}
 }
 
-func (s *exportScreen) Title() string    { return "Export" }
+func (s *exportScreen) Title() string     { return "Export" }
 func (s *exportScreen) InputActive() bool { return false }
 
 func (s *exportScreen) Init() tea.Cmd { return nil }

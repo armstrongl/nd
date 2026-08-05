@@ -481,7 +481,7 @@ func TestBrowseScreen_ScrollOffsetAdjustsWhenCursorMovesUp(t *testing.T) {
 	s.cursor = 9
 	s.scroll.offset = 5
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 8, fine
-	s.scroll.offset = 5                                       // force offset above cursor
+	s.scroll.offset = 5                                      // force offset above cursor
 	s.cursor = 3
 	s.Update(tea.KeyPressMsg(tea.Key{Code: 'k', Text: "k"})) // cursor → 2 < offset 5 → adjust
 

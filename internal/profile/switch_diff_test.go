@@ -21,9 +21,9 @@ func TestComputeSwitchDiff(t *testing.T) {
 	target := &profile.Profile{
 		Version: 1, Name: "target", CreatedAt: now, UpdatedAt: now,
 		Assets: []profile.ProfileAsset{
-			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "a", Scope: nd.ScopeGlobal},  // keep
-			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "d", Scope: nd.ScopeGlobal},  // deploy
-			{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "c", Scope: nd.ScopeGlobal},  // different scope = remove + deploy
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "a", Scope: nd.ScopeGlobal}, // keep
+			{SourceID: "s1", AssetType: nd.AssetSkill, AssetName: "d", Scope: nd.ScopeGlobal}, // deploy
+			{SourceID: "s1", AssetType: nd.AssetAgent, AssetName: "c", Scope: nd.ScopeGlobal}, // different scope = remove + deploy
 		},
 	}
 
